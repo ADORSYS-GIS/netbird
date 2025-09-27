@@ -1,0 +1,48 @@
+{
+  "ManagementURL": "https://api.netbird.io:443",
+  "AdminURL": "https://app.netbird.io",
+  "ConfigPath": "/etc/netbird/config.json",
+  "LogFile": "/var/log/netbird/client.log",
+  "LogLevel": "info",
+  "SetupKey": "YOUR_SETUP_KEY_HERE",
+  "PreSharedKey": "",
+  "Interface": {
+    "Name": "wt0",
+    "Address": "100.64.0.0/10",
+    "MTU": 1280,
+    "ListenPort": 51820
+  },
+  "WireguardInterface": {
+    "Name": "wt0",
+    "Address": "100.64.0.0/10",
+    "MTU": 1280,
+    "ListenPort": 51820
+  },
+  "IFaceBlackList": [
+    "tun",
+    "utun",
+    "tap",
+    "tailscale"
+  ],
+  "DisableAutoConnect": false,
+  "ServerSSHAllowed": false,
+  "RosenpassEnabled": false,
+  "RosenpassPermissive": false,
+  "InterfaceBlackList": [],
+  "FirewallMark": 0,
+  "DNS": {
+    "NameServers": [
+      "100.64.0.100"
+    ],
+    "Domains": [
+      "netbird.local"
+    ],
+    "CustomZones": []
+  },
+  "ExtraIFaceBlackList": [],
+  "NetworkMonitor": {
+    "Enabled": true,
+    "Interval": 30
+  },
+  "CustomDNSAddress": ""
+}
