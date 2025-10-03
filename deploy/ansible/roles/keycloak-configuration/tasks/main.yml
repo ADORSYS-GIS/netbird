@@ -1,0 +1,36 @@
+---
+- name: Keycloak Configuration for NetBird
+  block:
+    - name: Wait for Keycloak to be accessible
+      include_tasks: wait_for_keycloak.yml
+      tags: ['keycloak-wait']
+
+    - name: Configure Keycloak Admin CLI
+      include_tasks: configure_admin_cli.yml
+      tags: ['keycloak-cli']
+
+    - name: Create NetBird realm
+      include_tasks: create_realm.yml
+      tags: ['keycloak-realm']
+
+    - name: Create NetBird clients
+      include_tasks: create_clients.yml
+      tags: ['keycloak-clients']
+
+    - name: Create test user
+      include_tasks: create_test_user.yml
+      tags: ['keycloak-users']
+
+    - name: Update environment with client secrets
+      include_tasks: update_client_secrets.yml
+      tags: ['keycloak-secrets']
+
+    - name: Create password summary
+      include_tasks: create_summary.yml
+      tags: ['keycloak-summary']
+
+  rescue:
+    - name: Keycloak configuration failed
+      debug:
+        msg: "Keycloak configuration failed. Check the logs above for details."
+      failed_when: true
