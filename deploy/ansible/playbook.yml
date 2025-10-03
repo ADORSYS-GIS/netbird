@@ -1,0 +1,124 @@
+---
+- name: Deploy NetBird Control Plane with Keycloak
+  hosts: netbird
+  gather_facts: yes
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+      become: yes
+
+    - name: Gather network facts
+      setup:
+        gather_subset: network
+
+    - name: Set dynamic variables based on facts
+      set_fact:
+        netbird_external_ip: "{{ ansible_default_ipv4.address }}"
+        netbird_hostname: "{{ ansible_hostname }}"
+        netbird_fqdn: "{{ ansible_fqdn }}"
+
+    - name: Display deployment information
+      debug:
+        msg:
+          - "Deploying NetBird on: {{ inventory_hostname }}"
+          - "External IP: {{ netbird_external_ip }}"
+          - "Domain: {{ netbird_domain }}"
+          - "Hostname: {{ netbird_hostname }}"
+
+  roles:
+    - role: system-preparation
+      tags: ['system', 'preparation', 'docker']
+      become: yes  # Entire role needs root for system tasks
+      
+    - role: netbird-environment
+      tags: ['environment', 'config']
+      become: yes  # Needs root for file creation
+      
+    - role: netbird-deployment
+      tags: ['deployment', 'docker-compose']
+      # No become needed - uses become_user for Docker commands
+
+  post_tasks:
+    - name: Wait for services to be ready
+      uri:
+        url: "{{ item.url }}"
+        method: GET
+        status_code: [200, 302, 404]
+      register: service_check
+      until: service_check.status in [200, 302, 404]
+      retries: 30
+      delay: 10
+      loop:
+        - { name: "Keycloak", url: "http://{{ netbird_domain }}:{{ netbird_keycloak_port }}/realms/master" }
+        - { name: "Dashboard", url: "http://{{ netbird_domain }}:{{ netbird_dashboard_port }}" }
+      ignore_errors: yes
+
+    - name: Configure Keycloak (after services are ready)
+      include_role:
+        name: keycloak-configuration
+      tags: ['keycloak', 'config']
+      when: configure_keycloak | default(true)
+
+    - name: Restart services to apply configuration changes
+      command: docker compose restart
+      args:
+        chdir: "{{ netbird_base_dir }}"
+      become_user: "{{ ansible_user }}"
+      become: yes
+      tags: ['restart-services']
+      when: configure_keycloak | default(true)
+
+    - name: Wait for services after restart
+      uri:
+        url: "{{ item.url }}"
+        method: GET
+        status_code: [200, 302, 404]
+      register: service_restart_check
+      until: service_restart_check.status in [200, 302, 404]
+      retries: 20
+      delay: 10
+      loop:
+        - { name: "Keycloak", url: "http://{{ netbird_domain }}:{{ netbird_keycloak_port }}/realms/master" }
+        - { name: "Dashboard", url: "http://{{ netbird_domain }}:{{ netbird_dashboard_port }}" }
+      ignore_errors: yes
+      tags: ['restart-health-check']
+      when: configure_keycloak | default(true)
+
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "🎉 NetBird Control Plane deployment completed!"
+          - ""
+          - "📋 Access Information:"
+          - "  🔐 Keycloak Admin: http://{{ netbird_domain }}:{{ netbird_keycloak_port }}/admin"
+          - "      Username: {{ keycloak_admin_user }}"
+          - "      Password: {{ keycloak_admin_password }}"
+          - ""
+          - "  🌐 NetBird Dashboard: http://{{ netbird_domain }}:{{ netbird_dashboard_port }}"
+          - "  📡 Management API: http://{{ netbird_domain }}:{{ netbird_management_port }}"
+          - ""
+          - "🔐 Test Credentials:"
+          - "  Username: {{ netbird_test_user }}"
+          - "  Password: {{ netbird_test_password }}"
+          - ""
+          - "📁 Configuration stored in: {{ netbird_deployment_dir }}"
+
+  handlers:
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
+        daemon_reload: yes
+      become: yes
+
+    - name: restart ufw
+      systemd:
+        name: ufw
+        state: restarted
+      become: yes
