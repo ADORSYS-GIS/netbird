@@ -1,0 +1,23 @@
+---
+- name: NetBird Keycloak Configuration Only
+  hosts: netbird
+  gather_facts: yes
+  vars_files:
+    - inventory/group_vars/all.yml
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  
+  pre_tasks:
+    - name: Set dynamic variables based on facts
+      set_fact:
+        netbird_external_ip: "{{ ansible_default_ipv4.address }}"
+        netbird_hostname: "{{ ansible_hostname }}"
+        netbird_fqdn: "{{ ansible_fqdn }}"
+
+  roles:
+    - role: netbird-environment
+      tags: ['environment', 'passwords']
+      become: yes
+      
+    - role: keycloak-configuration
+      tags: ['keycloak', 'configuration']

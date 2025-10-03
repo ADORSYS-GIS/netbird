@@ -1,0 +1,84 @@
+---
+# Global NetBird Configuration Variables
+
+# Version Configuration
+netbird_version: "latest"
+keycloak_version: "22.0"
+postgres_version: "15"
+docker_compose_version: "2.20.0"
+
+# Network Configuration
+netbird_external_domain: "{{ netbird_domain | default(ansible_default_ipv4.address) }}"
+netbird_internal_domain: "{{ netbird_domain | default(ansible_default_ipv4.address) }}"
+
+# Directory Structure
+netbird_base_dir: "{{ netbird_deployment_dir }}"
+netbird_config_dir: "{{ netbird_base_dir }}/config"
+netbird_scripts_dir: "{{ netbird_base_dir }}/scripts"
+netbird_data_dir: "{{ netbird_base_dir }}/data"
+netbird_logs_dir: "{{ netbird_base_dir }}/logs"
+
+# Database Configuration
+postgres_db: "netbird"
+postgres_user: "netbird"
+postgres_multiple_databases: "netbird,keycloak"
+
+# Keycloak Configuration
+keycloak_admin_user: "admin"
+keycloak_realm: "netbird"
+keycloak_db_vendor: "postgres"
+
+# NetBird Service Configuration
+netbird_mgmt_single_account_mode_domain: "{{ netbird_domain }}"
+netbird_mgmt_idp_signkey_refresh: true
+netbird_signal_protocol: "http"
+netbird_disable_anonymous_metrics: false
+
+# TURN Server Configuration
+turn_domain: "{{ netbird_domain }}"
+turn_user: "netbird"
+
+# Test User Configuration
+netbird_test_user: "testuser"
+netbird_test_password: "testpassword"
+netbird_test_email: "test@netbird.local"
+
+# Security Configuration
+password_length: 32
+use_ansible_vault: false
+
+# Docker Configuration
+docker_package_state: "present"
+docker_service_state: "started"
+docker_service_enabled: true
+
+# System Configuration
+required_packages:
+  - curl
+  - jq
+  - git
+  - unzip
+  - wget
+  - apt-transport-https
+  - ca-certificates
+  - gnupg
+  - lsb-release
+
+# Firewall Rules
+firewall_rules:
+  - { rule: "allow", port: "22", proto: "tcp", comment: "SSH" }
+  - { rule: "allow", port: "{{ netbird_dashboard_port }}", proto: "tcp", comment: "NetBird Dashboard" }
+  - { rule: "allow", port: "{{ netbird_keycloak_port }}", proto: "tcp", comment: "Keycloak" }
+  - { rule: "allow", port: "{{ netbird_management_port }}", proto: "tcp", comment: "NetBird Management" }
+  - { rule: "allow", port: "{{ netbird_signal_port }}", proto: "tcp", comment: "NetBird Signal" }
+  - { rule: "allow", port: "{{ netbird_relay_port }}", proto: "tcp", comment: "NetBird Relay" }
+  - { rule: "allow", port: "{{ netbird_stun_port }}", proto: "udp", comment: "STUN/TURN UDP" }
+  - { rule: "allow", port: "{{ netbird_stun_port }}", proto: "tcp", comment: "STUN/TURN TCP" }
+
+# Health Check Configuration
+health_check_retries: 30
+health_check_delay: 10
+
+# Backup Configuration
+backup_retention_days: 7
+backup_enabled: true
