@@ -1,0 +1,54 @@
+---
+- name: Check if running as root (with role-level become)
+  debug:
+    msg: 
+      - "Running as user: {{ ansible_user }}"
+      - "Effective user: {{ ansible_user_uid }}"
+      - "Role uses become: yes for system tasks"
+      - "Ready for deployment"
+
+- name: Gather system information
+  setup:
+    gather_subset: 
+      - hardware
+      - network
+
+- name: Check CPU cores
+  debug:
+    msg: "CPU Cores: {{ ansible_processor_vcpus }}"
+
+- name: Check memory
+  debug:
+    msg: "Memory: {{ ansible_memtotal_mb }}MB"
+
+- name: Warn about low memory
+  debug:
+    msg: "WARNING: Recommended minimum is 2GB RAM. You have {{ ansible_memtotal_mb }}MB"
+  when: ansible_memtotal_mb < 2048
+
+- name: Check disk space
+  shell: df -h {{ netbird_deployment_dir | dirname }} | awk 'NR==2 {print $4}'
+  register: available_space
+  changed_when: false
+
+- name: Display available disk space
+  debug:
+    msg: "Available disk space: {{ available_space.stdout }}"
+
+- name: Check if system is Ubuntu/Debian
+  fail:
+    msg: "This playbook is designed for Ubuntu/Debian systems"
+  when: ansible_os_family != "Debian"
+
+- name: Check network connectivity
+  uri:
+    url: "https://download.docker.com"
+    method: HEAD
+    timeout: 10
+  register: network_check
+  failed_when: false
+
+- name: Warn about network connectivity
+  debug:
+    msg: "WARNING: Cannot reach Docker repository. Check internet connectivity."
+  when: network_check.status != 200

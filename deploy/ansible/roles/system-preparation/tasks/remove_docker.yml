@@ -1,0 +1,74 @@
+---
+
+- name: Stop Docker services
+  systemd:
+    name: "{{ item }}"
+    state: stopped
+  loop:
+    - docker.service
+    - docker.socket
+    - containerd.service
+  failed_when: false
+  ignore_errors: true
+  become: yes
+
+- name: Remove existing Docker packages (with retry logic)
+  apt:
+    name:
+      - docker
+      - docker-engine
+      - docker.io
+      - containerd
+      - runc
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: absent
+    purge: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  become: yes
+  register: docker_removal_result
+  until: docker_removal_result is succeeded
+  retries: 3
+  delay: 30
+
+- name: Remove Docker data directories
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /var/lib/docker
+    - /var/lib/containerd
+  ignore_errors: true
+  become: yes
+
+- name: Remove docker group if it exists
+  group:
+    name: docker
+    state: absent
+  ignore_errors: true
+  become: yes
+
+- name: Remove Docker GPG key and repository
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/apt/keyrings/docker.gpg
+    - /etc/apt/sources.list.d/docker.list
+  ignore_errors: true
+  become: yes
+
+- name: Update apt cache after cleanup (with retry logic)
+  apt:
+    update_cache: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  become: yes
+  register: apt_update_result
+  until: apt_update_result is succeeded
+  retries: 3
+  delay: 30
