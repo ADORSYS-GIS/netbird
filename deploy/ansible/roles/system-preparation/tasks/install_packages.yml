@@ -1,0 +1,63 @@
+---
+- name: Update apt cache (with retry logic)
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  become: yes
+  register: apt_cache_result
+  until: apt_cache_result is succeeded
+  retries: 3
+  delay: 30
+
+- name: Install required packages (with retry logic)
+  apt:
+    name: "{{ required_packages }}"
+    state: present
+    update_cache: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  become: yes
+  register: packages_install_result
+  until: packages_install_result is succeeded
+  retries: 3
+  delay: 30
+
+- name: Install UFW firewall (with retry logic)
+  apt:
+    name: ufw
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: firewall_enabled | default(true)
+  become: yes
+  register: ufw_install_result
+  until: ufw_install_result is succeeded
+  retries: 3
+  delay: 30
+
+- name: Verify jq installation
+  command: jq --version
+  register: jq_version
+  changed_when: false
+  failed_when: false
+
+- name: Display jq version
+  debug:
+    msg: "jq version: {{ jq_version.stdout }}"
+  when: jq_version.rc == 0
+
+- name: Install additional tools for NetBird (with retry logic)
+  apt:
+    name:
+      - openssl
+      - pwgen
+    state: present
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  become: yes
+  register: additional_tools_result
+  until: additional_tools_result is succeeded
+  retries: 3
+  delay: 30
