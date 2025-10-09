@@ -1,0 +1,34 @@
+---
+- name: Configure Keycloak Admin CLI credentials
+  command: >
+    docker compose exec keycloak /opt/keycloak/bin/kcadm.sh config credentials
+    --server http://localhost:8080
+    --realm master
+    --user {{ keycloak_admin_user }}
+    --password {{ keycloak_admin_password }}
+  args:
+    chdir: "{{ netbird_base_dir }}"
+  become_user: "{{ ansible_user }}"
+  become: yes
+  register: cli_config
+  changed_when: "'Logging into' in cli_config.stderr"
+
+- name: Display CLI configuration status
+  debug:
+    msg: "✅ Keycloak Admin CLI configured successfully"
+  when: cli_config.rc == 0
+
+- name: Test CLI configuration
+  command: >
+    docker compose exec keycloak /opt/keycloak/bin/kcadm.sh get realms/master
+  args:
+    chdir: "{{ netbird_base_dir }}"
+  become_user: "{{ ansible_user }}"
+  become: yes
+  register: cli_test
+  changed_when: false
+
+- name: Verify CLI is working
+  debug:
+    msg: "✅ Keycloak Admin CLI is working correctly"
+  when: cli_test.rc == 0

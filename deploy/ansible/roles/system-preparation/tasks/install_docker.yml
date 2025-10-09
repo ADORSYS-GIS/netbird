@@ -1,0 +1,139 @@
+---
+- name: Create keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Add Docker GPG key
+  get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /tmp/docker.gpg
+    mode: '0644'
+
+- name: Import Docker GPG key
+  shell: |
+    gpg --dearmor < /tmp/docker.gpg > /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
+  become: yes
+
+- name: Check system architecture
+  debug:
+    msg: "System reports architecture: {{ ansible_architecture }}"
+
+- name: Set correct Docker architecture mapping
+  set_fact:
+    docker_arch: >
+      {%- if ansible_architecture == 'x86_64' -%}
+      amd64
+      {%- elif ansible_architecture == 'aarch64' -%}
+      arm64
+      {%- elif ansible_architecture == 'armv7l' -%}
+      armhf
+      {%- else -%}
+      {{ ansible_architecture }}
+      {%- endif -%}
+
+- name: Display Docker architecture mapping
+  debug:
+    msg: "Using Docker architecture: {{ docker_arch }}"
+
+- name: Add Docker repository
+  apt_repository:
+    repo: "deb [arch={{ docker_arch }} signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+    filename: docker
+  become: yes
+
+- name: Update apt cache for Docker repository (with retry logic)
+  apt:
+    update_cache: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  become: yes
+  register: docker_apt_cache_result
+  until: docker_apt_cache_result is succeeded
+  retries: 3
+  delay: 30
+
+- name: Install Docker packages (with retry logic)
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: "{{ docker_package_state }}"
+    update_cache: yes
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  become: yes
+  register: docker_install_result
+  until: docker_install_result is succeeded
+  retries: 3
+  delay: 30
+
+- name: Create docker group
+  group:
+    name: docker
+    state: present
+  become: yes
+
+- name: Add users to docker group
+  user:
+    name: "{{ item }}"
+    groups: docker
+    append: yes
+  loop: "{{ docker_users }}"
+  when: docker_users is defined
+  become: yes
+
+- name: Start and enable Docker service
+  systemd:
+    name: docker
+    state: "{{ docker_service_state }}"
+    enabled: "{{ docker_service_enabled }}"
+    daemon_reload: yes
+  become: yes
+
+- name: Wait for Docker to be ready
+  pause:
+    seconds: 5
+
+- name: Verify Docker is running
+  systemd:
+    name: docker
+  register: docker_status
+  become: yes
+
+- name: Restart Docker if not active
+  systemd:
+    name: docker
+    state: restarted
+  when: docker_status.status.ActiveState != "active"
+  notify: restart docker
+  become: yes
+
+- name: Test Docker installation
+  command: docker --version
+  register: docker_version_output
+  changed_when: false
+  become: yes
+
+- name: Display Docker version
+  debug:
+    msg: "Docker installed successfully: {{ docker_version_output.stdout }}"
+
+- name: Test Docker Compose installation
+  command: docker compose version
+  register: compose_version_output
+  changed_when: false
+  become: yes
+
+- name: Display Docker Compose version
+  debug:
+    msg: "Docker Compose installed successfully: {{ compose_version_output.stdout }}"

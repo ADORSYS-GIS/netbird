@@ -1,0 +1,103 @@
+---
+- name: Complete NetBird Deployment with Proper Sequencing
+  hosts: netbird
+  gather_facts: yes
+  vars_files:
+    - inventory/group_vars/all.yml
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  
+  pre_tasks:
+    - name: Set dynamic variables based on facts
+      set_fact:
+        netbird_external_ip: "{{ ansible_default_ipv4.address }}"
+        netbird_hostname: "{{ ansible_hostname }}"
+        netbird_fqdn: "{{ ansible_fqdn }}"
+
+    - name: Display deployment information
+      debug:
+        msg:
+          - "🚀 Starting Complete NetBird Deployment"
+          - "Server: {{ inventory_hostname }}"
+          - "External IP: {{ netbird_external_ip }}"
+          - "Domain: {{ netbird_domain }}"
+
+  tasks:
+    # Step 1: System Preparation
+    - name: Prepare System
+      include_role:
+        name: system-preparation
+      tags: ['system', 'preparation']
+      become: yes
+
+    # Step 2: Environment Configuration
+    - name: Generate Environment Configuration
+      include_role:
+        name: netbird-environment
+      tags: ['environment', 'config']
+      become: yes
+
+    # Step 3: Deploy Services
+    - name: Deploy NetBird Services
+      include_role:
+        name: netbird-deployment
+      tags: ['deployment', 'docker-compose']
+
+    # Step 4: Wait for Services to Start
+    - name: Wait for Keycloak to be ready
+      uri:
+        url: "http://{{ netbird_external_domain }}:{{ netbird_keycloak_port }}/realms/master"
+        method: GET
+        status_code: 200
+      register: keycloak_health
+      until: keycloak_health.status == 200
+      retries: 30
+      delay: 10
+      tags: ['health-check']
+
+    - name: Display service startup status
+      debug:
+        msg:
+          - "✅ Services are ready!"
+          - "🔐 Keycloak: http://{{ netbird_external_domain }}:{{ netbird_keycloak_port }}"
+          - "🌐 Dashboard: http://{{ netbird_external_domain }}:{{ netbird_dashboard_port }}"
+
+    # Step 5: Configure Keycloak (After Services are Ready)
+    - name: Configure Keycloak
+      include_role:
+        name: keycloak-configuration
+      tags: ['keycloak', 'configuration']
+
+    # Step 6: Final Health Check
+    - name: Final health check
+      uri:
+        url: "{{ item.url }}"
+        method: GET
+        status_code: 200
+      loop:
+        - { name: 'Keycloak', url: 'http://{{ netbird_external_domain }}:{{ netbird_keycloak_port }}/realms/master' }
+        - { name: 'Dashboard', url: 'http://{{ netbird_external_domain }}:{{ netbird_dashboard_port }}' }
+        - { name: 'Management', url: 'http://{{ netbird_external_domain }}:{{ netbird_management_port }}' }
+      register: final_health_check
+      failed_when: false
+      tags: ['final-check']
+
+    - name: Display final deployment status
+      debug:
+        msg:
+          - "🎉 NetBird Complete Deployment Finished!"
+          - ""
+          - "📋 Access Information:"
+          - "  🔐 Keycloak Admin: http://{{ netbird_external_domain }}:{{ netbird_keycloak_port }}/admin"
+          - "      Username: admin"
+          - "      Password: {{ keycloak_admin_password }}"
+          - ""
+          - "  🌐 NetBird Dashboard: http://{{ netbird_external_domain }}:{{ netbird_dashboard_port }}"
+          - "  📡 Management API: http://{{ netbird_external_domain }}:{{ netbird_management_port }}"
+          - ""
+          - "🔐 Test Credentials:"
+          - "  Username: {{ netbird_test_user }}"
+          - "  Password: {{ netbird_test_password }}"
+          - ""
+          - "📁 Configuration: {{ netbird_base_dir }}"
+          - "🔑 Passwords: {{ netbird_config_dir }}/IMPORTANT-PASSWORDS.txt"

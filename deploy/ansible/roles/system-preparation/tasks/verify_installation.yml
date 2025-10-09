@@ -1,0 +1,72 @@
+---
+- name: Check Docker service status
+  systemd:
+    name: docker
+  register: docker_service_status
+
+- name: Verify Docker is active
+  assert:
+    that:
+      - docker_service_status.status.ActiveState == "active"
+    fail_msg: "Docker service is not active"
+    success_msg: "Docker service is running"
+
+- name: Test Docker command
+  command: docker info
+  register: docker_info
+  changed_when: false
+  become: yes
+
+- name: Check if user is in docker group
+  command: groups {{ ansible_user }}
+  register: user_groups
+  changed_when: false
+
+- name: Verify docker group membership
+  assert:
+    that:
+      - "'docker' in user_groups.stdout"
+    fail_msg: "User {{ ansible_user }} is not in docker group. You may need to log out and back in."
+    success_msg: "User {{ ansible_user }} is in docker group"
+
+- name: Check network connectivity
+  uri:
+    url: "https://ipinfo.io/ip"
+    method: GET
+    timeout: 10
+  register: public_ip_check
+  failed_when: false
+
+- name: Display public IP
+  debug:
+    msg: "Public IP: {{ public_ip_check.content | default(public_ip_check.msg | default('Unable to detect')) | trim }}"
+  when: public_ip_check.status is defined and public_ip_check.status == 200
+
+- name: Check port availability
+  wait_for:
+    port: "{{ item }}"
+    host: "{{ ansible_default_ipv4.address }}"
+    timeout: 1
+    state: stopped
+  loop:
+    - "{{ netbird_dashboard_port }}"
+    - "{{ netbird_keycloak_port }}"
+    - "{{ netbird_management_port }}"
+  register: port_check
+  failed_when: false
+
+- name: Display port availability
+  debug:
+    msg: "Port {{ item.item }} is available"
+  loop: "{{ port_check.results }}"
+  when: item.failed is defined and not item.failed
+
+- name: System preparation summary
+  debug:
+    msg:
+      - "✅ System preparation completed successfully!"
+      - "✅ Docker installed and running"
+      - "✅ Firewall configured"
+      - "✅ Directories created"
+      - "✅ Required packages installed"
+      - "📋 Ready for NetBird deployment"

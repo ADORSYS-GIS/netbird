@@ -1,0 +1,52 @@
+---
+- name: Validate environment file exists
+  stat:
+    path: "{{ netbird_config_dir }}/netbird.env"
+  register: env_file_check
+
+- name: Fail if environment file doesn't exist
+  fail:
+    msg: "Environment file not found at {{ netbird_config_dir }}/netbird.env"
+  when: not env_file_check.stat.exists
+
+- name: Validate Docker Compose environment file exists
+  stat:
+    path: "{{ netbird_base_dir }}/.env"
+  register: compose_env_check
+
+- name: Fail if Docker Compose environment file doesn't exist
+  fail:
+    msg: "Docker Compose environment file not found at {{ netbird_base_dir }}/.env"
+  when: not compose_env_check.stat.exists
+
+- name: Validate required environment variables
+  shell: |
+    . {{ netbird_config_dir }}/netbird.env
+    missing_vars=""
+    
+    # Check critical variables
+    [ -z "$NETBIRD_DOMAIN" ] && missing_vars="$missing_vars NETBIRD_DOMAIN"
+    [ -z "$POSTGRES_PASSWORD" ] && missing_vars="$missing_vars POSTGRES_PASSWORD"
+    [ -z "$KEYCLOAK_ADMIN_PASSWORD" ] && missing_vars="$missing_vars KEYCLOAK_ADMIN_PASSWORD"
+    [ -z "$NETBIRD_DATASTORE_ENC_KEY" ] && missing_vars="$missing_vars NETBIRD_DATASTORE_ENC_KEY"
+    
+    if [ -n "$missing_vars" ]; then
+        echo "Missing required variables:$missing_vars"
+        exit 1
+    else
+        echo "All required variables present"
+        exit 0
+    fi
+  args:
+    executable: /bin/bash
+  register: env_validation
+  changed_when: false
+
+- name: Display environment validation result
+  debug:
+    msg:
+      - "✅ Environment validation passed"
+      - "📁 Environment file: {{ netbird_config_dir }}/netbird.env"
+      - "📁 Docker Compose env: {{ netbird_base_dir }}/.env"
+      - "🌐 Domain: {{ netbird_external_domain }}"
+      - "🔗 External IP: {{ netbird_external_ip }}"

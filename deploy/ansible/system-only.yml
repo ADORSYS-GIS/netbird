@@ -1,0 +1,12 @@
+---
+- name: NetBird System Preparation Only
+  hosts: netbird
+  gather_facts: yes
+  vars_files:
+    - inventory/group_vars/all.yml
+  
+  tasks:
+    - name: Prepare System
+      include_role:
+        name: system-preparation
+      tags: system-preparation
