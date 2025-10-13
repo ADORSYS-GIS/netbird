@@ -1,0 +1,29 @@
+---
+# Deploy Keycloak container with TLS and realm bootstrap
+
+- name: Ensure shared network exists
+  community.docker.docker_network:
+    name: netbird_net
+    state: present
+
+- name: Render Keycloak docker-compose definition
+  ansible.builtin.template:
+    src: templates/keycloak-docker-compose.yml.j2
+    dest: "{{ keycloak_compose_dir }}/docker-compose.yml"
+    mode: '0644'
+
+- name: Ensure Keycloak stack is running
+  community.docker.docker_compose_v2:
+    project_src: "{{ keycloak_compose_dir }}"
+    files:
+      - docker-compose.yml
+    recreate: smart
+
+- name: Wait for Keycloak admin endpoint
+  ansible.builtin.uri:
+    url: "https://{{ keycloak_domain }}/realms/master/.well-known/openid-configuration"
+    method: GET
+    validate_certs: false
+    status_code: 200
+    retries: 30
+    delay: 10

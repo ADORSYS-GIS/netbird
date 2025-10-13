@@ -1,0 +1,29 @@
+tls:
+  certificates:
+    - certFile: /certs/netbird.crt
+      keyFile: /certs/netbird.key
+    - certFile: /certs/keycloak.crt
+      keyFile: /certs/keycloak.key
+http:
+  routers:
+    netbird:
+      entryPoints:
+        - websecure
+      rule: Host(`{{ netbird_domain }}`)
+      service: netbird
+      tls: {}
+    keycloak:
+      entryPoints:
+        - websecure
+      rule: Host(`{{ keycloak_domain }}`)
+      service: keycloak
+      tls: {}
+  services:
+    netbird:
+      loadBalancer:
+        servers:
+          - url: http://netbird-dashboard:443
+    keycloak:
+      loadBalancer:
+        servers:
+          - url: http://keycloak:8080

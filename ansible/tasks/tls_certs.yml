@@ -1,0 +1,91 @@
+---
+# Generate trusted self-signed certificates for Traefik, NetBird, and Keycloak
+
+- name: Create local CA private key
+  community.crypto.openssl_privatekey:
+    path: "{{ tls_dir }}/netbird_ca.key"
+    size: 4096
+    type: RSA
+
+- name: Create local CA certificate
+  community.crypto.openssl_certificate:
+    path: "{{ tls_dir }}/netbird_ca.crt"
+    privatekey_path: "{{ tls_dir }}/netbird_ca.key"
+    subject:
+      common_name: "NetBird Local Root CA"
+    provider: selfsigned
+    csr_path: "{{ tls_dir }}/netbird_ca.csr"
+    expires: 315360000  # ~10 years
+
+- name: Create subject alt name list for NetBird
+  ansible.builtin.set_fact:
+    netbird_sans:
+      - "DNS:{{ netbird_domain }}"
+      - "DNS:*.{{ netbird_domain }}"
+      - "IP:127.0.0.1"
+
+- name: Create subject alt name list for Keycloak
+  ansible.builtin.set_fact:
+    keycloak_sans:
+      - "DNS:{{ keycloak_domain }}"
+      - "DNS:*.{{ keycloak_domain }}"
+      - "IP:127.0.0.1"
+
+- name: Generate NetBird TLS private key
+  community.crypto.openssl_privatekey:
+    path: "{{ tls_dir }}/netbird.key"
+    size: 4096
+
+- name: Generate NetBird certificate signing request
+  community.crypto.openssl_csr:
+    path: "{{ tls_dir }}/netbird.csr"
+    privatekey_path: "{{ tls_dir }}/netbird.key"
+    common_name: "{{ netbird_domain }}"
+    subject_alt_name: "{{ netbird_sans }}"
+
+- name: Sign NetBird certificate with local CA
+  community.crypto.openssl_certificate:
+    path: "{{ tls_dir }}/netbird.crt"
+    csr_path: "{{ tls_dir }}/netbird.csr"
+    privatekey_path: "{{ tls_dir }}/netbird_ca.key"
+    certificate_path: "{{ tls_dir }}/netbird_ca.crt"
+    subject_alt_name: "{{ netbird_sans }}"
+    provider: ownca
+    ownca_path: "{{ tls_dir }}/netbird_ca.crt"
+    ownca_privatekey_path: "{{ tls_dir }}/netbird_ca.key"
+    expires: 63072000  # 2 years
+
+- name: Generate Keycloak TLS private key
+  community.crypto.openssl_privatekey:
+    path: "{{ tls_dir }}/keycloak.key"
+    size: 4096
+
+- name: Generate Keycloak certificate signing request
+  community.crypto.openssl_csr:
+    path: "{{ tls_dir }}/keycloak.csr"
+    privatekey_path: "{{ tls_dir }}/keycloak.key"
+    common_name: "{{ keycloak_domain }}"
+    subject_alt_name: "{{ keycloak_sans }}"
+
+- name: Sign Keycloak certificate with local CA
+  community.crypto.openssl_certificate:
+    path: "{{ tls_dir }}/keycloak.crt"
+    csr_path: "{{ tls_dir }}/keycloak.csr"
+    privatekey_path: "{{ tls_dir }}/netbird_ca.key"
+    certificate_path: "{{ tls_dir }}/netbird_ca.crt"
+    subject_alt_name: "{{ keycloak_sans }}"
+    provider: ownca
+    ownca_path: "{{ tls_dir }}/netbird_ca.crt"
+    ownca_privatekey_path: "{{ tls_dir }}/netbird_ca.key"
+    expires: 63072000
+
+- name: Install CA certificate into system trust store
+  ansible.builtin.copy:
+    src: "{{ tls_dir }}/netbird_ca.crt"
+    dest: /usr/local/share/ca-certificates/netbird_ca.crt
+    mode: '0644'
+
+- name: Update CA trust store
+  ansible.builtin.command: update-ca-certificates
+  register: update_ca
+  changed_when: "updating certificates" in update_ca.stdout_lower

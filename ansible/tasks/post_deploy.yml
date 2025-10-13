@@ -1,0 +1,52 @@
+---
+# Post-deployment configuration leveraging NetBird CLI/HTTP APIs
+
+- name: Install NetBird CLI for automation tasks
+  ansible.builtin.get_url:
+    url: https://github.com/netbirdio/netbird/releases/latest/download/netbird_linux_amd64.tar.gz
+    dest: /tmp/netbird.tar.gz
+    mode: '0644'
+
+- name: Extract NetBird CLI
+  ansible.builtin.unarchive:
+    src: /tmp/netbird.tar.gz
+    dest: /usr/local/bin/
+    remote_src: true
+
+- name: Set NetBird CLI executable permissions
+  ansible.builtin.file:
+    path: /usr/local/bin/netbird
+    mode: '0755'
+
+- name: Authenticate NetBird CLI using setup key
+  ansible.builtin.shell: |
+    set -euo pipefail
+    export NETBIRD_URL="https://{{ netbird_domain }}"
+    export NETBIRD_SKIP_TLS_VERIFY=0
+    netbird login --setup-key "{{ netbird_setup_key }}"
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Configure default deny ACL policy via API
+  ansible.builtin.uri:
+    url: "https://{{ netbird_domain }}/api/policies"
+    method: POST
+    headers:
+      Content-Type: application/json
+    body_format: json
+    status_code: [200, 201, 409]
+    validate_certs: false
+    body:
+      name: "Default Deny"
+      description: "Baseline deny all traffic"
+      enabled: true
+      statements:
+        - action: deny
+          sources: ["*"]
+          destinations: ["*"]
+      precedence: 1
+
+- name: Placeholder for granular ACLs, DNS, and routing automation
+  ansible.builtin.debug:
+    msg: "Implement granular ACLs, split tunneling routes, DNS profiles, and rotation schedules via API or CLI as per documentation."

@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=INFO"
+      - "--accesslog=true"
+      - "--certificatesresolvers.localca.acme.tlschallenge=true"
+    ports:
+      - "443:443"
+    volumes:
+      - "{{ tls_dir }}/netbird_ca.crt:/etc/ssl/certs/netbird_ca.crt:ro"
+      - "{{ tls_dir }}/netbird.crt:/certs/netbird.crt:ro"
+      - "{{ tls_dir }}/netbird.key:/certs/netbird.key:ro"
+      - "{{ tls_dir }}/keycloak.crt:/certs/keycloak.crt:ro"
+      - "{{ tls_dir }}/keycloak.key:/certs/keycloak.key:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    labels:
+      - "traefik.enable=true"
+    restart: unless-stopped

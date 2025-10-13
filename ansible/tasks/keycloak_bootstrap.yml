@@ -1,0 +1,116 @@
+---
+# Bootstrap Keycloak realm, client, and groups using the Keycloak Admin REST API
+
+- name: Obtain Keycloak admin access token
+  ansible.builtin.uri:
+    url: "https://{{ keycloak_domain }}/realms/master/protocol/openid-connect/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      grant_type: password
+      client_id: admin-cli
+      username: "{{ keycloak_admin_user }}"
+      password: "{{ keycloak_admin_password }}"
+    validate_certs: false
+  register: keycloak_token
+  retries: 5
+  delay: 10
+  until: keycloak_token.status == 200
+
+- name: Set auth header fact
+  ansible.builtin.set_fact:
+    keycloak_auth_header:
+      Authorization: "Bearer {{ keycloak_token.json.access_token }}"
+      Content-Type: "application/json"
+
+- name: Create or update Keycloak realm
+  ansible.builtin.uri:
+    url: "https://{{ keycloak_domain }}/admin/realms/{{ keycloak_realm }}"
+    method: PUT
+    headers: "{{ keycloak_auth_header }}"
+    validate_certs: false
+    body_format: json
+    body:
+      realm: "{{ keycloak_realm }}"
+      displayName: "{{ keycloak_realm_display_name }}"
+      enabled: true
+      registrationAllowed: false
+      loginWithEmailAllowed: true
+    status_code: [201, 204]
+
+- name: Configure OIDC client
+  ansible.builtin.uri:
+    url: "https://{{ keycloak_domain }}/admin/realms/{{ keycloak_realm }}/clients"
+    method: POST
+    headers: "{{ keycloak_auth_header }}"
+    validate_certs: false
+    body_format: json
+    body:
+      clientId: "{{ keycloak_client_id }}"
+      name: "NetBird"
+      description: "NetBird OIDC Client"
+      protocol: openid-connect
+      publicClient: false
+      standardFlowEnabled: true
+      serviceAccountsEnabled: false
+      directAccessGrantsEnabled: false
+      secret: "{{ keycloak_client_secret }}"
+      redirectUris: "{{ keycloak_client_redirect_uris }}"
+      webOrigins:
+        - "{{ keycloak_client_root_url }}"
+      attributes:
+        post.logout.redirect.uris: "{{ keycloak_client_root_url }}/*"
+        oauth2.device.authorization.grant.enabled: "true"
+        oidc.ciba.grant.enabled: "false"
+      rootUrl: "{{ keycloak_client_root_url }}"
+    status_code: [201, 409]
+  register: keycloak_client_result
+
+- name: Retrieve client ID when already created
+  ansible.builtin.uri:
+    url: "https://{{ keycloak_domain }}/admin/realms/{{ keycloak_realm }}/clients?clientId={{ keycloak_client_id }}"
+    method: GET
+    headers: "{{ keycloak_auth_header }}"
+    validate_certs: false
+  register: keycloak_client_lookup
+
+- name: Extract Keycloak internal client UUID
+  ansible.builtin.set_fact:
+    keycloak_client_uuid: "{{ keycloak_client_lookup.json[0].id }}"
+
+- name: Ensure group hierarchy exists
+  ansible.builtin.uri:
+    url: "https://{{ keycloak_domain }}/admin/realms/{{ keycloak_realm }}/groups"
+    method: POST
+    headers: "{{ keycloak_auth_header }}"
+    validate_certs: false
+    body_format: json
+    status_code: [201, 409]
+    body:
+      name: "{{ item.name }}"
+      path: "/{{ item.name }}"
+      attributes:
+        description:
+          - "{{ item.description }}"
+  loop: "{{ keycloak_group_map }}"
+
+- name: Ensure groups are included in the access token
+  ansible.builtin.uri:
+    url: "https://{{ keycloak_domain }}/admin/realms/{{ keycloak_realm }}/clients/{{ keycloak_client_uuid }}/protocol-mappers/models"
+    method: POST
+    headers: "{{ keycloak_auth_header }}"
+    validate_certs: false
+    body_format: json
+    status_code: [201, 409]
+    body:
+      name: "groups"
+      protocol: "openid-connect"
+      protocolMapper: "oidc-group-membership-mapper"
+      consentRequired: false
+      config:
+        "full.path": "false"
+        "id.token.claim": "true"
+        "access.token.claim": "true"
+        "userinfo.token.claim": "true"
+        "claim.name": "groups"
+        "jsonType.label": "String"
