@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide extends the [official NetBird Advanced Self-Hosting Guide](https://docs.netbird.io/selfhosted/selfhosted-guide) with specific modifications required for deploying NetBird behind a Caddy reverse proxy. 
+This guide extends the [official NetBird Advanced Self-Hosting Guide](https://docs.netbird.io/selfhosted/selfhosted-guide) with specific modifications required for deploying NetBird behind a Caddy reverse proxy.
 
 **Prerequisites**: You must complete Steps 1-5 of the official NetBird guide before following this document.
 
@@ -33,34 +33,26 @@ The NetBird setup script (`configure.sh`) generates configurations optimized for
 ## Prerequisites
 
 ### System Requirements
+
 - Linux server (Ubuntu 20.04+ recommended)
 - Docker Engine 20.10+ and Docker Compose v2
 - Public IPv4 address
 - Domain name with DNS configured
 - 2+ CPU cores, 4GB RAM minimum
 
-### Required Ports
-```bash
-# Configure firewall
-sudo ufw allow 80/tcp       # HTTP (ACME challenges)
-sudo ufw allow 443/tcp      # HTTPS (Caddy)
-sudo ufw allow 3478/udp     # STUN
-sudo ufw allow 3478/tcp     # STUN over TCP
-sudo ufw allow 5349/tcp     # TURNS
-sudo ufw allow 5349/udp     # TURNS
-sudo ufw allow 49152:65535/udp  # TURN relay ports
-sudo ufw allow 33080/tcp    # Relay server
-sudo ufw enable
-```
 
 ### DNS Configuration
+
 Create an A record pointing to your server:
+
 ```
 A    your-domain.com    ->    YOUR_SERVER_PUBLIC_IP
 ```
 
 ### OIDC Identity Provider
+
 You must have a configured OIDC provider (Keycloak, Auth0, Azure AD, etc.) with:
+
 - Frontend client (`netbird-client`) - public, with device authorization flow enabled
 - Backend client (`netbird-backend`) - confidential, with service account enabled and realm management roles
 
@@ -125,6 +117,7 @@ graph TB
 **Complete Steps 1-5 from the [NetBird Advanced Guide](https://docs.netbird.io/selfhosted/selfhosted-guide) before proceeding:**
 
 ### Step 1: Get NetBird Code
+
 ```bash
 cd ~
 REPO="https://github.com/netbirdio/netbird/"
@@ -134,12 +127,14 @@ cd netbird/infrastructure_files/
 ```
 
 ### Step 2: Configure setup.env
+
 ```bash
 cp setup.env.example setup.env
 nano setup.env
 ```
 
 **Critical settings**:
+
 ```bash
 NETBIRD_DOMAIN="your-domain.com"
 NETBIRD_DISABLE_LETSENCRYPT=true  # Important: Caddy will handle SSL
@@ -153,9 +148,11 @@ NETBIRD_IDP_MGMT_EXTRA_ADMIN_ENDPOINT="https://your-idp.com/admin/realms/your-re
 ```
 
 ### Step 3: Configure Identity Provider
+
 Follow the appropriate guide for your IDP from the [official documentation](https://docs.netbird.io/selfhosted/identity-providers).
 
 ### Step 4: Generate Secrets
+
 ```bash
 # TURN password (save this)
 openssl rand -base64 32
@@ -168,11 +165,13 @@ openssl rand -base64 32
 ```
 
 ### Step 5: Run Configuration Script
+
 ```bash
 ./configure.sh
 ```
 
 This generates:
+
 - `artifacts/docker-compose.yml` (needs modifications)
 - `artifacts/management.json` (needs modifications)
 - `artifacts/turnserver.conf` (mostly correct, update external-ip)
@@ -200,6 +199,7 @@ graph LR
     E --> F
     
 ```
+
 ---
 
 ## Configuration Templates
@@ -293,6 +293,7 @@ your-domain.com {
 ```
 
 **Key Points**:
+
 - Replace `your-domain.com` with your actual domain
 - Replace `your-email@example.com` with your email
 - Order matters: specific routes before catch-all
@@ -535,6 +536,7 @@ volumes:
 **Edit** `artifacts/turnserver.conf`:
 
 Find and update:
+
 ```conf
 external-ip=YOUR_SERVER_PUBLIC_IP    # MUST be set to server's public IP
 
@@ -542,6 +544,7 @@ user=self:YOUR_TURN_PASSWORD         # MUST match management.json TURN password
 ```
 
 Get your public IP:
+
 ```bash
 curl -4 ifconfig.me
 ```
@@ -563,6 +566,7 @@ docker compose logs -f
 ```
 
 **Expected behavior**:
+
 1. Caddy obtains SSL certificate (30-120 seconds)
 2. All services start and connect
 3. No critical errors in logs
@@ -603,13 +607,15 @@ curl -I https://your-domain.com
 
 ### 1. Dashboard Access
 
-1. Navigate to `https://your-domain.com`
-2. Should see NetBird login page with valid SSL
-3. Click "Login" → redirects to IDP
-4. Authenticate → redirects back to dashboard
-5. Should see NetBird dashboard UI
+1- Navigate to <https://your-domain.com>
+2- You will be redirected to your Identity Provider (IdP) login page
+3- Authenticate on the IdP
+4- After successful authentication, you are redirected back to <https://your-domain.com>
+5- The NetBird dashboard UI loads with valid SSL
+6- You can view peers and interact with the dashboard
 
 **If login fails**:
+
 ```bash
 docker compose logs dashboard
 docker compose logs management | grep -i auth
@@ -633,11 +639,13 @@ stun your-domain.com -p 3478
 #### Install NetBird Client
 
 **Linux**:
+
 ```bash
 curl -fsSL https://pkgs.netbird.io/install.sh | sh
 ```
 
 **macOS**:
+
 ```bash
 brew install netbirdio/tap/netbird
 ```
@@ -664,6 +672,7 @@ netbird status
 #### Connect Second Peer and Test
 
 On another machine:
+
 ```bash
 netbird up --management-url https://your-domain.com
 
@@ -684,11 +693,13 @@ ping 100.64.0.1
 **Symptoms**: Dashboard inaccessible, HTTPS errors
 
 **Diagnosis**:
+
 ```bash
 docker compose logs netbird-caddy | grep -i error
 ```
 
 **Solutions**:
+
 1. Verify DNS: `dig your-domain.com` (must return server IP)
 2. Check ports 80/443 accessible: `nc -zv your-domain.com 80`
 3. Ensure domain not proxied (CloudFlare: set to DNS-only)
@@ -699,16 +710,20 @@ docker compose logs netbird-caddy | grep -i error
 **Symptoms**: Login succeeds but dashboard shows unauthorized
 
 **Diagnosis**:
+
 ```bash
 docker compose logs management | grep -i "token validation"
 ```
 
 **Solutions**:
+
 1. Verify `AuthIssuer` matches IDP exactly
 2. Test OIDC endpoint:
+
 ```bash
 curl https://your-idp.com/realms/your-realm/.well-known/openid-configuration
 ```
+
 3. Check system time: `timedatectl` (must be synced)
 
 ### Issue: Signal Disconnected
@@ -716,12 +731,14 @@ curl https://your-idp.com/realms/your-realm/.well-known/openid-configuration
 **Symptoms**: Client shows "Signal: Disconnected"
 
 **Diagnosis**:
+
 ```bash
 docker compose logs signal
 docker compose logs management | grep -i signal
 ```
 
 **Solutions**:
+
 1. Verify Signal URI in management.json is `your-domain.com:443` (not `:10000`)
 2. Check Caddyfile has signal routes
 3. Restart services: `docker compose restart signal management`
@@ -731,6 +748,7 @@ docker compose logs management | grep -i signal
 **Symptoms**: Relay status unavailable in client
 
 **Diagnosis**:
+
 ```bash
 docker compose logs relay
 grep "NB_AUTH_SECRET" artifacts/docker-compose.yml
@@ -738,11 +756,14 @@ grep "Secret" artifacts/management.json | grep -A 5 Relay
 ```
 
 **Solutions**:
+
 1. Verify secrets match:
+
 ```bash
 # Compare these two values - they must be identical
 docker compose exec relay env | grep NB_AUTH_SECRET
 ```
+
 2. Verify relay address format: `rels://your-domain.com/relay` (no `:33080`)
 3. Restart relay: `docker compose restart relay`
 
@@ -751,16 +772,20 @@ docker compose exec relay env | grep NB_AUTH_SECRET
 **Symptoms**: Peers behind NAT cannot connect
 
 **Diagnosis**:
+
 ```bash
 docker compose logs coturn | tail -50
 ```
 
 **Solutions**:
+
 1. Verify external-ip in turnserver.conf:
+
 ```bash
 curl -4 ifconfig.me  # Get your IP
 grep external-ip artifacts/turnserver.conf
 ```
+
 2. Ensure passwords match between turnserver.conf and management.json
 3. Check UDP ports: `sudo ufw status | grep 3478`
 
@@ -769,13 +794,16 @@ grep external-ip artifacts/turnserver.conf
 **Symptoms**: "IDP connection failed" in logs
 
 **Solutions**:
+
 1. Test backend client:
+
 ```bash
 curl -X POST "https://your-idp.com/realms/your-realm/protocol/openid-connect/token" \
   -d "grant_type=client_credentials" \
   -d "client_id=netbird-backend" \
   -d "client_secret=YOUR_SECRET"
 ```
+
 2. Verify service account has realm-admin role in IDP
 
 ### Common Configuration Mistakes
@@ -813,7 +841,7 @@ docker compose logs -f
 
 ## Additional Resources
 
-- **NetBird Documentation**: https://docs.netbird.io/
-- **NetBird GitHub**: https://github.com/netbirdio/netbird
-- **Caddy Documentation**: https://caddyserver.com/docs/
-- **Identity Provider Guides**: https://docs.netbird.io/selfhosted/identity-providers
+- **NetBird Documentation**: <https://docs.netbird.io/>
+- **NetBird GitHub**: <https://github.com/netbirdio/netbird>
+- **Caddy Documentation**: <https://caddyserver.com/docs/>
+- **Identity Provider Guides**: <https://docs.netbird.io/selfhosted/identity-providers>
