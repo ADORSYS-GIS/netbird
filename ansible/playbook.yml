@@ -1,0 +1,35 @@
+---
+# Main playbook to deploy NetBird with Keycloak IdP on a single Ubuntu 24.04 host
+
+- name: Prepare host and deploy NetBird stack
+  hosts: netbird_host
+  become: true
+  vars:
+    netbird_domain: "netbird.localhost"
+    keycloak_domain: "keycloak.localhost"
+    tls_dir: "/opt/netbird/tls"
+    netbird_compose_dir: "/opt/netbird/compose"
+    keycloak_compose_dir: "/opt/keycloak/compose"
+    traefik_compose_dir: "/opt/traefik/compose"
+  roles: []
+  tasks:
+    - name: Include OS preparation tasks
+      ansible.builtin.include_tasks: tasks/os_prereqs.yml
+
+    - name: Include TLS certificate tasks
+      ansible.builtin.include_tasks: tasks/tls_certs.yml
+
+    - name: Include Traefik reverse proxy deployment
+      ansible.builtin.include_tasks: tasks/traefik.yml
+
+    - name: Include Keycloak deployment
+      ansible.builtin.include_tasks: tasks/keycloak.yml
+
+    - name: Bootstrap Keycloak realm and OIDC client
+      ansible.builtin.include_tasks: tasks/keycloak_bootstrap.yml
+
+    - name: Include NetBird deployment
+      ansible.builtin.include_tasks: tasks/netbird.yml
+
+    - name: Include post deployment configuration
+      ansible.builtin.include_tasks: tasks/post_deploy.yml

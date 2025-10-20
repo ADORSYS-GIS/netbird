@@ -1,0 +1,18 @@
+---
+keycloak_admin_user: admin
+keycloak_admin_password: changeme
+keycloak_realm: netbird
+keycloak_realm_display_name: "NetBird Realm"
+keycloak_client_id: netbird-client
+keycloak_client_secret: supersecret
+keycloak_client_root_url: "https://netbird.localhost"
+keycloak_client_redirect_uris:
+  - "https://netbird.localhost/auth/callback"
+  - "https://netbird.localhost/api/oidc/callback"
+keycloak_group_map:
+  - name: engineering
+    description: "Engineering team"
+  - name: operations
+    description: "Operations team"
+netbird_setup_key: REPLACE_WITH_SECURE_SETUP_KEY
+netbird_key_rotation_schedule: "0 3 * * 0"  # Weekly at 03:00

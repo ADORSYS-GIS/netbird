@@ -1,0 +1,21 @@
+---
+# Deploy Traefik reverse proxy to terminate TLS for NetBird and Keycloak
+
+- name: Render Traefik docker-compose file
+  ansible.builtin.template:
+    src: templates/traefik-docker-compose.yml.j2
+    dest: "{{ traefik_compose_dir }}/docker-compose.yml"
+    mode: '0644'
+
+- name: Render Traefik dynamic configuration
+  ansible.builtin.template:
+    src: templates/traefik-dynamic.yml.j2
+    dest: "{{ traefik_compose_dir }}/dynamic.yml"
+    mode: '0644'
+
+- name: Ensure Traefik stack is up
+  community.docker.docker_compose_v2:
+    project_src: "{{ traefik_compose_dir }}"
+    files:
+      - docker-compose.yml
+    recreate: smart

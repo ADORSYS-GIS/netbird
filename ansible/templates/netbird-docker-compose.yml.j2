@@ -1,0 +1,63 @@
+version: "3.8"
+services:
+  netbird-dashboard:
+    image: netbirdio/dashboard:latest
+    environment:
+      NB_HTTP_PORT: 443
+      NB_GRPC_API_ENDPOINT: "netbird-mgmt:443"
+      NB_OIDC_AUTHORITY: "https://{{ keycloak_domain }}/realms/{{ keycloak_realm }}"
+      NB_OIDC_CLIENT_ID: "{{ keycloak_client_id }}"
+      NB_OIDC_CLIENT_SECRET: "{{ keycloak_client_secret }}"
+      NB_OIDC_REDIRECT_URI: "https://{{ netbird_domain }}/auth/callback"
+      NB_OIDC_SCOPES: "openid profile email groups"
+      NB_OIDC_EXTRA_PARAMETERS: ""
+      NB_ENABLE_AUTH: "true"
+      NB_AUTH_OIDC_ENABLED: "true"
+      NB_HTTP_TLS_CERT: /certs/netbird.crt
+      NB_HTTP_TLS_KEY: /certs/netbird.key
+      NB_WG_KEY_ROTATION_SCHEDULE: "{{ netbird_key_rotation_schedule }}"
+    volumes:
+      - "{{ tls_dir }}/netbird.crt:/certs/netbird.crt:ro"
+      - "{{ tls_dir }}/netbird.key:/certs/netbird.key:ro"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.netbird.loadbalancer.server.port=443"
+      - "traefik.http.routers.netbird.rule=Host(`{{ netbird_domain }}`)"
+      - "traefik.http.routers.netbird.entrypoints=websecure"
+      - "traefik.http.routers.netbird.tls=true"
+    depends_on:
+      - netbird-mgmt
+    restart: unless-stopped
+    networks:
+      - netbird_net
+
+  netbird-mgmt:
+    image: netbirdio/management:latest
+    environment:
+      NB_LOG_LEVEL: info
+      NB_API_HOST: 0.0.0.0
+      NB_HTTP_CERT_FILE: /certs/netbird.crt
+      NB_HTTP_KEY_FILE: /certs/netbird.key
+      NB_AUTH_OIDC_ENABLED: "true"
+      NB_AUTH_OIDC_CLIENT_ID: "{{ keycloak_client_id }}"
+      NB_AUTH_OIDC_CLIENT_SECRET: "{{ keycloak_client_secret }}"
+      NB_AUTH_OIDC_ENDPOINT: "https://{{ keycloak_domain }}/realms/{{ keycloak_realm }}"
+      NB_AUTH_REDIRECT_URI: "https://{{ netbird_domain }}/auth/callback"
+      NB_SETUP_KEY: "{{ netbird_setup_key }}"
+      NB_MGMT_API_URL: "https://{{ netbird_domain }}"
+      NB_MGMT_API_PORT: 443
+      NB_ACLS_DEFAULT_POLICY: deny
+      NB_ACLS_ENABLED: "true"
+      NB_DNS_ENABLED: "true"
+      NB_ACL_POLICY_SYNC_INTERVAL: "1m"
+    volumes:
+      - "{{ tls_dir }}/netbird.crt:/certs/netbird.crt:ro"
+      - "{{ tls_dir }}/netbird.key:/certs/netbird.key:ro"
+      - "{{ netbird_compose_dir }}/data:/var/lib/netbird"
+    restart: unless-stopped
+    networks:
+      - netbird_net
+
+networks:
+  netbird_net:
+    driver: bridge

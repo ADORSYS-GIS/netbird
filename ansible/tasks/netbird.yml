@@ -1,0 +1,15 @@
+---
+# Deploy NetBird dashboard and management services
+
+- name: Render NetBird docker-compose definition
+  ansible.builtin.template:
+    src: templates/netbird-docker-compose.yml.j2
+    dest: "{{ netbird_compose_dir }}/docker-compose.yml"
+    mode: '0644'
+
+- name: Ensure NetBird stack is running
+  community.docker.docker_compose_v2:
+    project_src: "{{ netbird_compose_dir }}"
+    files:
+      - docker-compose.yml
+    recreate: smart

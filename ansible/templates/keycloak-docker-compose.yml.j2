@@ -1,0 +1,33 @@
+version: "3.8"
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: keycloak
+    command:
+      - "start"
+      - "--optimized"
+    environment:
+      KC_DB: dev-file
+      KC_PROXY: edge
+      KC_HOSTNAME: "{{ keycloak_domain }}"
+      KC_HTTPS_CERTIFICATE_FILE: /certs/keycloak.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /certs/keycloak.key
+      KC_HOSTNAME_STRICT_HTTPS: "true"
+      KEYCLOAK_ADMIN: "{{ keycloak_admin_user }}"
+      KEYCLOAK_ADMIN_PASSWORD: "{{ keycloak_admin_password }}"
+    volumes:
+      - "{{ tls_dir }}/keycloak.crt:/certs/keycloak.crt:ro"
+      - "{{ tls_dir }}/keycloak.key:/certs/keycloak.key:ro"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+      - "traefik.http.routers.keycloak.rule=Host(`{{ keycloak_domain }}`)"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.tls=true"
+    restart: unless-stopped
+    networks:
+      - netbird_net
+
+networks:
+  netbird_net:
+    external: true
