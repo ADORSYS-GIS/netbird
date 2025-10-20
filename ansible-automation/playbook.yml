@@ -1,0 +1,14 @@
+---
+# Main Ansible playbook for deploying NetBird with Caddy as a reverse proxy.
+# This playbook orchestrates the entire deployment process, including system preparation
+# and the deployment of NetBird services with Caddy.
+
+- name: Deploy NetBird with Caddy Reverse Proxy
+  hosts: netbird_servers # Target hosts defined in the inventory under the 'netbird_servers' group.
+  become: true # Run all tasks with elevated privileges (sudo).
+  vars_files:
+    - inventory/group_vars/all.yml # Load variables from the all.yml file in group_vars.
+  roles:
+    - role: system-preparation # Role to prepare the system (install Docker, configure firewall, etc.).
+    - role: netbird-caddy-deployment # Role to deploy NetBird services and Caddy.
+    # - role: keycloak-setup # This role is commented out as Keycloak setup is kept aside for now.
