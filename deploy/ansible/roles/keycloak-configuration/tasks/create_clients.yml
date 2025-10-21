@@ -126,10 +126,39 @@
     --set directAccessGrantsEnabled=false
     --set serviceAccountsEnabled=false
     --set protocol=openid-connect
+    --set 'attributes={"oauth2.device.authorization.grant.enabled":"true"}'
   args:
     chdir: "{{ netbird_base_dir }}"
   register: device_client_creation
   changed_when: device_client_creation.rc == 0
+
+- name: Get device client UUID for mapper configuration
+  command: >
+    sudo docker compose exec keycloak /opt/keycloak/bin/kcadm.sh get clients
+    --target-realm {{ keycloak_realm }}
+    --query clientId=netbird-device
+    --fields id
+  args:
+    chdir: "{{ netbird_base_dir }}"
+  register: device_client_uuid
+  changed_when: false
+
+- name: Add audience mapper to device client
+  command: >
+    sudo docker compose exec keycloak /opt/keycloak/bin/kcadm.sh create clients/{{ (device_client_uuid.stdout | from_json)[0].id }}/protocol-mappers/models
+    --target-realm {{ keycloak_realm }}
+    --set name=audience-mapper
+    --set protocol=openid-connect
+    --set protocolMapper=oidc-audience-mapper
+    --set 'config."included.client.audience"=netbird-client'
+    --set 'config."access.token.claim"=true'
+    --set 'config."id.token.claim"=false'
+  args:
+    chdir: "{{ netbird_base_dir }}"
+  when: device_client_uuid.stdout != "" and device_client_uuid.stdout != "[]" and (device_client_uuid.stdout | from_json) | length > 0
+  register: device_audience_mapper
+  failed_when: false
+  changed_when: device_audience_mapper.rc == 0
 
 # Create NetBird Management Client
 - name: Check if NetBird management client exists
