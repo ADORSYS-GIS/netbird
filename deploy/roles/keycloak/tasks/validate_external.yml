@@ -1,0 +1,72 @@
+---
+# Configure external Keycloak realm for NetBird
+# Assumes: Realm exists, you have realm admin user credentials
+# Does: Creates/validates clients, assigns roles, returns NetBird config
+
+- name: Validate required credentials for realm admin access
+  ansible.builtin.assert:
+    that:
+      - keycloak_oidc_configuration_endpoint is defined
+      - keycloak_oidc_configuration_endpoint | length > 0
+      - keycloak_realm_admin_user is defined
+      - keycloak_realm_admin_user | length > 0
+      - keycloak_realm_admin_password is defined
+      - keycloak_realm_admin_password | length > 0
+    fail_msg: |
+      External Keycloak mode requires realm admin credentials:
+        - keycloak_oidc_configuration_endpoint: Full OIDC discovery URL
+        - keycloak_realm_admin_user: Username with realm admin privileges
+        - keycloak_realm_admin_password: Password for the realm admin user
+      
+      Set these in group_vars/keycloak.yml or via command line.
+
+- name: Validate OIDC configuration endpoint accessibility
+  ansible.builtin.uri:
+    url: "{{ keycloak_oidc_configuration_endpoint }}"
+    method: GET
+    validate_certs: "{{ keycloak_validate_certs }}"
+    status_code: 200
+  register: oidc_config_response
+  failed_when: >
+    oidc_config_response.status != 200 or
+    'issuer' not in oidc_config_response.json or
+    'token_endpoint' not in oidc_config_response.json
+
+- name: Extract Keycloak base URL and realm name
+  ansible.builtin.set_fact:
+    keycloak_base_url: "{{ oidc_config_response.json.issuer | regex_replace('/realms/.*', '') }}"
+    extracted_realm_name: "{{ oidc_config_response.json.issuer | regex_search('/realms/([^/]+)', '\\1') | first }}"
+
+- name: Display discovered information
+  ansible.builtin.debug:
+    msg:
+      - "Keycloak Base URL: {{ keycloak_base_url }}"
+      - "Realm: {{ extracted_realm_name }}"
+      - "Issuer: {{ oidc_config_response.json.issuer }}"
+
+- name: Obtain realm admin access token
+  ansible.builtin.uri:
+    url: "{{ oidc_config_response.json.token_endpoint }}"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      grant_type: password
+      client_id: admin-cli
+      username: "{{ keycloak_realm_admin_user }}"
+      password: "{{ keycloak_realm_admin_password }}"
+    validate_certs: "{{ keycloak_validate_certs }}"
+    status_code: 200
+  register: realm_admin_token_response
+  retries: 3
+  delay: 5
+  until: realm_admin_token_response.status == 200
+  no_log: true
+
+- name: Set realm admin token fact
+  ansible.builtin.set_fact:
+    keycloak_admin_token: "{{ realm_admin_token_response.json.access_token }}"
+  no_log: true
+
+# Now include the main configuration tasks that work with the admin token
+- name: Include realm configuration tasks
+  ansible.builtin.include_tasks: configure_external_realm_clients.yml
