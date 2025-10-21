@@ -1,0 +1,117 @@
+---
+# Alternative approach to handle dpkg locks more gracefully
+- name: Check for active dpkg locks
+  stat:
+    path: "{{ item }}"
+  register: lock_files
+  loop:
+    - /var/lib/dpkg/lock-frontend
+    - /var/lib/dpkg/lock
+    - /var/cache/apt/archives/lock
+
+- name: Display lock file status
+  debug:
+    msg: "Lock file {{ item.item }} exists: {{ item.stat.exists }}"
+  loop: "{{ lock_files.results }}"
+
+- name: Find processes holding dpkg locks
+  shell: |
+    for lock in /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock; do
+      if [ -f "$lock" ]; then
+        echo "Lock file: $lock"
+        lsof "$lock" 2>/dev/null || echo "No process found for $lock"
+      fi
+    done
+  register: lock_processes
+  changed_when: false
+  failed_when: false
+  become: yes
+
+- name: Display processes holding locks
+  debug:
+    msg: "{{ lock_processes.stdout_lines }}"
+
+- name: Test if we can acquire dpkg locks (retry approach)
+  shell: |
+    # Test if we can run apt operations without conflicts
+    timeout 10 apt-get check >/dev/null 2>&1
+    exit_code=$?
+    if [ $exit_code -eq 0 ]; then
+      echo "success"
+    else
+      echo "locked"
+    fi
+  register: dpkg_lock_test
+  retries: 12
+  delay: 10
+  until: dpkg_lock_test.stdout.strip() == "success"
+  ignore_errors: true
+  become: yes
+
+- name: Check if lock test succeeded
+  set_fact:
+    locks_available: "{{ dpkg_lock_test.stdout.strip() == 'success' }}"
+
+- name: Display lock test result
+  debug:
+    msg: "Dpkg locks available: {{ locks_available }}"
+
+- name: Terminate processes holding locks if test failed
+  shell: |
+    echo "Attempting to clear dpkg locks..."
+    
+    # Kill unattended-upgrades processes
+    if pgrep -f unattended-upgr > /dev/null; then
+      echo "Killing unattended-upgrades processes..."
+      pkill -f unattended-upgr || true
+      sleep 3
+    fi
+    
+    # Kill any processes holding lock files
+    for lock in /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock; do
+      if [ -f "$lock" ]; then
+        echo "Checking lock file: $lock"
+        pids=$(lsof -t "$lock" 2>/dev/null || true)
+        if [ -n "$pids" ]; then
+          echo "Killing processes holding $lock: $pids"
+          kill -TERM $pids 2>/dev/null || true
+          sleep 2
+          kill -KILL $pids 2>/dev/null || true
+        fi
+      fi
+    done
+    
+    # Remove lock files
+    rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
+    
+    echo "Lock clearing completed"
+  when: not locks_available
+  become: yes
+  register: clear_locks_result
+  failed_when: false
+
+- name: Final verification - test dpkg operations again
+  shell: |
+    timeout 10 apt-get check >/dev/null 2>&1
+    exit_code=$?
+    if [ $exit_code -eq 0 ]; then
+      echo "success"
+    else
+      echo "still_locked"
+    fi
+  register: final_dpkg_test
+  become: yes
+  when: not locks_available
+
+- name: Display final verification result
+  debug:
+    msg: "Final dpkg test result: {{ final_dpkg_test.stdout if (final_dpkg_test is defined and final_dpkg_test.stdout is defined) else 'locks were already available' }}"
+
+- name: Fail if locks are still not available
+  fail:
+    msg: "Unable to acquire dpkg locks after clearing attempts. Manual intervention may be required."
+  when: 
+    - not locks_available
+    - final_dpkg_test is defined
+    - final_dpkg_test.stdout is defined
+    - final_dpkg_test.stdout.strip() != "success"
