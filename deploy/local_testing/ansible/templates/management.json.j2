@@ -37,8 +37,7 @@
         "AuthAudience": "netbird-client",
         "AuthKeysLocation": "http://keycloak:{{ netbird_keycloak_port }}/realms/{{ keycloak_realm }}/protocol/openid-connect/certs",
         "AuthUserIDClaim": "sub",
-        "IdpSignKeyRefreshEnabled": {{ netbird_mgmt_idp_signkey_refresh | lower }},
-        "OIDCConfigEndpoint": "http://keycloak:{{ netbird_keycloak_port }}/realms/{{ keycloak_realm }}/.well-known/openid-configuration"
+        "IdpSignKeyRefreshEnabled": {{ netbird_mgmt_idp_signkey_refresh | lower }}
     },
     "IdpManagerConfig": {
         "ManagerType": "keycloak",
@@ -54,7 +53,7 @@
         }
     },
     "DeviceAuthorizationFlow": {
-        "Provider": "keycloak",
+        "Provider": "hosted",
         "ProviderConfig": {
             "Audience": "netbird-client",
             "ClientID": "netbird-device",

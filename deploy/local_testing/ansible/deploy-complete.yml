@@ -25,14 +25,14 @@
   tasks:
     # Step 1: System Preparation
     - name: Prepare System
-      include_role:
+      import_role:
         name: system-preparation
       tags: ['system', 'preparation']
       become: yes
 
     # Step 2: Environment Configuration
     - name: Generate Environment Configuration
-      include_role:
+      import_role:
         name: netbird-environment
       tags: ['environment', 'config']
       become: yes

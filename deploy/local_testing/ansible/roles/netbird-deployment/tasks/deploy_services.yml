@@ -131,6 +131,10 @@
     chdir: "{{ netbird_base_dir }}"
   register: pull_result
   changed_when: "'Pulled' in pull_result.stdout"
+  retries: 10
+  delay: 60
+  until: pull_result.rc == 0
+  failed_when: pull_result.rc != 0 and pull_result.attempts >= 10
 
 - name: Stop existing services (if any)
   command: sudo docker compose down
