@@ -1,15 +1,27 @@
-# NetBird Ansible Deployment
+# NetBird Control Plane - Automated Deployment Guide
 
-This Ansible playbook provides an idempotent, production-ready deployment of NetBird Control Plane with Keycloak identity provider.
+## 📖 What is This?
 
-## 🎯 Features
+This Ansible playbook **automatically deploys a complete NetBird Control Plane** with:
+- **NetBird Management API** - Controls peer connections and network policies
+- **NetBird Dashboard** - Web UI for managing your NetBird network  
+- **Keycloak** - Identity provider for user authentication (SSO)
+- **PostgreSQL** - Database for NetBird and Keycloak data
+- **Signal Server** - Coordinates peer-to-peer connections
+- **Relay Server** - Fallback when direct P2P fails
+- **TURN/STUN** - NAT traversal for connecting peers behind firewalls
 
-- **Idempotent deployment** - Safe to run multiple times
-- **Multi-machine support** - Deploy across multiple servers
-- **Network issue fixes** - Proper IP/domain configuration
-- **Secure by default** - Encrypted passwords, firewall configuration
-- **Production ready** - PostgreSQL, health checks, monitoring
-- **Easy maintenance** - Role-based structure, automated updates
+### ✅ What Gets Automated
+
+- ✅ Docker and Docker Compose installation
+- ✅ Firewall configuration (UFW)
+- ✅ Secure password generation (32-character secrets)
+- ✅ Keycloak realm and client creation
+- ✅ OAuth 2.0 Device Authorization Flow setup (for CLI peers)
+- ✅ Client secret synchronization between Keycloak and NetBird
+- ✅ Network configuration (internal Docker vs external access)
+- ✅ All critical security fixes applied automatically
+
 
 ## 🏗️ Architecture
 
@@ -29,132 +41,394 @@ This Ansible playbook provides an idempotent, production-ready deployment of Net
 └─────────────────┘ └─────────────────┘ └─────────────────┘ └─────────────────┘
 ```
 
-## 🚀 Quick Start
+---
 
-### Prerequisites
+## 📌 Prerequisites
 
-- Ubuntu/Debian server with sudo access
-- Ansible 2.9+ installed on control machine
-- SSH key access to target servers
-- Minimum 2GB RAM, 2 CPU cores
+### Server Requirements
 
-### 1. Clone and Configure
+**Target Server** (where NetBird will run):
+- Ubuntu 20.04+ or Debian 11+
+- Minimum 2GB RAM (4GB recommended)
+- 2+ CPU cores
+- 10GB+ free disk space
+- **Static IP address** or reliable DHCP reservation
+- Internet access to download Docker images
+
+**Control Machine** (where you run Ansible from):
+- Ansible 2.9 or higher
+- SSH access to target server
+- SSH key-based authentication (recommended)
+
+### Required Ports
+
+These ports will be opened on the server firewall:
+- `8080` - Keycloak (Identity Provider)
+- `8081` - NetBird Dashboard (Web UI)
+- `8082` - NetBird Management API  
+- `10000` - Signal Server (Peer coordination)
+- `3478` - TURN/STUN (NAT traversal - TCP & UDP)
+- `3479` - Relay Server (Fallback connections)
+
+---
+
+## 🚀 Step-by-Step Deployment
+
+### Step 1: Install Ansible (on your control machine)
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd netbird-ansible
+# On Ubuntu/Debian
+sudo apt update
+sudo apt install ansible
 
-# Edit inventory to match your servers
-vim inventory/hosts.yml
+# Verify installation
+ansible --version
+# Should show: ansible 2.9+
 ```
 
-### 2. Configure Variables
+### Step 2: Navigate to Ansible Directory
 
-Edit `inventory/hosts.yml`:
+```bash
+# Navigate to the playbook directory
+cd /path/to/netbird/deploy/ansible
+
+# Verify files are present
+ls -la
+# You should see: inventory/, roles/, templates/, deploy-complete.yml
+```
+
+### Step 3: Configure Your Server Details
+
+Edit `inventory/hosts.yml` with your server information:
 
 ```yaml
+---
 all:
   children:
     netbird:
       hosts:
         netbird-primary:
-          ansible_host: YOUR_SERVER_IP
-          ansible_user: YOUR_USERNAME
+          ansible_host: YOUR_SERVER_IP    # ← YOUR SERVER IP
+          ansible_user: yourusername      # ← YOUR SSH USERNAME
+          netbird_role: primary
+      vars:
+        netbird_external_domain: "YOUR_SERVER_IP"  # ← IP or domain for external access
+        netbird_base_dir: "/home/yourusername/netbird-deployment"
 ```
 
-### 3. Deploy NetBird
+**Important**: Replace:
+- `YOUR_SERVER_IP` with your actual server IP address
+- `yourusername` with your SSH username on the server
+
+### Step 4: Test SSH Connection
 
 ```bash
-# Deploy everything
-ansible-playbook -i inventory/hosts.yml playbook.yml
+# Test Ansible can reach your server
+ansible -i inventory/hosts.yml netbird -m ping
 
-# Deploy to specific host
-ansible-playbook -i inventory/hosts.yml playbook.yml --limit netbird-primary
-
-# Deploy specific components
-ansible-playbook -i inventory/hosts.yml playbook.yml --tags docker,environment
+# Expected output:
+# netbird-primary | SUCCESS => {
+#     "changed": false,
+#     "ping": "pong"
+# }
 ```
 
-## 📋 Configuration Options
+**If this fails:**
+```bash
+# Test SSH manually first
+ssh yourusername@YOUR_SERVER_IP
 
-### Network Configuration
-
-```yaml
-# inventory/group_vars/all.yml
-netbird_domain: "192.168.1.100"  # Your server IP or domain
-netbird_dashboard_port: 8081
-netbird_keycloak_port: 8080
-netbird_management_port: 8082
+# If using password authentication instead of SSH keys
+ansible -i inventory/hosts.yml netbird -m ping --ask-pass
 ```
 
-### Security Configuration
-
-```yaml
-# Use Ansible Vault for production
-use_ansible_vault: true
-password_length: 32
-
-# Firewall settings
-firewall_enabled: true
-```
-
-### Service Versions
-
-```yaml
-netbird_version: "latest"
-keycloak_version: "22.0"
-postgres_version: "15"
-```
-
-## 🔐 Security Features
-
-### Password Management
-- **Automatic generation** of secure passwords
-- **Preservation** of existing passwords on re-runs
-- **Ansible Vault** support for production
-- **Base64 encoding** for special characters
-
-### Firewall Configuration
-- **UFW firewall** automatically configured
-- **Minimal attack surface** - only required ports open
-- **SSH protection** maintained
-
-### Network Security
-- **Internal service communication** via Docker networks
-- **External access** properly configured
-- **CORS policies** correctly set
-
-## 🔧 Maintenance
-
-### View Service Status
+### Step 5: Run the Deployment
 
 ```bash
-# Check all services
-ansible netbird -i inventory/hosts.yml -m shell -a "cd /home/usherking/netbird-deployment && docker compose ps"
+# Deploy everything (takes 10-15 minutes)
+ansible-playbook -i inventory/hosts.yml deploy-complete.yml
 
-# Check logs
-ansible netbird -i inventory/hosts.yml -m shell -a "cd /home/usherking/netbird-deployment && docker compose logs keycloak"
+# With verbose output (for debugging)
+ansible-playbook -i inventory/hosts.yml deploy-complete.yml -v
 ```
 
-### Update Services
+**What happens during deployment:**
+
+1. **System Preparation** (≪2 min)
+   - Removes old Docker installations
+   - Installs Docker and Docker Compose
+   - Adds your user to docker group
+   - Configures UFW firewall
+   - Opens required ports
+
+2. **Environment Configuration** (~1 min)
+   - Generates secure 32-character passwords
+   - Creates encryption keys (AES-256)
+   - Generates client secrets
+   - Creates environment files (.env)
+
+3. **Docker Deployment** (~3-5 min)
+   - Creates docker-compose.yml
+   - Pulls NetBird, Keycloak, PostgreSQL images
+   - Starts all containers
+   - Waits for health checks
+
+4. **Keycloak Configuration** (~2-3 min)
+   - Creates "netbird" realm
+   - Creates 3 clients: netbird-client, netbird-device, netbird-management
+   - Enables OAuth 2.0 Device Authorization Flow
+   - Adds audience mappers for token validation
+   - Synchronizes client secrets
+
+5. **Verification** (~1 min)
+   - Checks all services are running
+   - Validates Keycloak realm
+   - Tests management API
+
+**Total time**: 10-15 minutes depending on your internet speed.
+
+---
+
+## ✅ Post-Deployment: Verify Everything Works
+
+### Step 1: Check All Services Are Running
+
+SSH into your server and check Docker containers:
 
 ```bash
-# Update to latest versions
-ansible-playbook -i inventory/hosts.yml playbook.yml --tags deployment
-
-# Update specific service
-ansible netbird -i inventory/hosts.yml -m shell -a "cd /home/usherking/netbird-deployment && docker compose pull keycloak && docker compose up -d keycloak"
+ssh yourusername@YOUR_SERVER_IP
+cd ~/netbird-deployment
+sudo docker compose ps
 ```
 
-### Backup and Restore
+**Expected output** (all should show "Up" or "Up (healthy)"):
+```
+NAME                 STATUS          PORTS
+netbird-postgres     Up (healthy)    5432/tcp
+netbird-keycloak     Up (healthy)    0.0.0.0:8080->8080/tcp
+netbird-management   Up              0.0.0.0:8082->80/tcp
+netbird-dashboard    Up              0.0.0.0:8081->80/tcp
+netbird-signal       Up              0.0.0.0:10000->80/tcp
+netbird-relay        Up              0.0.0.0:3479->3479/tcp
+netbird-coturn       Up              0.0.0.0:3478->3478/tcp,udp
+```
+
+### Step 2: Find Your Credentials
+
+All generated passwords are saved in:
 
 ```bash
-# Backup database
-ansible netbird -i inventory/hosts.yml -m shell -a "cd /home/usherking/netbird-deployment && docker compose exec postgres pg_dump -U netbird netbird > backup.sql"
+cat ~/netbird-deployment/config/PASSWORDS-GENERATED.txt
+```
 
-# Backup configuration
-ansible netbird -i inventory/hosts.yml -m fetch -a "src=/home/usherking/netbird-deployment/config/ dest=./backups/"
+This file contains:
+- Keycloak admin password
+- PostgreSQL password  
+- All generated secrets and keys
+
+**Important**: Save this file securely!
+
+### Step 3: Access the Web Interfaces
+
+**NetBird Dashboard**:
+```
+http://YOUR_SERVER_IP:8081
+Example: http://YOUR_SERVER_IP:8081
+```
+
+**Keycloak Admin Console**:
+```
+http://YOUR_SERVER_IP:8080/admin
+Example: http://YOUR_SERVER_IP:8080/admin
+
+Realm: master
+Username: admin
+Password: (from PASSWORDS-GENERATED.txt)
+```
+
+### Step 4: Test Dashboard Login
+
+1. Open `http://YOUR_SERVER_IP:8081` in your browser
+2. Click "Login" button
+3. You'll be redirected to Keycloak login page
+4. Login with admin credentials (from PASSWORDS-GENERATED.txt)
+5. You should see the NetBird dashboard
+
+---
+
+## 👥 Adding Peers (Clients) to Your Network
+
+### What is a Peer?
+
+A "peer" is any device (laptop, server, phone) that connects to your NetBird network. Once connected, peers can communicate with each other securely through NetBird's mesh network.
+
+### Step 1: Install NetBird Client
+
+On the machine you want to add as a peer:
+
+```bash
+# Ubuntu/Debian
+curl -fsSL https://pkgs.netbird.io/install.sh | sh
+
+# Verify installation
+netbird version
+```
+
+### Step 2: Connect Peer to Control Plane
+
+```bash
+# Replace YOUR_SERVER_IP with your NetBird server IP
+netbird up --management-url http://YOUR_SERVER_IP:8082
+
+# Example:
+netbird up --management-url http://YOUR_SERVER_IP:8082
+```
+
+**What happens next:**
+
+1. The command will display an SSO login URL:
+```
+Please do the SSO login in your browser.
+If your browser didn't open automatically, use this URL:
+
+http://YOUR_SERVER_IP:8080/realms/netbird/device?user_code=ABCD-EFGH
+```
+
+2. **Open the URL in your web browser**
+3. **Login with your Keycloak credentials**
+4. After successful login, return to terminal
+5. The peer will automatically register and connect
+6. You'll see: `Connected to NetBird`
+
+### Step 3: Verify Peer is Connected
+
+**On the peer machine:**
+```bash
+# Check connection status
+netbird status
+
+# Expected output:
+# Daemon status: Connected
+# Management: Connected
+# Signal: Connected
+# Peers count: X
+
+# View detailed status
+netbird status --detail
+```
+
+**In the Dashboard:**
+1. Go to `http://YOUR_SERVER_IP:8081`
+2. Click on "Peers" in the sidebar
+3. Your new peer should appear with status "Online" ✅
+4. You can see the peer's IP, name, and connection status
+
+### Troubleshooting Peer Connection
+
+**Issue**: "context deadline exceeded" error
+
+**Cause**: Peer cannot reach the Management API (network issue)
+
+**Solutions**:
+```bash
+# Test connectivity from peer machine
+ping YOUR_SERVER_IP
+telnet YOUR_SERVER_IP 8082
+curl http://YOUR_SERVER_IP:8082/api/peers
+
+# If peer and server are on different networks:
+# - Check firewall rules
+# - Ensure port 8082 is accessible
+# - May need port forwarding or VPN
+
+# Restart NetBird daemon
+sudo systemctl restart netbird
+```
+
+---
+
+## 🔧 Maintenance & Operations
+
+### View Service Logs
+
+On your server:
+
+```bash
+cd ~/netbird-deployment
+
+# View all service logs
+sudo docker compose logs -f
+
+# View specific service logs
+sudo docker compose logs -f management
+sudo docker compose logs -f keycloak
+sudo docker compose logs -f dashboard
+
+# View last 50 lines
+sudo docker compose logs --tail 50 management
+
+# Search logs for errors
+sudo docker compose logs management | grep -i error
+```
+
+### Restart Services
+
+```bash
+cd ~/netbird-deployment
+
+# Restart all services
+sudo docker compose restart
+
+# Restart specific service
+sudo docker compose restart management
+sudo docker compose restart keycloak
+
+# Stop and start (full restart)
+sudo docker compose down
+sudo docker compose up -d
+```
+
+### Update NetBird to Latest Version
+
+```bash
+cd ~/netbird-deployment
+
+# Pull latest images
+sudo docker compose pull
+
+# Restart with new images
+sudo docker compose up -d
+
+# Check versions
+sudo docker compose images
+```
+
+### Backup Important Data
+
+```bash
+# Backup environment and configuration
+cp -r ~/netbird-deployment/config ~/netbird-backup-$(date +%Y%m%d)
+cp ~/netbird-deployment/.env ~/netbird-backup-$(date +%Y%m%d)/
+cp ~/netbird-deployment/management.json ~/netbird-backup-$(date +%Y%m%d)/
+
+# Backup PostgreSQL database
+cd ~/netbird-deployment
+sudo docker compose exec -T postgres pg_dump -U netbird netbird > netbird-db-backup-$(date +%Y%m%d).sql
+
+# Restore database (if needed)
+sudo docker compose exec -T postgres psql -U netbird netbird < netbird-db-backup-YYYYMMDD.sql
+```
+
+### Re-run Ansible Playbook (Safe)
+
+The playbook is **idempotent** - safe to run multiple times:
+
+```bash
+# Re-run deployment (preserves passwords and data)
+ansible-playbook -i inventory/hosts.yml deploy-complete.yml
+
+# Only update specific components
+ansible-playbook -i inventory/hosts.yml deploy-complete.yml --tags keycloak
 ```
 
 ## 🐛 Troubleshooting
@@ -180,7 +454,7 @@ ansible netbird -i inventory/hosts.yml -m fetch -a "src=/home/usherking/netbird-
 ansible netbird -i inventory/hosts.yml -m uri -a "url=http://{{ ansible_default_ipv4.address }}:8080/realms/master"
 
 # View configuration
-ansible netbird -i inventory/hosts.yml -m shell -a "cat /home/usherking/netbird-deployment/config/netbird.env"
+ansible netbird -i inventory/hosts.yml -m shell -a "cat /home/your-name /netbird-deployment/config/netbird.env"
 
 # Check Docker status
 ansible netbird -i inventory/hosts.yml -m shell -a "docker ps"
@@ -270,7 +544,7 @@ After successful deployment:
 
 - **Keycloak Admin**: `http://YOUR_IP:8080/admin`
   - Username: `admin`
-  - Password: Check `/home/usherking/netbird-deployment/config/IMPORTANT-PASSWORDS.txt`
+  - Password: Check `/home/your-name /netbird-deployment/config/IMPORTANT-PASSWORDS.txt`
 
 - **NetBird Dashboard**: `http://YOUR_IP:8081`
   - Test user: `testuser` / `testpassword`
@@ -283,35 +557,3 @@ After successful deployment:
 2. **Verify configuration**: Review generated `.env` file
 3. **Test connectivity**: Use provided debug commands
 4. **Re-run playbook**: Safe to run multiple times
-
-## 🔄 Migration from Shell Scripts
-
-If you have an existing NetBird deployment using the shell scripts:
-
-1. **Backup existing data**:
-   ```bash
-   cp -r ~/netbird-deployment ~/netbird-deployment.backup
-   ```
-
-2. **Run the playbook**:
-   ```bash
-   ansible-playbook -i inventory/hosts.yml playbook.yml
-   ```
-
-3. **The playbook will**:
-   - Preserve existing passwords
-   - Maintain database data
-   - Update configuration for proper IP handling
-   - Add idempotency and monitoring
-
-## 🎉 What's Fixed
-
-This Ansible playbook solves the key issues from your shell script deployment:
-
-✅ **IP Address Issues**: Proper separation of internal/external URLs
-✅ **Idempotency**: Safe to run multiple times
-✅ **Multi-machine**: Easy deployment across servers  
-✅ **Maintenance**: Structured, maintainable code
-✅ **Security**: Encrypted secrets, proper firewall
-✅ **Monitoring**: Health checks and logging
-✅ **Documentation**: Self-documenting infrastructure
