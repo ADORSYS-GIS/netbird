@@ -2,8 +2,8 @@
 # defaults file for keycloak role
 
 # Mode configuration - exactly one must be true
-keycloak_deploy_mode: true
-keycloak_external_mode: false
+keycloak_deploy_mode: false 
+keycloak_external_mode: true
 
 # Keycloak deployment configuration
 keycloak_version: "22.0"
