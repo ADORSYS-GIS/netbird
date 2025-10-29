@@ -1,0 +1,243 @@
+---
+# CLI-based Keycloak configuration for DEPLOY mode
+# Uses kcadm.sh inside the Keycloak container
+
+# ========================================
+# STEP 1: Set common kcadm.sh server and credentials
+# ========================================
+- name: Set kcadm.sh server and credentials
+  ansible.builtin.set_fact:
+    kcadm_server: "--no-config --server http://localhost:8080"
+    kcadm_creds: "--realm master --user {{ kc_admin_user }} --password {{ kc_admin_password }}"
+
+# ========================================
+# STEP 2: Create NetBird realm
+# ========================================
+- name: Check if NetBird realm exists
+  ansible.builtin.command:
+    cmd: docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh get realms/{{ kc_realm_name }} {{ kcadm_server }} {{ kcadm_creds }}
+  register: realm_check
+  failed_when: false
+  changed_when: false
+  no_log: true
+
+- name: Create NetBird realm
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh create realms
+      {{ kcadm_server }} {{ kcadm_creds }}
+      -s realm={{ kc_realm_name }}
+      -s enabled=true
+      -s displayName="NetBird"
+      -s registrationAllowed=false
+  when: realm_check.rc != 0
+  register: realm_created
+  no_log: true
+
+# ========================================
+# STEP 3: Create netbird-client (public client)
+# ========================================
+- name: Check if netbird-client exists
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh get clients
+      -r {{ kc_realm_name }}
+      --query clientId={{ keycloak_client_netbird }}
+      {{ kcadm_server }} {{ kcadm_creds }}
+  register: client_check
+  failed_when: false
+  changed_when: false
+  no_log: true
+
+- name: Create netbird-client (public client)
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh create clients
+      -r {{ kc_realm_name }}
+      {{ kcadm_server }} {{ kcadm_creds }}
+      -s clientId={{ keycloak_client_netbird }}
+      -s name="NetBird Client"
+      -s description="NetBird UI and CLI client"
+      -s enabled=true
+      -s publicClient=true
+      -s protocol=openid-connect
+      -s redirectUris={{ kc_redirect_uris | to_json(separators=(',', ':')) | quote }}
+      -s webOrigins={{ ([kc_web_origins] if kc_web_origins is string else kc_web_origins) | to_json(separators=(',', ':')) | quote }}
+      -s standardFlowEnabled=true
+      -s implicitFlowEnabled=false
+      -s directAccessGrantsEnabled=true
+      -s 'attributes={"oauth2.device.authorization.grant.enabled":"true"}'
+  when: (client_check.stdout | from_json | length) == 0
+  register: netbird_client_created
+
+# ========================================
+# STEP 4: Create netbird-backend (confidential client)
+# ========================================
+- name: Check if netbird-backend client exists
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh get clients
+      -r {{ kc_realm_name }}
+      --query clientId={{ keycloak_client_netbird_backend }}
+      {{ kcadm_server }} {{ kcadm_creds }}
+  register: backend_client_check
+  failed_when: false
+  changed_when: false
+  no_log: true
+
+- name: Create netbird-backend client (confidential)
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh create clients
+      -r {{ kc_realm_name }}
+      {{ kcadm_server }} {{ kcadm_creds }}
+      -s clientId={{ keycloak_client_netbird_backend }}
+      -s name="NetBird Management API"
+      -s description="NetBird backend service account"
+      -s enabled=true
+      -s publicClient=false
+      -s protocol=openid-connect
+      -s serviceAccountsEnabled=true
+      -s standardFlowEnabled=false
+      -s implicitFlowEnabled=false
+      -s directAccessGrantsEnabled=false
+  when: (backend_client_check.stdout | from_json | length) == 0
+  register: backend_client_created
+  no_log: true
+
+# ========================================
+# STEP 5: Get backend client UUID (needed for role assignment and secret)
+# ========================================
+- name: Get netbird-backend client ID
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh get clients
+      -r {{ kc_realm_name }}
+      --query clientId={{ keycloak_client_netbird_backend }}
+      --fields id
+      {{ kcadm_server }} {{ kcadm_creds }}
+  register: backend_client_id_output
+  changed_when: false
+  no_log: true
+
+- name: Extract backend client UUID
+  ansible.builtin.set_fact:
+    backend_client_uuid: "{{ (backend_client_id_output.stdout | from_json)[0].id }}"
+  when: (backend_client_id_output.stdout | from_json | length) > 0
+
+- name: Fail if backend client not found
+  ansible.builtin.fail:
+    msg: |
+      ❌ Backend client '{{ keycloak_client_netbird_backend }}' not found in realm '{{ kc_realm_name }}'!
+      This should have been created automatically but wasn't.
+      Please check Keycloak logs for errors.
+  when: (backend_client_id_output.stdout | from_json | length) == 0
+
+# ========================================
+# STEP 6: Assign realm-management roles to service account
+# ========================================
+- name: Get netbird-backend service account user ID
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh get
+      clients/{{ backend_client_uuid }}/service-account-user
+      -r {{ kc_realm_name }}
+      --fields id
+      {{ kcadm_server }} {{ kcadm_creds }}
+  register: service_account_user_output
+  changed_when: false
+  no_log: true
+
+- name: Extract service account user ID
+  ansible.builtin.set_fact:
+    service_account_user_id: "{{ (service_account_user_output.stdout | from_json).id }}"
+
+- name: Get realm-management client ID
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh get clients
+      -r {{ kc_realm_name }}
+      --query clientId=realm-management
+      --fields id
+      {{ kcadm_server }} {{ kcadm_creds }}
+  register: realm_mgmt_client_output
+  changed_when: false
+  no_log: true
+
+- name: Extract realm-management client UUID
+  ansible.builtin.set_fact:
+    realm_mgmt_client_id: "{{ (realm_mgmt_client_output.stdout | from_json)[0].id }}"
+
+- name: Assign view-users role to netbird-backend service account
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh add-roles
+      -r {{ kc_realm_name }}
+      --uusername service-account-{{ keycloak_client_netbird_backend }}
+      --cclientid realm-management
+      --rolename view-users
+      {{ kcadm_server }} {{ kcadm_creds }}
+  register: assign_view_users
+  failed_when: false
+  changed_when: assign_view_users.rc == 0
+
+- name: Assign manage-users role to netbird-backend service account
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh add-roles
+      -r {{ kc_realm_name }}
+      --uusername service-account-{{ keycloak_client_netbird_backend }}
+      --cclientid realm-management
+      --rolename manage-users
+      {{ kcadm_server }} {{ kcadm_creds }}
+  register: assign_manage_users
+  failed_when: false
+  changed_when: assign_manage_users.rc == 0
+
+- name: Display role assignment status
+  ansible.builtin.debug:
+    msg:
+      - "✅ Roles assigned to netbird-backend service account:"
+      - "   - view-users: {{ 'assigned' if assign_view_users.rc == 0 else 'already assigned' }}"
+      - "   - manage-users: {{ 'assigned' if assign_manage_users.rc == 0 else 'already assigned' }}"
+
+# ========================================
+# STEP 7: Get backend client secret
+# ========================================
+- name: Get netbird-backend client secret
+  ansible.builtin.command:
+    cmd: >
+      docker exec netbird-keycloak /opt/keycloak/bin/kcadm.sh get
+      clients/{{ backend_client_uuid }}/client-secret
+      -r {{ kc_realm_name }}
+      {{ kcadm_server }} {{ kcadm_creds }}
+  register: backend_secret_output
+  changed_when: false
+  no_log: true
+
+- name: Extract backend client secret
+  ansible.builtin.set_fact:
+    netbird_mgmt_client_secret: "{{ (backend_secret_output.stdout | from_json).value }}"
+  no_log: true
+
+# ========================================
+# STEP 8: Export configuration facts
+# ========================================
+- name: Set NetBird Keycloak configuration facts
+  ansible.builtin.set_fact:
+    netbird_keycloak_facts:
+      issuer_url: "{{ kc_base_url }}/realms/{{ kc_realm_name }}"
+      oidc_config_endpoint: "{{ kc_base_url }}/realms/{{ kc_realm_name }}/.well-known/openid-configuration"
+      client_id: "{{ keycloak_client_netbird }}"
+      backend_client_id: "{{ keycloak_client_netbird_backend }}"
+      backend_client_secret: "{{ netbird_mgmt_client_secret }}"
+      realm_name: "{{ kc_realm_name }}"
+      keycloak_base_url: "{{ kc_base_url }}"
+
+- name: Display configuration summary
+  ansible.builtin.debug:
+    msg:
+      - "✅ Keycloak realm '{{ kc_realm_name }}' configured successfully!"
+      - "📋 OIDC Endpoint: {{ netbird_keycloak_facts.oidc_config_endpoint }}"
+      - "🔑 Public Client: {{ netbird_keycloak_facts.client_id }}"
+      - "🔐 Backend Client: {{ netbird_keycloak_facts.backend_client_id }}"

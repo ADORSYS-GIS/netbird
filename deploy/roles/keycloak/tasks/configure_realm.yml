@@ -1,178 +1,29 @@
 ---
 # Configure Keycloak realm and clients for NetBird integration
+# DEPLOY MODE: Uses kcadm.sh CLI (direct container access)
+# EXTERNAL MODE: Uses REST API (remote Keycloak)
 
-- name: Obtain Keycloak admin access token
-  ansible.builtin.uri:
-    url: "http://localhost:{{ keycloak_http_port }}/realms/master/protocol/openid-connect/token"
-    method: POST
-    body_format: form-urlencoded
-    body:
-      grant_type: password
-      client_id: admin-cli
-      username: "{{ keycloak_admin_user }}"
-      password: "{{ keycloak_admin_password }}"
-    status_code: 200
-  register: keycloak_admin_token_response
-  retries: 5
-  delay: 5
-  until: keycloak_admin_token_response.status == 200
+# ========================================
+# DEPLOY MODE - CLI-based configuration
+# ========================================
+- name: Include CLI-based configuration for deploy mode
+  ansible.builtin.include_tasks: configure_realm_cli.yml
+  when: kc_is_deploy_mode
 
-- name: Set Keycloak admin token fact
-  ansible.builtin.set_fact:
-    keycloak_admin_token: "{{ keycloak_admin_token_response.json.access_token }}"
+# ========================================
+# EXTERNAL MODE - API-based configuration
+# ========================================
+- name: Include API-based configuration for external mode
+  ansible.builtin.include_tasks: configure_realm_api.yml
+  when: not kc_is_deploy_mode
 
-- name: Check if NetBird realm exists
-  ansible.builtin.uri:
-    url: "http://localhost:{{ keycloak_http_port }}/admin/realms/{{ keycloak_realm }}"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ keycloak_admin_token }}"
-    status_code: [200, 404]
-  register: get_realm_response
-  failed_when: false
-
-- name: Create NetBird realm
-  ansible.builtin.uri:
-    url: "http://localhost:{{ keycloak_http_port }}/admin/realms"
-    method: POST
-    headers:
-      Authorization: "Bearer {{ keycloak_admin_token }}"
-      Content-Type: "application/json"
-    body: "{{ lookup('template', 'realm-import.json.j2') }}"
-    body_format: json
-    status_code: 201
-  when: get_realm_response.status == 404
-
-- name: Wait for realm to be created
-  ansible.builtin.uri:
-    url: "http://localhost:{{ keycloak_http_port }}/realms/{{ keycloak_realm }}/.well-known/openid-configuration"
-    method: GET
-    status_code: 200
-  register: realm_oidc_check
-  until: realm_oidc_check.status == 200
-  retries: 10
-  delay: 3
-  when: get_realm_response.status == 404
-
-- name: Get netbird-backend client details
-  ansible.builtin.uri:
-    url: "http://localhost:{{ keycloak_http_port }}/admin/realms/{{ keycloak_realm }}/clients?clientId={{ keycloak_client_netbird_backend }}"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ keycloak_admin_token }}"
-    status_code: 200
-  register: get_backend_client_response
-
-- name: Fail if netbird-backend client was not created
-  ansible.builtin.fail:
-    msg: "netbird-backend client was not found in realm {{ keycloak_realm }}"
-  when: get_backend_client_response.json | length == 0
-
-- name: Set netbird-backend client UUID fact
-  ansible.builtin.set_fact:
-    netbird_backend_client_uuid: "{{ get_backend_client_response.json[0].id }}"
-
-- name: Get netbird-backend service account user
-  ansible.builtin.uri:
-    url: "http://localhost:{{ keycloak_http_port }}/admin/realms/{{ keycloak_realm }}/clients/{{ netbird_backend_client_uuid }}/service-account-user"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ keycloak_admin_token }}"
-    status_code: 200
-  register: get_service_account_user_response
-
-- name: Set netbird-backend service account user ID fact
-  ansible.builtin.set_fact:
-    netbird_backend_service_account_user_id: "{{ get_service_account_user_response.json.id }}"
-
-- name: Get realm-management client details
-  ansible.builtin.uri:
-    url: "http://localhost:{{ keycloak_http_port }}/admin/realms/{{ keycloak_realm }}/clients?clientId=realm-management"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ keycloak_admin_token }}"
-    status_code: 200
-  register: get_realm_management_client_response
-
-- name: Set realm-management client UUID fact
-  ansible.builtin.set_fact:
-    realm_management_client_uuid: "{{ get_realm_management_client_response.json[0].id }}"
-
-- name: Get available roles for realm-management client
-  ansible.builtin.uri:
-    url: "http://localhost:{{ keycloak_http_port }}/admin/realms/{{ keycloak_realm }}/clients/{{ realm_management_client_uuid }}/roles"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ keycloak_admin_token }}"
-    status_code: 200
-  register: get_realm_management_roles_response
-
-- name: Extract required roles (view-users and manage-users)
-  ansible.builtin.set_fact:
-    required_roles: "{{ get_realm_management_roles_response.json | selectattr('name', 'in', ['view-users', 'manage-users']) | list }}"
-
-- name: Assign view-users and manage-users roles to netbird-backend service account
-  ansible.builtin.uri:
-    url: "http://localhost:{{ keycloak_http_port }}/admin/realms/{{ keycloak_realm }}/users/{{ netbird_backend_service_account_user_id }}/role-mappings/clients/{{ realm_management_client_uuid }}"
-    method: POST
-    headers:
-      Authorization: "Bearer {{ keycloak_admin_token }}"
-      Content-Type: "application/json"
-    body: "{{ required_roles | to_json }}"
-    body_format: json
-    status_code: [204, 409]
-  register: assign_roles_response
-  failed_when: false
-
-- name: Get netbird-backend client secret
-  ansible.builtin.uri:
-    url: "http://localhost:{{ keycloak_http_port }}/admin/realms/{{ keycloak_realm }}/clients/{{ netbird_backend_client_uuid }}/client-secret"
-    method: GET
-    headers:
-      Authorization: "Bearer {{ keycloak_admin_token }}"
-    status_code: 200
-  register: get_backend_client_secret_response
-  no_log: true
-
-- name: Set NetBird OIDC configuration facts for role export
-  ansible.builtin.set_fact:
-    netbird_oidc_configuration_endpoint: "https://{{ keycloak_host }}/realms/{{ keycloak_realm }}/.well-known/openid-configuration"
-    netbird_client_id: "{{ keycloak_client_netbird }}"
-    netbird_client_secret: ""
-    netbird_audience: "{{ keycloak_client_netbird }}"
-    netbird_mgmt_client_id: "{{ keycloak_client_netbird_backend }}"
-    netbird_mgmt_client_secret: "{{ get_backend_client_secret_response.json.value }}"
-    netbird_mgmt_extra_admin_endpoint: "https://{{ keycloak_host }}/admin/realms/{{ keycloak_realm }}"
-  no_log: true
-
-- name: Display Keycloak realm configuration (excluding secrets)
+# ========================================
+# Final configuration summary
+# ========================================
+- name: Display final configuration status
   ansible.builtin.debug:
     msg:
-      - "=========================================="
-      - "Keycloak Realm Configuration Complete"
-      - "=========================================="
-      - "Realm: {{ keycloak_realm }}"
-      - "Host: https://{{ keycloak_host }}"
-      - ""
-      - "OIDC Configuration:"
-      - "  Endpoint: {{ netbird_oidc_configuration_endpoint }}"
-      - "  Issuer: https://{{ keycloak_host }}/realms/{{ keycloak_realm }}"
-      - ""
-      - "Frontend Client (Public):"
-      - "  Client ID: {{ netbird_client_id }}"
-      - "  Audience: {{ netbird_audience }}"
-      - ""
-      - "Backend Client (Service Account):"
-      - "  Client ID: {{ netbird_mgmt_client_id }}"
-      - "  Secret: <SAVED_TO_FILE>"
-      - "  Admin API: {{ netbird_mgmt_extra_admin_endpoint }}"
-      - ""
-      - "Configuration saved to: {{ keycloak_data_dir }}/{{ keycloak_realm }}-config.env"
-      - "=========================================="
-
-- name: Save realm configuration to file
-  ansible.builtin.template:
-    src: realm-config.env.j2
-    dest: "{{ keycloak_data_dir }}/{{ keycloak_realm }}-config.env"
-    mode: '0600'
-  when: keycloak_data_dir is defined
+      - "✅ Keycloak realm configuration completed"
+      - "Mode: {{ 'Deploy (CLI)' if kc_is_deploy_mode else 'External (API)' }}"
+      - "Realm: {{ kc_realm_name }}"
+      - "Configuration saved for NetBird deployment"
