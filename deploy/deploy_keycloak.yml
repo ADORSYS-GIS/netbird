@@ -1,14 +1,14 @@
 ---
+# Keycloak Configuration Playbook
+# Configures NetBird OAuth clients in Keycloak (deploy or external mode)
+# All configuration is in group_vars/keycloak.yml
+#
+# NOTE: Run setup_and_run.yml instead of this file directly
+#       It will install required collections first
+
 - hosts: keycloak
   become: yes
   roles:
     - role: keycloak
-      vars:
-        keycloak:
-          deploy_keycloak: true
-          external_keycloak: false
-          keycloak_host: "auth.example.com"
-          keycloak_admin_password: "SuperSecret!" # Use Ansible Vault for this in production
-          keycloak_valid_redirect_uris:
-            - "https://netbird.example.com/*"
-            - "http://localhost:53000"
+      # All variables are read from group_vars/keycloak.yml
+      # No need to override here unless testing specific values
