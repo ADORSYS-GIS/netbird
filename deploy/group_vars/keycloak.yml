@@ -43,8 +43,8 @@ keycloak_db_password: "{{ vault_keycloak_db_password }}"  # Use Ansible Vault!
 
 # OIDC Discovery Endpoint of existing Keycloak
 # Format: https://YOUR_KEYCLOAK_HOST/realms/YOUR_REALM/.well-known/openid-configuration
-# Example: https://login.wazuh.adorsys.team/realms/netbird/.well-known/openid-configuration
-keycloak_oidc_configuration_endpoint: "https://login.wazuh.adorsys.team/realms/netbird/.well-known/openid-configuration"
+# Example: https://your-keycloak.example.com/realms/netbird/.well-known/openid-configuration
+keycloak_oidc_configuration_endpoint: "https://YOUR_KEYCLOAK_HOST/realms/YOUR_REALM/.well-known/openid-configuration"
 
 # Realm admin credentials for external mode
 keycloak_realm_admin_user: "{{ vault_keycloak_realm_admin_user | default('netbird-backend') }}"
@@ -69,9 +69,8 @@ keycloak_client_netbird_backend: "netbird-backend"  # Service account for Manage
 # ⚠️ CRITICAL: Update YOUR_NETBIRD_DOMAIN with your actual AWS domain!
 # Example: https://netbird.example.com/* or https://netbird.yourcompany.com/*
 keycloak_valid_redirect_uris:
-  - "https://netbird.example.com*"  # ⚠️ REPLACE THIS WITH YOUR AWS DOMAIN!
-  - "https://login.wazuh.adorsys.team/*"  # Keycloak SSO origin
-  - "http://localhost:53000"  # NetBird CLI local callback# Alternative CLI port
+  - "https://netbird.example.com*"  # ⚠️ REPLACE THIS WITH YOUR NETBIRD DOMAIN!
+  - "http://localhost:53000"  # NetBird CLI local callback
 
 # Web origins for CORS
 keycloak_web_origins: "+"  # Allows all origins (use specific origins in production)

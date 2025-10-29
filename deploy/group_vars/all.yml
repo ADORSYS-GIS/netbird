@@ -5,8 +5,8 @@
 # Only used when: keycloak_external_mode: true
 
 # NetBird Backend Client (Service Account)
-# Get this from your boss - it's the netbird-backend client secret
-vault_netbird_backend_client_secret: "TAFgXXwgu9vczPHKkcle8rUqERKwJ8qy"  # Real secret from boss
+# Get this from your Keycloak admin - it's the netbird-backend client secret
+vault_netbird_backend_client_secret: "REPLACE_WITH_YOUR_CLIENT_SECRET"  # ⚠️ REPLACE THIS!
 
 
 # ============================================================
