@@ -1,26 +1,9 @@
 ---
 # Keycloak role handlers
+# 
+# NOTE: Docker-related handlers are in deploy_handlers.yml
+#       They are only loaded when keycloak_deploy_mode: true
+#       This prevents parsing errors in external mode
 
-- name: Restart Keycloak
-  community.docker.docker_compose_v2:
-    project_src: "{{ keycloak_data_dir }}"
-    state: restarted
-
-- name: Stop Keycloak
-  community.docker.docker_compose_v2:
-    project_src: "{{ keycloak_data_dir }}"
-    state: stopped
-
-- name: Reload Keycloak configuration
-  community.docker.docker_compose_v2:
-    project_src: "{{ keycloak_data_dir }}"
-    state: restarted
-    services:
-      - keycloak
-
-- name: Reload Caddy
-  community.docker.docker_compose_v2:
-    project_src: "{{ keycloak_data_dir }}"
-    state: restarted
-    services:
-      - caddy
+# No handlers defined here - external mode doesn't need any
+# All configuration changes are applied immediately via Keycloak API
