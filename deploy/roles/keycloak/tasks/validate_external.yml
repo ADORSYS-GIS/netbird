@@ -1,24 +1,26 @@
 ---
-# Configure external Keycloak realm for NetBird
-# Assumes: Realm exists, you have realm admin user credentials
-# Does: Creates/validates clients, assigns roles, returns NetBird config
+# Validate external Keycloak connection
+# Assumes: Realm and clients ALREADY EXIST (created by boss)
+# Does: Validates connectivity and extracts configuration
 
-- name: Validate required credentials for realm admin access
+- name: Validate OIDC endpoint is configured
   ansible.builtin.assert:
     that:
       - keycloak_oidc_configuration_endpoint is defined
       - keycloak_oidc_configuration_endpoint | length > 0
-      - keycloak_realm_admin_user is defined
-      - keycloak_realm_admin_user | length > 0
-      - keycloak_realm_admin_password is defined
-      - keycloak_realm_admin_password | length > 0
+      - vault_netbird_backend_client_secret is defined
+      - vault_netbird_backend_client_secret | length > 0
+      - vault_netbird_backend_client_secret != "YOUR_CLIENT_SECRET_FROM_BOSS"
     fail_msg: |
-      External Keycloak mode requires realm admin credentials:
-        - keycloak_oidc_configuration_endpoint: Full OIDC discovery URL
-        - keycloak_realm_admin_user: Username with realm admin privileges
-        - keycloak_realm_admin_password: Password for the realm admin user
+      External Keycloak mode requires:
       
-      Set these in group_vars/keycloak.yml or via command line.
+      1. OIDC endpoint: Already configured in keycloak.yml ✓
+      2. Backend client secret: Set in all.yml
+      
+      Edit group_vars/all.yml and replace:
+        vault_netbird_backend_client_secret: "YOUR_CLIENT_SECRET_FROM_BOSS"
+      
+      With the real secret from your boss (should look like a long random string)
 
 - name: Validate OIDC configuration endpoint accessibility
   ansible.builtin.uri:
@@ -32,41 +34,18 @@
     'issuer' not in oidc_config_response.json or
     'token_endpoint' not in oidc_config_response.json
 
-- name: Extract Keycloak base URL and realm name
+- name: Extract realm information
   ansible.builtin.set_fact:
-    keycloak_base_url: "{{ oidc_config_response.json.issuer | regex_replace('/realms/.*', '') }}"
-    extracted_realm_name: "{{ oidc_config_response.json.issuer | regex_search('/realms/([^/]+)', '\\1') | first }}"
+    keycloak_base_url: "{{ oidc_config_response.json.issuer | regex_replace('/realms/.*$', '') }}"
+    extracted_realm_name: "{{ oidc_config_response.json.issuer | regex_replace('^.*/realms/', '') }}"
+    netbird_backend_client_secret: "{{ vault_netbird_backend_client_secret }}"
 
 - name: Display discovered information
   ansible.builtin.debug:
     msg:
-      - "Keycloak Base URL: {{ keycloak_base_url }}"
-      - "Realm: {{ extracted_realm_name }}"
-      - "Issuer: {{ oidc_config_response.json.issuer }}"
+      - "✓ Keycloak Base URL: {{ keycloak_base_url }}"
+      - "✓ Realm: {{ extracted_realm_name }}"
+      - "✓ Issuer: {{ oidc_config_response.json.issuer }}"
+      - "✓ Mode: Using existing clients (no admin access needed)"
 
-- name: Obtain realm admin access token
-  ansible.builtin.uri:
-    url: "{{ oidc_config_response.json.token_endpoint }}"
-    method: POST
-    body_format: form-urlencoded
-    body:
-      grant_type: password
-      client_id: admin-cli
-      username: "{{ keycloak_realm_admin_user }}"
-      password: "{{ keycloak_realm_admin_password }}"
-    validate_certs: "{{ keycloak_validate_certs }}"
-    status_code: 200
-  register: realm_admin_token_response
-  retries: 3
-  delay: 5
-  until: realm_admin_token_response.status == 200
-  no_log: true
-
-- name: Set realm admin token fact
-  ansible.builtin.set_fact:
-    keycloak_admin_token: "{{ realm_admin_token_response.json.access_token }}"
-  no_log: true
-
-# Now include the main configuration tasks that work with the admin token
-- name: Include realm configuration tasks
-  ansible.builtin.include_tasks: configure_external_realm_clients.yml
+# Validation complete - will export configuration for NetBird

@@ -1,12 +1,17 @@
 ---
 # Deploy new Keycloak instance with PostgreSQL
 
-- name: Install system prerequisites
+- name: Check if Docker is already installed
+  ansible.builtin.command: docker --version
+  register: docker_check
+  failed_when: false
+  changed_when: false
+
+- name: Install system prerequisites (without Docker if already installed)
   ansible.builtin.apt:
     name:
       - python3-pip
       - python3-setuptools
-      - docker.io
       - curl
       - ca-certificates
       - gnupg
@@ -14,17 +19,32 @@
     state: present
     update_cache: yes
 
+- name: Install Docker from Ubuntu repository (only if not already installed)
+  ansible.builtin.apt:
+    name:
+      - docker.io
+    state: present
+  when: docker_check.rc != 0
+
+- name: Check if Docker Compose is already installed
+  ansible.builtin.command: docker compose version
+  register: compose_check
+  changed_when: false
+  failed_when: false
+
 - name: Create Docker CLI plugins directory
   ansible.builtin.file:
     path: /usr/local/lib/docker/cli-plugins
     state: directory
     mode: '0755'
+  when: compose_check.rc != 0
 
 - name: Download and install Docker Compose plugin
   ansible.builtin.get_url:
     url: https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-linux-x86_64
     dest: /usr/local/lib/docker/cli-plugins/docker-compose
     mode: '0755'
+  when: compose_check.rc != 0
 
 - name: Verify Docker Compose plugin installation
   ansible.builtin.command: docker compose version
@@ -40,17 +60,9 @@
 
 - name: Add current user to docker group
   ansible.builtin.user:
-    name: "{{ ansible_user }}"
+    name: "{{ ansible_user_id }}"
     groups: docker
     append: yes
-
-- name: Install required Python packages for Docker management
-  ansible.builtin.pip:
-    name:
-      - docker
-      - requests
-    state: present
-    executable: pip3
 
 - name: Create Keycloak data directory
   ansible.builtin.file:
@@ -60,6 +72,19 @@
     owner: root
     group: root
 
+- name: Stop existing Keycloak containers (if any)
+  community.docker.docker_compose_v2:
+    project_src: "{{ keycloak_data_dir }}"
+    state: absent
+  ignore_errors: yes
+  when: keycloak_data_dir is defined
+
+- name: Remove orphaned netbird-keycloak container (if exists)
+  ansible.builtin.command:
+    cmd: docker rm -f netbird-keycloak
+  register: remove_container
+  failed_when: false
+  changed_when: remove_container.rc == 0
 
 - name: Render Docker Compose template
   ansible.builtin.template:
@@ -119,14 +144,14 @@
 
 - name: Test Keycloak accessibility through Caddy (HTTPS)
   ansible.builtin.uri:
-    url: "https://{{ keycloak_host }}/health/ready"
+    url: "https://{{ keycloak_host }}/"
     method: GET
     status_code: 200
     validate_certs: no  # Allow self-signed certs for nip.io domains
   register: caddy_health
   until: caddy_health.status == 200
-  retries: 10
-  delay: 5
+  retries: 5
+  delay: 3
   when: keycloak_health is succeeded
   ignore_errors: yes
 
