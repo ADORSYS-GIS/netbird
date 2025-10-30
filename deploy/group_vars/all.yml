@@ -1,0 +1,23 @@
+---
+# ============================================================
+# EXTERNAL MODE Credentials (Boss's Keycloak)
+# ============================================================
+# Only used when: keycloak_external_mode: true
+
+# NetBird Backend Client (Service Account)
+# Get this from your Keycloak admin - it's the netbird-backend client secret
+vault_netbird_backend_client_secret: "REPLACE_WITH_YOUR_CLIENT_SECRET"  # ⚠️ REPLACE THIS!
+
+
+# ============================================================
+# DEPLOY MODE Credentials (Local Keycloak)
+# ============================================================
+# Only used when: keycloak_deploy_mode: true
+
+# Keycloak master realm admin password
+vault_keycloak_admin_password: "admin"  # ⚠️ CHANGE THIS!
+
+# PostgreSQL database password for Keycloak
+vault_keycloak_db_password: "password"  # ⚠️ CHANGE THIS!
+
+# Note: Both sections can coexist - only the active mode's credentials are used

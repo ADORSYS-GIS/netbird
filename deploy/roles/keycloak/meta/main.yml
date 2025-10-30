@@ -1,0 +1,34 @@
+---
+galaxy_info:
+  role_name: keycloak
+  author: onelrian
+  description: Ansible role for deploying and configuring Keycloak as an identity provider for NetBird
+  company: NetBird
+  license: MIT
+  min_ansible_version: "2.12"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bullseye
+        - bookworm
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+  galaxy_tags:
+    - netbird
+    - keycloak
+    - identity
+    - authentication
+    - sso
+    - oidc
+    - oauth2
+    - docker
+    - containers
+
+dependencies: []
