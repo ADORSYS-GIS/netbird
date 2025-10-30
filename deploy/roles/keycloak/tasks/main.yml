@@ -1,0 +1,138 @@
+---
+# Main tasks file for Keycloak role
+
+- name: Validate mode configuration
+  ansible.builtin.assert:
+    that:
+      - (keycloak_deploy_mode and not keycloak_external_mode) or (keycloak_external_mode and not keycloak_deploy_mode)
+    fail_msg: "Exactly one mode must be true: keycloak_deploy_mode OR keycloak_external_mode"
+    success_msg: "Mode configuration is valid"
+
+- name: Validate deployment prerequisites
+  ansible.builtin.assert:
+    that:
+      - keycloak_host is defined and keycloak_host | length > 0
+      - keycloak_realm is defined and keycloak_realm | length > 0
+      - keycloak_client_netbird is defined and keycloak_client_netbird | length > 0
+      - keycloak_client_netbird_backend is defined and keycloak_client_netbird_backend | length > 0
+    fail_msg: "Required Keycloak configuration variables are missing or empty."
+
+- name: Validate deployment mode specific variables
+  ansible.builtin.assert:
+    that:
+      - keycloak_admin_user is defined and keycloak_admin_user | length > 0
+      - keycloak_admin_password is defined and keycloak_admin_password | length > 0
+      - keycloak_db_password is defined and keycloak_db_password | length > 0
+    fail_msg: "Required deployment mode variables are missing."
+  when: keycloak_deploy_mode
+
+- name: Validate external mode specific variables
+  ansible.builtin.assert:
+    that:
+      - keycloak_oidc_configuration_endpoint is defined and keycloak_oidc_configuration_endpoint | length > 0
+    fail_msg: "keycloak_oidc_configuration_endpoint is required for external mode."
+  when: keycloak_external_mode
+
+- name: Deploy and configure new Keycloak instance
+  ansible.builtin.include_tasks: deploy.yml
+  when: keycloak_deploy_mode
+
+- name: Validate and prepare external Keycloak connection
+  ansible.builtin.include_tasks: validate_external.yml
+  when: keycloak_external_mode
+
+# Set variables for configure_realm.yml based on mode
+- name: Set configuration variables for deploy mode
+  ansible.builtin.set_fact:
+    kc_base_url: "http://localhost:8080"
+    kc_realm_name: "{{ keycloak_realm }}"
+    kc_token_realm: "master"
+    kc_admin_user: "{{ keycloak_admin_user }}"
+    kc_admin_password: "{{ keycloak_admin_password }}"
+    kc_public_url: "http://{{ keycloak_host }}:{{ keycloak_http_port }}"
+    kc_validate_certs: false
+    kc_is_deploy_mode: true
+    kc_redirect_uris: "{{ keycloak_valid_redirect_uris }}"
+    kc_web_origins: "{{ keycloak_web_origins }}"
+  when: keycloak_deploy_mode
+
+- name: Set configuration variables for external mode
+  ansible.builtin.set_fact:
+    kc_base_url: "{{ keycloak_base_url }}"
+    kc_realm_name: "{{ extracted_realm_name }}"
+    kc_token_realm: "{{ extracted_realm_name }}"
+    kc_admin_user: "service-account-netbird-backend"
+    kc_admin_password: "{{ netbird_backend_client_secret }}"
+    kc_admin_client_id: "netbird-backend"
+    kc_admin_client_secret: "{{ netbird_backend_client_secret }}"
+    kc_public_url: "{{ keycloak_base_url }}"
+    kc_validate_certs: "{{ keycloak_validate_certs }}"
+    kc_is_deploy_mode: false
+    kc_redirect_uris: "{{ keycloak_valid_redirect_uris }}"
+    kc_web_origins: "{{ keycloak_web_origins }}"
+  when: keycloak_external_mode
+
+# Validate redirect URIs are configured
+- name: Check if redirect URIs are properly configured
+  ansible.builtin.assert:
+    that:
+      - "'YOUR_NETBIRD_DOMAIN' not in (keycloak_valid_redirect_uris | join(' '))"
+    fail_msg: |
+      ⚠️  CRITICAL: Redirect URIs not configured!
+      
+      Edit group_vars/keycloak.yml line 71 and replace:
+        - "https://YOUR_NETBIRD_DOMAIN/*"
+      
+      With your actual AWS NetBird domain:
+        - "https://netbird.yourcompany.com/*"
+      
+      This is required for OAuth authentication to work!
+
+# Run configuration for BOTH modes (creates/updates clients)
+- name: Configure Keycloak realm and clients
+  ansible.builtin.include_tasks: configure_realm.yml
+
+- name: Set NetBird integration facts
+  ansible.builtin.set_fact:
+    netbird_keycloak_facts:
+      oidc_configuration_endpoint: "{{ netbird_oidc_configuration_endpoint }}"
+      client_id: "{{ netbird_client_id }}"
+      client_secret: "{{ netbird_client_secret | default('') }}"
+      audience: "{{ netbird_audience }}"
+      mgmt_client_id: "{{ netbird_mgmt_client_id }}"
+      mgmt_client_secret: "{{ netbird_mgmt_client_secret }}"
+      mgmt_extra_admin_endpoint: "{{ netbird_mgmt_extra_admin_endpoint }}"
+  when: netbird_oidc_configuration_endpoint is defined
+
+- name: Export NetBird configuration
+  ansible.builtin.copy:
+    content: |
+      # NetBird Keycloak Configuration
+      # Generated: {{ ansible_date_time.iso8601 }}
+      # ============================================================
+      
+      NETBIRD_AUTH_OIDC_CONFIGURATION_ENDPOINT={{ netbird_oidc_configuration_endpoint }}
+      NETBIRD_AUTH_CLIENT_ID={{ netbird_client_id }}
+      NETBIRD_AUTH_AUDIENCE={{ netbird_audience }}
+      NETBIRD_IDP_MGMT_CLIENT_ID={{ netbird_mgmt_client_id }}
+      NETBIRD_IDP_MGMT_CLIENT_SECRET={{ netbird_mgmt_client_secret }}
+      NETBIRD_IDP_MGMT_EXTRA_ADMIN_ENDPOINT={{ netbird_mgmt_extra_admin_endpoint }}
+    dest: "{{ playbook_dir }}/netbird-external-config.env"
+    mode: '0600'
+  delegate_to: localhost
+  when: netbird_oidc_configuration_endpoint is defined
+
+- name: Display success message
+  ansible.builtin.debug:
+    msg: |
+      ========================================
+      ✓ Configuration Complete!
+      ========================================
+      Keycloak: {{ keycloak_base_url | default('N/A') }}
+      Realm: {{ extracted_realm_name | default(keycloak_realm) }}
+      
+      NetBird configuration saved to:
+        → {{ playbook_dir }}/netbird-external-config.env
+      
+      Use these credentials in your NetBird deployment!
+  when: netbird_oidc_configuration_endpoint is defined
