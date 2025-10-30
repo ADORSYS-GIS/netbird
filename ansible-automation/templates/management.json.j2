@@ -1,0 +1,60 @@
+{
+  // STUN server configuration.
+  // STUN (Session Traversal Utilities for NAT) is used to discover the public IP address of clients.
+  "Stuns": [
+    {
+      "Proto": "udp",
+      "URI": "stun:{{ netbird_domain }}:3478",
+      "Username": "",
+      "Password": ""
+    }
+  ],
+  // TURN server configuration.
+  // TURN (Traversal Using Relays around NAT) is used to relay traffic when direct peer-to-peer connections are not possible.
+  "TURNConfig": {
+    "TimeBasedCredentials": false,
+    "CredentialsTTL": "12h0m0s",
+    "Secret": "{{ netbird_turn_secret }}",
+    "Turns": [
+      {
+        "Proto": "udp",
+        "URI": "turn:{{ netbird_domain }}:3478",
+        "Username": "self",
+        "Password": "{{ netbird_turn_password }}"
+      }
+    ]
+  },
+  // Relay server configuration.
+  // The Relay service helps establish connections between peers, especially those behind restrictive NATs.
+  "Relay": {
+    "Addresses": [
+      "rels://{{ netbird_domain }}/relay"
+    ],
+    "CredentialsTTL": "24h0m0s",
+    "Secret": "{{ netbird_relay_secret }}"
+  },
+  // Signal server configuration.
+  // The Signal server is used for signaling and coordinating peer connections.
+  "Signal": {
+    "Proto": "https",
+    "URI": "{{ netbird_domain }}:443",
+    "Username": "",
+    "Password": ""
+  },
+  // Data directory for NetBird.
+  "Datadir": "/var/lib/netbird/",
+  // Encryption key for the data store.
+  "DataStoreEncryptionKey": "{{ netbird_datastore_encryption_key }}",
+  // Data store configuration.
+  "StoreConfig": {
+    "Engine": "sqlite"
+  },
+  // HTTP configuration, primarily for OIDC authentication.
+  "HttpConfig": {
+    "AuthAudience": "{{ netbird_auth_audience }}",
+    "AuthIssuer": "{{ netbird_auth_authority }}",
+    "AuthKeysLocation": "{{ netbird_auth_authority }}/protocol/openid-connect/certs",
+    "OIDCConfigEndpoint": "{{ netbird_auth_authority }}/.well-known/openid-configuration",
+    "IdpSignKeyRefreshEnabled": false
+  }
+}
