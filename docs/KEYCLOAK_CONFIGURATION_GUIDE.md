@@ -414,14 +414,14 @@ vault_keycloak_realm_admin_password: "SecureRealmPassword789!"
 
 ```bash
 # Prompt for vault password:
-ansible-playbook -i inventory.ini site.yml --ask-vault-pass
+ansible-playbook -i inventory.ini setup_and_run.yml --ask-vault-pass
 
 # Use password file:
-ansible-playbook -i inventory.ini site.yml --vault-password-file ~/.vault_pass
+ansible-playbook -i inventory.ini setup_and_run.yml --vault-password-file ~/.vault_pass
 
 # Use environment variable:
 export ANSIBLE_VAULT_PASSWORD_FILE=~/.vault_pass
-ansible-playbook -i inventory.ini site.yml
+ansible-playbook -i inventory.ini setup_and_run.yml
 ```
 
 ---
@@ -620,7 +620,7 @@ keycloak_validate_certs: false  # Only for testing!
 
 **Check configuration:**
 ```bash
-ansible-playbook -i inventory.ini site.yml --syntax-check
+ansible-playbook -i inventory.ini setup_and_run.yml --syntax-check
 ```
 
 **Test connectivity to external Keycloak:**
@@ -659,7 +659,7 @@ docker logs caddy
 
 **Ansible verbose output:**
 ```bash
-ansible-playbook -i inventory.ini site.yml -vvv --ask-vault-pass
+ansible-playbook -i inventory.ini setup_and_run.yml -vvv --ask-vault-pass
 ```
 
 ### Useful Commands
@@ -698,7 +698,7 @@ cat deploy/netbird-external-config.env
 **Ready to deploy?** Follow the checklist for your chosen mode, then run:
 
 ```bash
-ansible-playbook -i deploy/inventory.ini deploy/site.yml --ask-vault-pass
+ansible-playbook -i deploy/inventory.ini deploy/setup_and_run.yml --ask-vault-pass
 ```
 
 Good luck! 🚀
