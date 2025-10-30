@@ -222,7 +222,7 @@ keycloak_external_mode: true
 **Line 47** in `keycloak.yml`:
 
 ```yaml
-keycloak_oidc_configuration_endpoint: "https://login.wazuh.adorsys.team/realms/netbird/.well-known/openid-configuration"
+keycloak_oidc_configuration_endpoint: "https://your_keycloak_domain.team/realms/netbird/.well-known/openid-configuration"
 ```
 
 **How to get this:**
@@ -232,8 +232,8 @@ keycloak_oidc_configuration_endpoint: "https://login.wazuh.adorsys.team/realms/n
 
 **Example:**
 ```yaml
-# For boss's Keycloak at login.wazuh.adorsys.team with realm "netbird":
-keycloak_oidc_configuration_endpoint: "https://login.wazuh.adorsys.team/realms/netbird/.well-known/openid-configuration"
+# For boss's Keycloak at your_keycloak_domain.team with realm "netbird":
+keycloak_oidc_configuration_endpoint: "https://your_keycloak_domain.team/realms/netbird/.well-known/openid-configuration"
 
 # For company Keycloak at auth.company.com with realm "production":
 keycloak_oidc_configuration_endpoint: "https://auth.company.com/realms/production/.well-known/openid-configuration"
@@ -302,7 +302,7 @@ keycloak_validate_certs: false  # Only for testing!
 ```yaml
 keycloak_valid_redirect_uris:
   - "https://netbird.yourcompany.com/*"      # ⚠️ REPLACE THIS!
-  - "https://login.wazuh.adorsys.team/*"     # Your Keycloak SSO origin
+  - "https://your_keycloak_domain.team/*"     # Your Keycloak SSO origin
   - "http://localhost:53000"                 # NetBird CLI local callback
 ```
 

@@ -64,7 +64,7 @@ Visual guide to understand NetBird Keycloak deployment modes and architecture.
 │                (Managed by Admin/Boss)                    │
 │  ┌────────────────────────────────────────────────────┐  │
 │  │  Keycloak Production Instance                      │  │
-│  │  - URL: login.wazuh.adorsys.team                   │  │
+│  │  - URL: your_keycloak_domain.team                   │  │
 │  │  - Realm: netbird (existing)                       │  │
 │  │  - Clients: Created by Ansible                     │  │
 │  │    • netbird-client (public)                       │  │
@@ -327,7 +327,7 @@ Internet
    ▼
 ┌─────────────────────────────────┐
 │  External Keycloak Server       │  ← Managed by Admin
-│  login.wazuh.adorsys.team       │
+│  your_keycloak_domain.team       │
 └────────┬────────────────────────┘
          │
          │ OIDC Discovery
@@ -382,7 +382,7 @@ Internet
    Browser → https://netbird.company.com
               ↓
 2. SSO Redirect
-   NetBird → https://login.wazuh.adorsys.team
+   NetBird → https://your_keycloak_domain.team
               ↓
 3. Existing Session Check
    Keycloak → Checks for existing SSO session
