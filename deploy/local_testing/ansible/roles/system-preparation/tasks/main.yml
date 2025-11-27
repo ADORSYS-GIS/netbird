@@ -9,17 +9,17 @@
       include_tasks: handle_dpkg_locks.yml
       tags: ['dpkg-locks']
 
-    - name: Remove existing Docker installations
-      include_tasks: remove_docker.yml
-      tags: ['docker-cleanup']
+#    - name: Remove existing Docker installations
+#      include_tasks: remove_docker.yml
+#      tags: ['docker-cleanup']
 
-    - name: Install required packages
-      include_tasks: install_packages.yml
-      tags: ['packages']
+#    - name: Install required packages
+#      include_tasks: install_packages.yml
+#      tags: ['packages']
 
-    - name: Install Docker
-      include_tasks: install_docker.yml
-      tags: ['docker']
+#    - name: Install Docker
+#      include_tasks: install_docker.yml
+#      tags: ['docker']
 
     - name: Configure firewall
       include_tasks: configure_firewall.yml
