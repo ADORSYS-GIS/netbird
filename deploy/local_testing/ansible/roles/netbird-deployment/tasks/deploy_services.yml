@@ -55,23 +55,23 @@
   debug:
     msg: "{{ docker_diagnosis.stdout_lines }}"
 
-- name: Try alternative Docker access methods
-  shell: |
-    echo "=== TRYING DIFFERENT APPROACHES ==="
-    echo "1. Direct socket access:"
-    curl --unix-socket /var/run/docker.sock http://localhost/version 2>&1 || true
-    echo ""
-    echo "2. Docker with sudo:"
-    sudo docker info 2>&1 || true
-    echo ""
-    echo "3. Docker daemon running check:"
-    pgrep dockerd || echo "Docker daemon not running"
-  register: docker_alternatives
-  failed_when: false
+# - name: Try alternative Docker access methods
+#  shell: |
+#    echo "=== TRYING DIFFERENT APPROACHES ==="
+#    echo "1. Direct socket access:"
+#    curl --unix-socket /var/run/docker.sock http://localhost/version 2>&1 || true
+#   echo ""
+#   echo "2. Docker with sudo:"
+#   sudo docker info 2>&1 || true
+#   echo ""
+#   echo "3. Docker daemon running check:"
+#   pgrep dockerd || echo "Docker daemon not running"
+# register: docker_alternatives
+# failed_when: false
 
-- name: Display alternative access attempts
-  debug:
-    msg: "{{ docker_alternatives.stdout_lines }}"
+#- name: Display alternative access attempts
+#  debug:
+#    msg: "{{ docker_alternatives.stdout_lines }}"
 
 - name: Check if Docker daemon is actually running
   command: pgrep dockerd
@@ -107,7 +107,8 @@
       - "Final Docker test output: {{ final_docker_check.stdout_lines | default(['No output']) }}"
       - "Final Docker test error: {{ final_docker_check.stderr | default('No error') }}"
 
-- name: Conditional failure with detailed info
+-
+ name: Conditional failure with detailed info
   fail:
     msg: |
       Docker is still not accessible after all attempts.
