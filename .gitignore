@@ -1,0 +1,35 @@
+# Ignore environment / secret variable files
+.env
+*.env
+*.env.*   # e.g. zitadel.env, zdb.env, dashboard.env, relay.env ...
+
+# Ignore config files or secrets that you don’t want in repo
+*.env        # in case you or others use other names
+*.env.*.local
+*.key
+*.pem
+*.crt
+
+# Ignore log files, temporary files, caches
+*.log
+*.tmp
+*.cache
+*.bak
+
+# Ignore OS-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore build / compiled / generated files or directories (if any)
+build/
+dist/
+target/
+
+# Ignore sensitive or local-only directories
+machinekey/
