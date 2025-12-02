@@ -184,7 +184,7 @@ Grafana runs with its default admin credentials unless you have overridden them 
 
 In Grafana:
 
-1. Go to **Administration → Data sources → Add data source**.
+1. From **HOME** Go to **Connections** → **Data sources** → **Add data source**.
 2. Choose **Prometheus**.
 3. Set the URL to:
 
@@ -203,7 +203,7 @@ Example Prometheus data source configuration:
 
 ### 4.3 Configure Loki data source
 
-1. Go to **Administration → Data sources → Add data source**.
+1. From **HOME** Go to **Connections** → **Data sources** → **Add data source**.
 2. Choose **Loki**.
 3. Set the URL to:
 
