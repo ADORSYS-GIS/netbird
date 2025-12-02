@@ -1,0 +1,26 @@
+---
+# Keycloak role handlers
+
+- name: Restart Keycloak
+  community.docker.docker_compose_v2:
+    project_src: "{{ keycloak_data_dir }}"
+    state: restarted
+
+- name: Stop Keycloak
+  community.docker.docker_compose_v2:
+    project_src: "{{ keycloak_data_dir }}"
+    state: stopped
+
+- name: Reload Keycloak configuration
+  community.docker.docker_compose_v2:
+    project_src: "{{ keycloak_data_dir }}"
+    state: restarted
+    services:
+      - keycloak
+
+- name: Reload Caddy
+  community.docker.docker_compose_v2:
+    project_src: "{{ keycloak_data_dir }}"
+    state: restarted
+    services:
+      - caddy

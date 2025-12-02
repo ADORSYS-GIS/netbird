@@ -1,0 +1,58 @@
+---
+# Keycloak role main tasks
+
+- name: Validate mode configuration
+  ansible.builtin.assert:
+    that:
+      - keycloak_deploy_mode != keycloak_external_mode
+      - keycloak_deploy_mode or keycloak_external_mode
+    fail_msg: "Exactly one of 'keycloak_deploy_mode' or 'keycloak_external_mode' must be true."
+
+- name: Validate deployment prerequisites
+  ansible.builtin.assert:
+    that:
+      - keycloak_host is defined and keycloak_host | length > 0
+      - keycloak_realm is defined and keycloak_realm | length > 0
+      - keycloak_client_netbird is defined and keycloak_client_netbird | length > 0
+      - keycloak_client_netbird_backend is defined and keycloak_client_netbird_backend | length > 0
+    fail_msg: "Required Keycloak configuration variables are missing or empty."
+
+- name: Validate deployment mode specific variables
+  ansible.builtin.assert:
+    that:
+      - keycloak_admin_user is defined and keycloak_admin_user | length > 0
+      - keycloak_admin_password is defined and keycloak_admin_password | length > 0
+      - keycloak_db_password is defined and keycloak_db_password | length > 0
+    fail_msg: "Required deployment mode variables are missing."
+  when: keycloak_deploy_mode
+
+- name: Validate external mode specific variables
+  ansible.builtin.assert:
+    that:
+      - keycloak_oidc_configuration_endpoint is defined and keycloak_oidc_configuration_endpoint | length > 0
+    fail_msg: "keycloak_oidc_configuration_endpoint is required for external mode."
+  when: keycloak_external_mode
+
+- name: Deploy and configure new Keycloak instance
+  ansible.builtin.include_tasks: deploy.yml
+  when: keycloak_deploy_mode
+
+- name: Configure Keycloak realm and clients
+  ansible.builtin.include_tasks: configure_realm.yml
+  when: keycloak_deploy_mode
+
+- name: Validate external Keycloak configuration
+  ansible.builtin.include_tasks: validate_external.yml
+  when: keycloak_external_mode
+
+- name: Set NetBird integration facts
+  ansible.builtin.set_fact:
+    netbird_keycloak_facts:
+      oidc_configuration_endpoint: "{{ netbird_oidc_configuration_endpoint }}"
+      client_id: "{{ netbird_client_id }}"
+      client_secret: "{{ netbird_client_secret | default('') }}"
+      audience: "{{ netbird_audience }}"
+      mgmt_client_id: "{{ netbird_mgmt_client_id }}"
+      mgmt_client_secret: "{{ netbird_mgmt_client_secret }}"
+      mgmt_extra_admin_endpoint: "{{ netbird_mgmt_extra_admin_endpoint }}"
+  when: netbird_oidc_configuration_endpoint is defined
