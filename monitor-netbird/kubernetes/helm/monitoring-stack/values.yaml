@@ -1,0 +1,18 @@
+# Global configuration
+global:
+  labels:
+    cluster: monitoring-cluster
+    environment: production
+
+# Enable/disable components
+loki:
+  enabled: true
+
+prometheus:
+  enabled: true
+
+grafana:
+  enabled: true
+
+mimir-distributed:
+  enabled: true
