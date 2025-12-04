@@ -1,46 +1,75 @@
-# NetBird Monitoring Stack on Kubernetes
+# Kubernetes deployment
 
-This directory provides a Kubernetes/Helm deployment of the NetBird monitoring
-stack (Prometheus, Loki, Grafana, Mimir, Tempo) suitable for a small K3s cluster.
+Helm-based deployment of the NetBird monitoring stack for Kubernetes clusters.
 
-It is an alternative to the existing Docker Compose stack in `monitor-netbird/`.
+## Quick start
 
-## Components
+```bash
+# Create namespace
+kubectl apply -f namespace.yaml
 
-- **Prometheus**: metrics collection and alerting
-- **Loki**: log aggregation with filesystem storage and 30-day retention
-- **Grafana**: dashboards and visualization with integrated tracing support
-- **Mimir**: long-term metrics storage via Prometheus remote_write
-- **Tempo**: distributed tracing storage and analysis
+# Add Helm repos
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
 
-## Prerequisites
+# Deploy stack
+cd helm/monitoring-stack
+helm dependency update
+helm install monitoring-stack . -n monitoring \
+  -f ../../configs/loki-values.yaml \
+  -f ../../configs/prometheus-values.yaml \
+  -f ../../configs/grafana-values.yaml \
+  -f ../../configs/mimir-values.yaml \
+  -f ../../configs/tempo-values.yaml
 
-- A running Kubernetes cluster (tested with K3s)
-- `kubectl` configured to talk to the cluster
-- `helm` installed
-- Default StorageClass (e.g. local-path) for PVCs
+# Apply NodePort services
+kubectl apply -f ../../configs/loki-nodeport-service.yaml
+kubectl apply -f ../../configs/tempo-nodeport-service.yaml
+```
 
-## Storage Budget
+## Components deployed
 
-The stack is sized to stay within ~13Gi of persistent storage:
+- Prometheus (30090) - Metrics
+- Loki (31100) - Logs  
+- Mimir (30080) - Long-term metrics
+- Tempo (31200) - Traces
+- Grafana (30300) - Dashboards
 
-- Loki: 3Gi
-- Prometheus: 3Gi
-- Mimir: 3Gi
-- Tempo: 3Gi
-- Grafana: 1Gi
+## Storage
 
-## Deployment
+Total: ~13 GiB persistent storage
+- Grafana: 1 GiB
+- Prometheus: 3 GiB
+- Loki: 3 GiB
+- Mimir: 3 GiB (ingester + store-gateway + compactor)
+- Tempo: 3 GiB
 
-For detailed deployment instructions, including prerequisites, installation steps, service access, distributed tracing configuration, and adding new monitoring targets, please refer to the main documentation: [`docs/Monitoring-NetBird-Observability-Kubernetes.md`](docs/Monitoring-NetBird-Observability-Kubernetes.md).
+## Configuration
 
+All configuration in `configs/`:
+- `*-values.yaml`: Helm chart overrides
+- `*-nodeport-service.yaml`: External access services
+
+## Full documentation
+
+**📖 Complete guide:** [docs/Monitoring-NetBird-Observability-Kubernetes.md](../../docs/Monitoring-NetBird-Observability-Kubernetes.md)
+
+Includes:
+- Detailed installation steps
+- Service access and verification
+- Adding scrape targets
+- Log and trace collection setup
+- Troubleshooting
+- Production considerations
 
 ## Uninstall
 
 ```bash
 helm uninstall monitoring-stack -n monitoring
-kubectl delete -f monitor-netbird/kubernetes/namespace.yaml
+kubectl delete -f configs/loki-nodeport-service.yaml
+kubectl delete -f configs/tempo-nodeport-service.yaml
+kubectl delete namespace monitoring
 ```
 
-Note: deleting the namespace after uninstalling the chart will remove any
-leftover PVCs in the `monitoring` namespace.
+> **Warning:** This deletes all monitoring data. Back up important dashboards and data before proceeding.
