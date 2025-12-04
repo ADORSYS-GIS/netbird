@@ -32,16 +32,6 @@ The stack is sized to stay within ~10Gi of persistent storage:
 
 For detailed deployment instructions, including prerequisites, installation steps, and service access, please refer to the main documentation: [`docs/Monitoring-NetBird-Observability-Kubernetes.md`](docs/Monitoring-NetBird-Observability-Kubernetes.md).
 
-## External Agents and Targets
-
-The `agents/` directory contains guidance and examples for running external monitoring agents on hosts that are reachable from the Kubernetes monitoring stack. These agents collect metrics and logs from various sources and push them to the deployed Prometheus and Loki instances.
-
-Refer to [`agents/README.md`](monitor-netbird/kubernetes/agents/README.md) for details on configuring and deploying:
-
--   Node Exporter for host metrics
--   Docker daemon metrics
--   Grafana Alloy for system and container logs
--   NetBird events exporter to push management events to Loki
 
 ## Uninstall
 

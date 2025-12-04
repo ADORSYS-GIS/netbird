@@ -30,6 +30,9 @@ For detailed instructions on deploying NetBird using our Ansible automation with
 - [`ansible-automation/README.md`](ansible-automation/README.md)
 
 This automation covers:
+- Prometheus for metrics
+- Loki for logs
+- Grafana for dashboards
 
 High‑level operator documentation for deploying and managing the monitoring stack is available:
 
