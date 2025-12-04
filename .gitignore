@@ -33,3 +33,9 @@ target/
 
 # Ignore sensitive or local-only directories
 machinekey/
+
+# Ignore Helm chart packages
+*.tgz
+
+# Ignore Helm lock files
+Chart.lock
