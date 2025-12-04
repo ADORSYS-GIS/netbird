@@ -31,16 +31,21 @@ For detailed instructions on deploying NetBird using our Ansible automation with
 
 This automation covers:
 
-- System preparation (Docker, UFW)
-- NetBird service deployment
-- Caddy reverse proxy configuration with automatic SSL
-- Templated configuration files for easy customization
-- Integration placeholders for Keycloak (OIDC)
+High‑level operator documentation for deploying and managing the monitoring stack is available:
 
-## Documentation
+-   **Docker Compose Deployment:** [`docs/Monitoring-NetBird-Observability-Docker-Compose.md`](docs/Monitoring-NetBird-Observability-Docker-Compose.md)
+-   **Kubernetes Deployment (Helm):** [`docs/Monitoring-NetBird-Observability-Kubernetes.md`](docs/Monitoring-NetBird-Observability-Kubernetes.md)
 
 Explore the `docs/` directory for additional documentation, including architecture overviews and deployment guides.
 
 ## Contributing
 
 We welcome contributions to the NetBird project!
+
+## Additional documentation
+
+All documentation lives under the `docs/` tree. Start with:
+
+- [`docs/Monitoring-NetBird-Observability-Docker-Compose.md`](docs/Monitoring-NetBird-Observability-Docker-Compose.md)
+- [`docs/Monitoring-NetBird-Observability-Kubernetes.md`](docs/Monitoring-NetBird-Observability-Kubernetes.md)
+
