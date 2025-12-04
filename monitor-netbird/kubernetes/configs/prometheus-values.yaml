@@ -26,27 +26,24 @@ prometheus:
         cluster: monitoring-cluster
         environment: production
   
-  serverFiles:
-    prometheus.yml:
-      scrape_configs:
-        - job_name: prometheus
-          static_configs:
-            - targets: ['localhost:9090']
-        
-        - job_name: loki
-          static_configs:
-            - targets: ['monitoring-stack-loki-gateway:80']
-        
-        - job_name: grafana
-          static_configs:
-            - targets: ['monitoring-stack-grafana:80']
-        
-        - job_name: mimir-distributor
-          static_configs:
-            - targets: ['monitoring-stack-mimir-distributor:8080']
-        
-        - job_name: node-exporter
-          static_configs:
-            - targets: ['monitoring-stack-prometheus-node-exporter:9100']
-              labels:
-                instance: 'node-exporter'
+  extraScrapeConfigs: |
+    - job_name: loki
+      static_configs:
+        - targets: ['monitoring-stack-loki:3100']
+          labels:
+            instance: 'loki'
+    - job_name: grafana
+      static_configs:
+        - targets: ['monitoring-stack-grafana:80']
+          labels:
+            instance: 'grafana'
+    - job_name: mimir-distributor
+      static_configs:
+        - targets: ['monitoring-stack-mimir-distributor:8080']
+          labels:
+            instance: 'mimir-distributor'
+    - job_name: node-exporter
+      static_configs:
+        - targets: ['monitoring-stack-prometheus-node-exporter:9100']
+          labels:
+            instance: 'node-exporter'
