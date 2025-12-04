@@ -43,3 +43,4 @@ machinekey/
 
 # Ignore Helm lock files
 Chart.lock
+monitor-netbird/kubernetes/helm/monitoring-stack/charts/_loki/
