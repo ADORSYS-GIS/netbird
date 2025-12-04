@@ -1,7 +1,7 @@
 # NetBird Monitoring Stack on Kubernetes
 
 This directory provides a Kubernetes/Helm deployment of the NetBird monitoring
-stack (Prometheus, Loki, Grafana, Mimir) suitable for a small K3s cluster.
+stack (Prometheus, Loki, Grafana, Mimir, Tempo) suitable for a small K3s cluster.
 
 It is an alternative to the existing Docker Compose stack in `monitor-netbird/`.
 
@@ -9,8 +9,9 @@ It is an alternative to the existing Docker Compose stack in `monitor-netbird/`.
 
 - **Prometheus**: metrics collection and alerting
 - **Loki**: log aggregation with filesystem storage and 30-day retention
-- **Grafana**: dashboards and visualization
+- **Grafana**: dashboards and visualization with integrated tracing support
 - **Mimir**: long-term metrics storage via Prometheus remote_write
+- **Tempo**: distributed tracing storage and analysis
 
 ## Prerequisites
 
@@ -21,16 +22,17 @@ It is an alternative to the existing Docker Compose stack in `monitor-netbird/`.
 
 ## Storage Budget
 
-The stack is sized to stay within ~10Gi of persistent storage:
+The stack is sized to stay within ~13Gi of persistent storage:
 
 - Loki: 3Gi
 - Prometheus: 3Gi
 - Mimir: 3Gi
+- Tempo: 3Gi
 - Grafana: 1Gi
 
 ## Deployment
 
-For detailed deployment instructions, including prerequisites, installation steps, and service access, please refer to the main documentation: [`docs/Monitoring-NetBird-Observability-Kubernetes.md`](docs/Monitoring-NetBird-Observability-Kubernetes.md).
+For detailed deployment instructions, including prerequisites, installation steps, service access, distributed tracing configuration, and adding new monitoring targets, please refer to the main documentation: [`docs/Monitoring-NetBird-Observability-Kubernetes.md`](docs/Monitoring-NetBird-Observability-Kubernetes.md).
 
 
 ## Uninstall
