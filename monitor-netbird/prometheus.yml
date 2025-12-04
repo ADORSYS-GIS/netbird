@@ -29,6 +29,16 @@ scrape_configs:
         labels:
           instance: 'netbird-host'
 
+  # Docker daemon metrics (alternative to cAdvisor)
+  # Assumes dockerd is started with metrics enabled, e.g.:
+  #   "metrics-addr": "0.0.0.0:9323", "experimental": true
+  # and that the host is reachable as host.docker.internal or via its LAN IP.
+  - job_name: 'docker-daemon'
+    static_configs:
+      - targets: ['host.docker.internal:9323']
+        labels:
+          instance: 'netbird-host'
+
   # Loki metrics
   - job_name: 'loki'
     static_configs:
