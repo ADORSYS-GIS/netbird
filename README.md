@@ -52,10 +52,10 @@ for a self‑hosted NetBird control plane. It includes:
 - Host and container metrics exporters
 - A NetBird events exporter that forwards management events to Loki
 
-High‑level operator documentation, including how to bring up a test NetBird
-deployment and attach the monitoring stack, is available at:
+High‑level operator documentation for deploying and managing the monitoring stack is available:
 
-- [docs/Monitoring-NetBird-Observability.md](docs/Monitoring-NetBird-Observability.md)
+-   **Docker Compose Deployment:** [`docs/Monitoring-NetBird-Observability-Docker-Compose.md`](docs/Monitoring-NetBird-Observability-Docker-Compose.md)
+-   **Kubernetes Deployment (Helm):** [`docs/Monitoring-NetBird-Observability-Kubernetes.md`](docs/Monitoring-NetBird-Observability-Kubernetes.md)
 
 The NetBird events exporter used by the monitoring stack has its own short
 overview:
@@ -68,5 +68,6 @@ overview:
 
 All documentation lives under the `docs/` tree. Start with:
 
-- [docs/keycloak-role.md](docs/keycloak-role.md)
-- [docs/Monitoring-NetBird-Observability.md](docs/Monitoring-NetBird-Observability.md)
+- [`docs/keycloak-role.md`](docs/keycloak-role.md)
+- [`docs/Monitoring-NetBird-Observability-Docker-Compose.md`](docs/Monitoring-NetBird-Observability-Docker-Compose.md)
+- [`docs/Monitoring-NetBird-Observability-Kubernetes.md`](docs/Monitoring-NetBird-Observability-Kubernetes.md)
