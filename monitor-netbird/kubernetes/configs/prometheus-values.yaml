@@ -47,6 +47,6 @@ prometheus:
         
         - job_name: node-exporter
           static_configs:
-            - targets: ['100.96.193.86:9100']
+            - targets: ['monitoring-stack-prometheus-node-exporter:9100']
               labels:
-                instance: 'target.netbird.cloud'
+                instance: 'node-exporter'
