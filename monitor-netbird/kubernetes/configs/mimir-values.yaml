@@ -92,6 +92,162 @@ mimir-distributed:
     service:
       type: NodePort
       nodePort: 30080
+    nginxConfig:
+      file: |
+        worker_processes  5;  ## Default: 1
+        error_log  /dev/stderr {{ .Values.nginx.nginxConfig.errorLogLevel }};
+        pid        /tmp/nginx.pid;
+        worker_rlimit_nofile 8192;
+
+        events {
+          worker_connections  4096;  ## Default: 1024
+        }
+
+        http {
+          client_body_temp_path /tmp/client_temp;
+          proxy_temp_path       /tmp/proxy_temp_path;
+          fastcgi_temp_path     /tmp/fastcgi_temp;
+          uwsgi_temp_path       /tmp/uwsgi_temp;
+          scgi_temp_path        /tmp/scgi_temp;
+
+          default_type application/octet-stream;
+          log_format   {{ .Values.nginx.nginxConfig.logFormat }}
+
+          {{- if .Values.nginx.verboseLogging }}
+          access_log   /dev/stderr  main;
+          {{- else }}
+
+          map $status $loggable {
+            ~^[23]  0;
+            default 1;
+          }
+          access_log   {{ .Values.nginx.nginxConfig.accessLogEnabled | ternary "/dev/stderr  main  if=$loggable;" "off;" }}
+          {{- end }}
+
+          sendfile           on;
+          tcp_nopush         on;
+          proxy_http_version 1.1;
+
+          {{- if .Values.nginx.nginxConfig.resolver }}
+          resolver {{ .Values.nginx.nginxConfig.resolver }};
+          {{- else }}
+          resolver {{ .Values.global.dnsService }}.{{ .Values.global.dnsNamespace }}.svc.{{ .Values.global.clusterDomain }};
+          {{- end }}
+
+          {{- with .Values.nginx.nginxConfig.httpSnippet }}
+          {{ . | nindent 2 }}
+          {{- end }}
+
+          # Ensure that X-Scope-OrgID is always present, default to the no_auth_tenant for backwards compatibility when multi-tenancy was turned off.
+          map $http_x_scope_orgid $ensured_x_scope_orgid {
+            default $http_x_scope_orgid;
+            "" "{{ include "mimir.noAuthTenant" . }}";
+          }
+
+          map $http_x_scope_orgid $has_multiple_orgid_headers {
+            default 0;
+            "~^.+,.+$" 1;
+          }
+
+          proxy_read_timeout 300;
+          server {
+            listen 8080;
+            listen [::]:8080;
+
+            {{- if .Values.nginx.basicAuth.enabled }}
+            auth_basic           "Mimir";
+            auth_basic_user_file /etc/nginx/secrets/.htpasswd;
+            {{- end }}
+
+            if ($has_multiple_orgid_headers = 1) {
+                return 400 'Sending multiple X-Scope-OrgID headers is not allowed. Use a single header with | as separator instead.';
+            }
+
+            location = / {
+              return 200 'OK';
+              auth_basic off;
+            }
+
+            proxy_set_header X-Scope-OrgID $ensured_x_scope_orgid;
+
+            location /metrics {
+              set $distributor {{ template "mimir.fullname" . }}-distributor-headless.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$distributor:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+
+            # Distributor endpoints
+            location /distributor {
+              set $distributor {{ template "mimir.fullname" . }}-distributor-headless.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$distributor:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+            location = /api/v1/push {
+              set $distributor {{ template "mimir.fullname" . }}-distributor-headless.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$distributor:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+            location /otlp/v1/metrics {
+              set $distributor {{ template "mimir.fullname" . }}-distributor-headless.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$distributor:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+
+            # Alertmanager endpoints
+            location {{ template "mimir.alertmanagerHttpPrefix" . }} {
+              set $alertmanager {{ template "mimir.fullname" . }}-alertmanager-headless.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$alertmanager:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+            location = /multitenant_alertmanager/status {
+              set $alertmanager {{ template "mimir.fullname" . }}-alertmanager-headless.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$alertmanager:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+            location = /multitenant_alertmanager/configs {
+              set $alertmanager {{ template "mimir.fullname" . }}-alertmanager-headless.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$alertmanager:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+            location = /api/v1/alerts {
+              set $alertmanager {{ template "mimir.fullname" . }}-alertmanager-headless.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$alertmanager:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+
+            # Ruler endpoints
+            location {{ template "mimir.prometheusHttpPrefix" . }}/config/v1/rules {
+              set $ruler {{ template "mimir.fullname" . }}-ruler.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$ruler:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+            location {{ template "mimir.prometheusHttpPrefix" . }}/api/v1/rules {
+              set $ruler {{ template "mimir.fullname" . }}-ruler.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$ruler:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+
+            location {{ template "mimir.prometheusHttpPrefix" . }}/api/v1/alerts {
+              set $ruler {{ template "mimir.fullname" . }}-ruler.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$ruler:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+            location = /ruler/ring {
+              set $ruler {{ template "mimir.fullname" . }}-ruler.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$ruler:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+
+            # Rest of {{ template "mimir.prometheusHttpPrefix" . }} goes to the query frontend
+            location {{ template "mimir.prometheusHttpPrefix" . }} {
+              set $query_frontend {{ template "mimir.fullname" . }}-query-frontend.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$query_frontend:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+
+            # Buildinfo endpoint can go to any component
+            location = /api/v1/status/buildinfo {
+              set $query_frontend {{ template "mimir.fullname" . }}-query-frontend.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$query_frontend:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+
+            # Compactor endpoint for uploading blocks
+            location /api/v1/upload/block/ {
+              set $compactor {{ template "mimir.fullname" . }}-compactor.{{ .Release.Namespace }}.svc.{{ .Values.global.clusterDomain }};
+              proxy_pass      http://$compactor:{{ include "mimir.serverHttpListenPort" . }}$request_uri;
+            }
+
+            {{- with .Values.nginx.nginxConfig.serverSnippet }}
+            {{ . | nindent 4 }}
+            {{- end }}
+          }
   
   minio:
     enabled: false
