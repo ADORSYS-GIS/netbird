@@ -1,27 +1,22 @@
 grafana:
-  # Admin credentials
   adminUser: admin
   adminPassword: admin
-  
-  # Persistence
+
   persistence:
     enabled: true
     size: 1Gi
-  
-  # Service configuration
+
   service:
     type: NodePort
     port: 80
     targetPort: 3000
     nodePort: 30300
-  
-  # Environment variables
+
   env:
     GF_FEATURE_TOGGLES_ENABLE: publicDashboards
     GF_LOG_LEVEL: info
     GF_AUTH_ANONYMOUS_ENABLED: "false"
-  
-  # Datasources configuration - FIXED service names
+
   datasources:
     datasources.yaml:
       apiVersion: 1
@@ -34,22 +29,51 @@ grafana:
           jsonData:
             httpMethod: POST
             timeInterval: 15s
-        
+
         - name: Loki
           type: loki
           access: proxy
           url: http://monitoring-stack-loki-gateway:80
           jsonData:
             maxLines: 1000
-        
+
         - name: Mimir
           type: prometheus
           access: proxy
-          url: http://monitoring-stack-mimir-distributed-nginx:80/prometheus
+          url: http://monitoring-stack-mimir-nginx:80/prometheus
           jsonData:
             httpMethod: POST
             timeInterval: 15s
-  
-  # Disable unnecessary components
+
+        - name: Tempo
+          type: tempo
+          access: proxy
+          url: http://monitoring-stack-tempo:3200
+          jsonData:
+            httpMethod: GET
+            tracesToLogs:
+              datasourceUid: "loki"
+              tags: ["job", "instance", "pod", "namespace"]
+              mappedTags: [{ key: "service.name", value: "service" }]
+              mapTagNamesEnabled: false
+              spanStartTimeShift: "1h"
+              spanEndTimeShift: "1h"
+              filterByTraceID: false
+              filterBySpanID: false
+            tracesToMetrics:
+              datasourceUid: "prometheus"
+              tags: [{ key: "service.name", value: "service" }, { key: "job" }]
+              queries:
+                - name: "Sample query"
+                  query: "sum(rate(tempo_spanmetrics_latency_bucket{$$__tags}[5m]))"
+            serviceMap:
+              datasourceUid: "prometheus"
+            search:
+              hide: false
+            nodeGraph:
+              enabled: true
+            lokiSearch:
+              datasourceUid: "loki"
+
   testFramework:
     enabled: false
