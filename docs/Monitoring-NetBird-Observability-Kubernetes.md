@@ -1,146 +1,482 @@
-# NetBird Monitoring and Observability on Kubernetes
+# NetBird observability stack on Kubernetes
 
-This document describes how to deploy the `monitor-netbird` observability stack on a Kubernetes cluster using Helm.
+This guide explains how to deploy a production-ready observability stack for NetBird on Kubernetes using Helm. The stack includes Prometheus for metrics, Loki for logs, Mimir for long-term metric storage, Tempo for distributed tracing, and Grafana for visualization.
 
-The goal is to provide a production-style setup where you can:
+## Overview
 
-- Run a self-hosted NetBird control plane in Kubernetes.
-- Collect **logs** from the cluster and all NetBird-related components.
-- Collect **metrics** from the cluster and components.
-- Explore everything in **Grafana** using **Prometheus**, **Loki**, and **Mimir** as data sources.
+The monitoring stack provides:
 
-The instructions below assume you are in the root of this repository.
+- **Prometheus**: Metrics collection and short-term storage
+- **Loki**: Log aggregation and querying
+- **Mimir**: Long-term metrics storage with horizontal scalability
+- **Tempo**: Distributed trace collection and analysis
+- **Grafana**: Unified dashboard and visualization platform
+
+All components are configured with persistent storage and exposed via NodePort services for external access.
 
 ---
 
 ## Prerequisites
 
-- A Kubernetes cluster (e.g., K3s, Minikube, EKS, GKE, AKS)
-- `kubectl` configured to connect to your cluster.
-- `helm` installed (version 3.x or higher).
-- Basic understanding of Kubernetes concepts (Pods, Services, Deployments, Namespaces).
-- NetBird deployed in your Kubernetes cluster (or accessible from it).
+Before you begin, ensure you have:
+
+- A Kubernetes cluster (K3s, Minikube, EKS, GKE, or AKS)
+- `kubectl` configured to access your cluster
+- `helm` 3.x or later installed
+- At least 15 GB of available storage for persistent volumes
+- Basic understanding of Kubernetes resources
 
 ---
 
-## 1. Deploying the monitoring stack with Helm
+## Deployment
 
-This section describes how to deploy the monitoring stack using Helm charts within your Kubernetes cluster.
+### 1. Create the monitoring namespace
 
-1.  **Create the `monitoring` namespace:**
-    ```bash
-    kubectl apply -f monitor-netbird/kubernetes/namespace.yaml
-    ```
+```bash
+kubectl apply -f monitor-netbird/kubernetes/namespace.yaml
+```
 
-2.  **Add Helm repositories:**
-    ```bash
-    helm repo add grafana https://grafana.github.io/helm-charts
-    helm repo update
-    ```
+### 2. Add Helm repositories
 
-3.  **Install the monitoring stack:**
-    Navigate to the Helm chart directory and install the stack.
-    ```bash
-    cd monitor-netbird/kubernetes/helm/monitoring-stack
-    helm dependency update
-    helm install monitoring-stack . -n monitoring -f ../configs/grafana-values.yaml -f ../configs/loki-values.yaml -f ../configs/mimir-values.yaml -f ../configs/prometheus-values.yaml
-    cd ../../../
-    ```
-    This command installs Grafana, Loki, Mimir, and Prometheus into the `monitoring` namespace, using the custom `values.yaml` files for configuration.
+```bash
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+```
 
-4.  **Verify the deployment:**
-    Check the status of the deployed pods in the `monitoring` namespace:
-    ```bash
-    kubectl get pods -n monitoring
-    ```
-    All pods should eventually reach a `Running` or `Completed` state.
+### 3. Install the monitoring stack
 
----
+Navigate to the Helm chart directory and deploy:
 
-## 2. Accessing Grafana
+```bash
+cd monitor-netbird/kubernetes/helm/monitoring-stack
+helm dependency update
+helm install monitoring-stack . -n monitoring \
+  -f ../../configs/loki-values.yaml \
+  -f ../../configs/prometheus-values.yaml \
+  -f ../../configs/grafana-values.yaml \
+  -f ../../configs/mimir-values.yaml \
+  -f ../../configs/tempo-values.yaml
+cd ../../../../
+```
 
-By default, Grafana is exposed via a NodePort service. To access Grafana, you need the IP address of one of your Kubernetes nodes and the NodePort.
+### 4. Apply additional service configurations
 
-1.  **Get Grafana NodePort:**
-    ```bash
-    kubectl get svc monitoring-stack-grafana -n monitoring
-    ```
-    Look for the `NodePort` in the output (e.g., `30300:3000/TCP`).
+Create the Loki and Tempo external access services:
 
-2.  **Access Grafana in your browser:**
-    Open your browser and go to:
-    ```text
-    http://<YOUR_NODE_IP>:<GRAFANA_NODEPORT>/
-    ```
-    Replace `<YOUR_NODE_IP>` with the IP address of one of your Kubernetes nodes and `<GRAFANA_NODEPORT>` with the NodePort obtained in the previous step (e.g., `30300`).
+```bash
+kubectl apply -f monitor-netbird/kubernetes/configs/loki-nodeport-service.yaml
+kubectl apply -f monitor-netbird/kubernetes/configs/tempo-nodeport-service.yaml
+```
 
-3.  **Login:**
-    Grafana runs with default admin credentials (`admin`/`admin`) unless overridden in `grafana-values.yaml`. Change the admin password after first login in any environment accessible to others.
+### 5. Verify deployment
 
-4.  **Data Sources:**
-    The Helm chart automatically configures Prometheus, Loki, and Mimir as data sources within Grafana using their internal Kubernetes service names. You should not need to manually configure them.
-    -   **Prometheus:** `http://monitoring-stack-prometheus-server:80`
-    -   **Loki:** `http://monitoring-stack-loki-gateway:80`
-    -   **Mimir:** `http://monitoring-stack-mimir-distributor:8080/metrics`
+Check that all pods are running:
 
-    You can verify the data sources by navigating to **Connections** → **Data sources** in Grafana.
+```bash
+kubectl get pods -n monitoring
+```
+
+All pods should reach `Running` status within a few minutes. If any pods are not running, check their logs:
+
+```bash
+kubectl logs -n monitoring <pod-name>
+```
 
 ---
 
-## 3. What gets scraped and collected
+## Access and verification
 
-With this setup, the core monitoring stack will collect:
+### Access Grafana
 
--   **Host metrics**
-    -   From `node-exporter` (deployed as a DaemonSet within the monitoring stack).
-    -   Scraped by Prometheus at `http://monitoring-stack-prometheus-node-exporter:9100`.
-    -   All series are labeled `job="node-exporter"` and `instance="node-exporter"`.
+Grafana is exposed via NodePort on port `30300`:
 
--   **Service metrics**
-    -   Loki, Grafana, Mimir, and Prometheus components expose their own `/metrics` endpoints.
-    -   These internal metrics are scraped by Prometheus under their respective jobs (e.g., `loki`, `grafana`, `mimir-distributor`, `prometheus`).
+```
+http://<NODE_IP>:30300
+```
 
-This ensures that the monitoring stack is self-observing and provides insights into its own health and performance.
+**Default credentials:**
+- Username: `admin`
+- Password: `admin`
+
+> **Important:** Change the admin password immediately after first login, especially in production environments.
+
+### Verify data sources
+
+After logging into Grafana:
+
+1. Navigate to **Connections** → **Data sources**
+2. All four data sources should be pre-configured:
+   - Prometheus (default)
+   - Loki
+   - Mimir
+   - Tempo
+3. Click each data source and select **Save & test**
+4. Verify all show green "Data source is working" messages
+
+### Test endpoints
+
+If accessing from a remote machine, set up port forwarding:
+
+```bash
+# In separate terminal windows
+kubectl port-forward -n monitoring svc/monitoring-stack-grafana 3000:80
+kubectl port-forward -n monitoring svc/monitoring-stack-prometheus-server 9090:80
+kubectl port-forward -n monitoring svc/monitoring-stack-loki-gateway 3100:80
+kubectl port-forward -n monitoring svc/monitoring-stack-mimir-nginx 8080:80
+kubectl port-forward -n monitoring svc/tempo-external 3200:3200
+```
+
+Then test each service:
+
+```bash
+# Prometheus health
+curl http://localhost:9090/-/healthy
+
+# Loki labels
+curl http://localhost:3100/loki/api/v1/labels
+
+# Mimir labels
+curl http://localhost:8080/prometheus/api/v1/labels
+
+# Tempo readiness
+curl http://localhost:3200/ready
+
+# Grafana health
+curl -u admin:admin http://localhost:3000/api/health
+```
 
 ---
 
-## 4. Example queries and dashboards
+## What gets monitored
 
-For initial exploration and to verify data collection, you can use Grafana's Explore feature.
+### Default metrics collection
 
--   **Prometheus Metrics:**
-    -   To view host CPU usage: `node_cpu_seconds_total`
-    -   To view Prometheus's own health metrics: `prometheus_up`
-    -   To view Loki's ingester metrics: `loki_ingester_chunks_stored_total`
+The stack automatically scrapes metrics from:
 
--   **Loki Logs:**
-    -   To view logs from Loki's components: `{job="loki"}`
-    -   To view logs from Grafana: `{job="grafana"}`
+- **Kubernetes cluster components**: API server, nodes, cAdvisor
+- **Monitoring stack itself**: Prometheus, Loki, Grafana, Mimir, Tempo
+- **CoreDNS**: Kubernetes DNS service
+- **Traefik**: Ingress controller (if present)
 
-Refer to the `docs/Monitoring-NetBird-Observability-Docker-Compose.md` for more detailed example queries and dashboard configurations, as the query language (PromQL for Prometheus, LogQL for Loki) remains consistent across deployment methods.
+View active scrape targets:
+
+```
+http://<NODE_IP>:30090/targets
+```
+
+### Available services
+
+| Service    | NodePort | Internal URL                                        |
+|------------|----------|-----------------------------------------------------|
+| Grafana    | 30300    | `http://monitoring-stack-grafana:80`                |
+| Prometheus | 30090    | `http://monitoring-stack-prometheus-server:80`      |
+| Loki       | 31100    | `http://monitoring-stack-loki-gateway:80`           |
+| Mimir      | 30080    | `http://monitoring-stack-mimir-nginx:80/prometheus` |
+| Tempo      | 31200    | `http://tempo-external:3200`                        |
+
+### Data retention
+
+Default retention periods:
+
+- **Prometheus**: 30 days
+- **Loki**: 30 days (720 hours)
+- **Mimir**: 30 days (720 hours)
+- **Tempo**: 30 days (720 hours)
+
+To modify retention, update the respective values files before deployment.
 
 ---
 
-## 5. Production considerations
+## Exploring data
 
-This repository is geared towards **test and lab deployments**, but the components and patterns are production-grade. For production use, you should additionally consider:
+### Query Prometheus metrics
 
--   Using real DNS names instead of raw IPs.
--   Enabling TLS (for NetBird, Grafana, Prometheus, Loki) and disabling the insecure-origin browser flags.
--   Changing default credentials and integrating with your identity provider.
--   Enabling retention policies and backups for Prometheus and Loki.
--   Restricting access to the Docker socket that Alloy uses for log collection.
--   Implementing proper resource limits and requests for all Kubernetes deployments.
--   Configuring highly available deployments for critical components.
+In Grafana, navigate to **Explore** and select the **Prometheus** data source.
+
+**Example queries:**
+
+```promql
+# Cluster CPU usage
+sum(rate(container_cpu_usage_seconds_total[5m])) by (node)
+
+# Memory usage by namespace
+sum(container_memory_usage_bytes) by (namespace)
+
+# Pod restart count
+kube_pod_container_status_restarts_total
+
+# Monitoring stack health
+up{job=~"prometheus|loki|grafana|mimir.*|tempo"}
+```
+
+### Query Loki logs
+
+Select the **Loki** data source in **Explore**.
+
+**Example queries:**
+
+```logql
+# All logs from monitoring namespace
+{namespace="monitoring"}
+
+# Errors from any service
+{namespace="monitoring"} |= "error"
+
+# Loki component logs
+{job="loki"}
+
+# Rate of log lines per second
+rate({namespace="monitoring"}[1m])
+```
+
+### Query Tempo traces
+
+Select the **Tempo** data source in **Explore**.
+
+Use the search interface to:
+- Search by service name
+- Filter by trace duration
+- Find traces with errors
+- Explore service dependencies
 
 ---
 
-## 6. Next steps
+## Adding custom scrape targets
 
-From here, once the core monitoring stack is verified, you can:
+To monitor additional services, add scrape configurations to `prometheus-values.yaml`:
 
--   Integrate external agents (like Grafana Alloy or NetBird events exporter) to collect logs and metrics from other applications, VMs, or hosts.
--   Build custom Grafana dashboards for cluster health, application performance, and specific use cases.
--   Add alerting rules in Prometheus and route them via Alertmanager.
+```yaml
+prometheus:
+  extraScrapeConfigs: |
+    - job_name: 'my-application'
+      static_configs:
+        - targets: ['my-app-service:8080']
+          labels:
+            environment: 'production'
+            team: 'platform'
+```
 
-The `monitor-netbird` stack is intended to be a clean, understandable baseline you can confidently adapt to your own infrastructure.
+Then upgrade the deployment:
+
+```bash
+helm upgrade monitoring-stack ./helm/monitoring-stack -n monitoring \
+  -f configs/loki-values.yaml \
+  -f configs/prometheus-values.yaml \
+  -f configs/grafana-values.yaml \
+  -f configs/mimir-values.yaml \
+  -f configs/tempo-values.yaml
+```
+
+---
+
+## Sending logs to Loki
+
+### Using Promtail
+
+Deploy Promtail as a DaemonSet to collect logs from all cluster nodes:
+
+```bash
+helm install promtail grafana/promtail -n monitoring \
+  --set "loki.serviceName=monitoring-stack-loki-gateway"
+```
+
+### Application-level logging
+
+Configure your applications to send logs directly to Loki:
+
+**Loki push endpoint:**
+```
+http://monitoring-stack-loki-gateway:80/loki/api/v1/push
+```
+
+**Example using Docker logging driver:**
+
+```yaml
+logging:
+  driver: loki
+  options:
+    loki-url: "http://<NODE_IP>:31100/loki/api/v1/push"
+    labels: "app,environment"
+```
+
+---
+
+## Sending traces to Tempo
+
+Configure your applications to send traces to Tempo using OTLP or Jaeger protocols.
+
+### OTLP endpoints
+
+- **gRPC**: `tempo-external:4317` (NodePort: 31317)
+- **HTTP**: `tempo-external:4318` (NodePort: 31318)
+
+### Jaeger endpoints
+
+- **Thrift HTTP**: `tempo-external:14268` (NodePort: 31268)
+
+**Example OpenTelemetry configuration:**
+
+```yaml
+exporters:
+  otlp:
+    endpoint: "tempo-external:4317"
+    tls:
+      insecure: true
+```
+
+---
+
+## Troubleshooting
+
+### Pods not starting
+
+Check pod status and events:
+
+```bash
+kubectl describe pod -n monitoring <pod-name>
+kubectl logs -n monitoring <pod-name>
+```
+
+Common issues:
+- Insufficient resources: Check node capacity with `kubectl top nodes`
+- Storage problems: Verify PVCs with `kubectl get pvc -n monitoring`
+
+### Data source connection failures
+
+1. Verify pods are running: `kubectl get pods -n monitoring`
+2. Check service endpoints: `kubectl get svc -n monitoring`
+3. Test internal connectivity:
+   ```bash
+   kubectl run -n monitoring test-pod --rm -it --image=curlimages/curl -- sh
+   curl http://monitoring-stack-prometheus-server:80/-/healthy
+   ```
+
+### No data in Grafana
+
+1. Verify scrape targets in Prometheus: `http://<NODE_IP>:30090/targets`
+2. Check Prometheus is scraping: Query `up` in Grafana
+3. Verify time range in Grafana matches data retention
+
+### Storage issues
+
+Check persistent volume status:
+
+```bash
+kubectl get pv
+kubectl get pvc -n monitoring
+kubectl describe pvc -n monitoring <pvc-name>
+```
+
+---
+
+## Production considerations
+
+For production deployments, consider:
+
+### Security
+
+- Enable TLS for all services
+- Configure authentication and RBAC
+- Use Kubernetes secrets for credentials
+- Restrict network policies between namespaces
+- Change default passwords immediately
+
+### High availability
+
+- Increase replica counts for stateless components
+- Enable zone-aware replication for stateful components
+- Configure anti-affinity rules for pod distribution
+- Use external load balancers instead of NodePort
+
+### Storage
+
+- Use production-grade storage classes (not `local-path`)
+- Configure backup and restore procedures
+- Implement appropriate retention policies
+- Monitor disk usage and set up alerts
+
+### Scaling
+
+- Adjust resource requests and limits based on load
+- Enable horizontal pod autoscaling where applicable
+- Consider migrating to distributed deployment modes for Loki and Tempo
+- Use Mimir's horizontal scalability for large metric volumes
+
+### Monitoring the monitoring stack
+
+- Set up alerting for monitoring component failures
+- Monitor resource usage of monitoring pods
+- Track ingestion rates and storage growth
+- Configure dead man's switch alerts
+
+---
+
+## Maintenance
+
+### Upgrading components
+
+To upgrade to newer chart versions:
+
+1. Update chart versions in `Chart.yaml`
+2. Run `helm dependency update`
+3. Review release notes for breaking changes
+4. Perform upgrade:
+   ```bash
+   helm upgrade monitoring-stack ./helm/monitoring-stack -n monitoring \
+     -f configs/loki-values.yaml \
+     -f configs/prometheus-values.yaml \
+     -f configs/grafana-values.yaml \
+     -f configs/mimir-values.yaml \
+     -f configs/tempo-values.yaml
+   ```
+
+### Backup and restore
+
+Export Grafana dashboards:
+
+```bash
+# Export all dashboards
+kubectl exec -n monitoring <grafana-pod> -- \
+  grafana-cli admin export-dashboard > dashboards.json
+```
+
+Back up Prometheus data:
+
+```bash
+# Copy data directory from PVC
+kubectl cp monitoring/<prometheus-pod>:/data ./prometheus-backup
+```
+
+---
+
+## Uninstalling
+
+To remove the monitoring stack:
+
+```bash
+# Delete Helm release
+helm uninstall monitoring-stack -n monitoring
+
+# Delete additional services
+kubectl delete -f monitor-netbird/kubernetes/configs/loki-nodeport-service.yaml
+kubectl delete -f monitor-netbird/kubernetes/configs/tempo-nodeport-service.yaml
+
+# Delete namespace (removes all resources and PVCs)
+kubectl delete namespace monitoring
+```
+
+> **Warning:** This permanently deletes all monitoring data. Back up important data before proceeding.
+
+---
+
+## Additional resources
+
+- [Prometheus documentation](https://prometheus.io/docs/)
+- [Loki documentation](https://grafana.com/docs/loki/latest/)
+- [Mimir documentation](https://grafana.com/docs/mimir/latest/)
+- [Tempo documentation](https://grafana.com/docs/tempo/latest/)
+- [Grafana documentation](https://grafana.com/docs/grafana/latest/)
+- [Helm documentation](https://helm.sh/docs/)
+
+For Docker Compose deployment instructions, refer to [Monitoring-NetBird-Observability-Docker-Compose.md](Monitoring-NetBird-Observability-Docker-Compose.md).
