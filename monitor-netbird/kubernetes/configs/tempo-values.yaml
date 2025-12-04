@@ -1,0 +1,88 @@
+tempo:
+  replicas: 1
+  
+  tempo:
+    auth_enabled: false
+    
+    server:
+      http_listen_port: 3200
+      grpc_listen_port: 9095
+      log_level: info
+    
+    storage:
+      trace:
+        backend: local
+        local:
+          path: /var/tempo/traces
+        wal:
+          path: /var/tempo/wal
+    
+    receivers:
+      jaeger:
+        protocols:
+          thrift_http:
+            endpoint: 0.0.0.0:14268
+          grpc:
+            endpoint: 0.0.0.0:14250
+          thrift_binary:
+            endpoint: 0.0.0.0:6832
+          thrift_compact:
+            endpoint: 0.0.0.0:6831
+      zipkin:
+        endpoint: 0.0.0.0:9411
+      otlp:
+        protocols:
+          http:
+            endpoint: 0.0.0.0:4318
+          grpc:
+            endpoint: 0.0.0.0:4317
+      opencensus:
+        endpoint: 0.0.0.0:55678
+    
+    ingester:
+      trace_idle_period: 10s
+      max_block_bytes: 1000000
+      max_block_duration: 5m
+    
+    compactor:
+      compaction:
+        block_retention: 720h
+    
+    queryFrontend:
+      search:
+        duration_slo: 5s
+        throughput_bytes_slo: 1073741824
+    
+    global_overrides:
+      max_bytes_per_trace: 5000000
+    
+    retention: 720h
+  
+  persistence:
+    enabled: true
+    size: 3Gi
+  
+  service:
+    type: ClusterIP
+  
+  serviceMonitor:
+    enabled: false
+  
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  securityContext:
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+  
+  affinity: {}
+  
+  env:
+    - name: GOMEMLIMIT
+      value: "900MiB"
