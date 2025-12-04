@@ -1,0 +1,109 @@
+mimir-distributed:
+  mimir:
+    structuredConfig:
+      multitenancy_enabled: false
+      
+      common:
+        storage:
+          backend: filesystem
+          filesystem:
+            dir: /data/tsdb-data  # Changed from /data
+      
+      blocks_storage:
+        backend: filesystem
+        filesystem:
+          dir: /data/blocks
+        tsdb:
+          dir: /data/tsdb
+          retention_period: 720h
+        bucket_store:
+          sync_dir: /data/tsdb-sync
+      
+      # REMOVED ruler_storage to fix path overlap
+      
+      alertmanager_storage:
+        backend: filesystem
+        filesystem:
+          dir: /data/alertmanager
+      
+      server:
+        log_level: info
+      
+      limits:
+        ingestion_rate: 80000
+        max_global_series_per_user: 0
+      
+      compactor:
+        data_dir: /data/compactor
+        compaction_interval: 30m
+      
+      ingester:
+        ring:
+          replication_factor: 1
+  
+  distributor:
+    replicas: 1
+  
+  ingester:
+    replicas: 1
+    persistentVolume:
+      enabled: true
+      size: 3Gi
+    zoneAwareReplication:
+      enabled: false
+  
+  querier:
+    replicas: 1
+  
+  query_frontend:
+    replicas: 1
+  
+  store_gateway:
+    replicas: 1
+    persistentVolume:
+      enabled: true
+      size: 3Gi
+    zoneAwareReplication:
+      enabled: false
+  
+  compactor:
+    replicas: 1
+    persistentVolume:
+      enabled: true
+      size: 3Gi
+  
+  ruler:
+    replicas: 0
+    enabled: false
+  
+  alertmanager:
+    replicas: 0
+    enabled: false
+  
+  query_scheduler:
+    replicas: 0
+    enabled: false
+  
+  overrides_exporter:
+    replicas: 1
+  
+  nginx:
+    replicas: 1
+    service:
+      type: NodePort
+      nodePort: 30080
+  
+  minio:
+    enabled: false
+  
+  memcached:
+    enabled: false
+  memcached-queries:
+    enabled: false
+  memcached-metadata:
+    enabled: false
+  memcached-results:
+    enabled: false
+  
+  rollout_operator:
+    enabled: true

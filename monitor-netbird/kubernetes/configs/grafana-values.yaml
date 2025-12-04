@@ -1,0 +1,55 @@
+grafana:
+  # Admin credentials
+  adminUser: admin
+  adminPassword: admin
+  
+  # Persistence
+  persistence:
+    enabled: true
+    size: 1Gi
+  
+  # Service configuration
+  service:
+    type: NodePort
+    port: 80
+    targetPort: 3000
+    nodePort: 30300
+  
+  # Environment variables
+  env:
+    GF_FEATURE_TOGGLES_ENABLE: publicDashboards
+    GF_LOG_LEVEL: info
+    GF_AUTH_ANONYMOUS_ENABLED: "false"
+  
+  # Datasources configuration - FIXED service names
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          access: proxy
+          url: http://monitoring-stack-prometheus-server:80
+          isDefault: true
+          jsonData:
+            httpMethod: POST
+            timeInterval: 15s
+        
+        - name: Loki
+          type: loki
+          access: proxy
+          url: http://monitoring-stack-loki-gateway:80
+          jsonData:
+            maxLines: 1000
+        
+        - name: Mimir
+          type: prometheus
+          access: proxy
+          url: http://monitoring-stack-mimir-distributed-nginx:80/prometheus
+          jsonData:
+            httpMethod: POST
+            timeInterval: 15s
+  
+  # Disable unnecessary components
+  testFramework:
+    enabled: false

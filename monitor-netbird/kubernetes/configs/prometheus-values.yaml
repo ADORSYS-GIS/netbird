@@ -1,0 +1,52 @@
+prometheus:
+  alertmanager:
+    enabled: false
+  kube-state-metrics:
+    enabled: false
+  prometheus-node-exporter:
+    enabled: false
+  prometheus-pushgateway:
+    enabled: false
+  
+  server:
+    persistentVolume:
+      enabled: true
+      size: 3Gi
+    retention: 30d
+    service:
+      type: NodePort
+      port: 80
+      targetPort: 9090
+      nodePort: 30090
+    # Override the chart's default global config
+    global:
+      evaluation_interval: 15s
+      scrape_interval: 15s
+      external_labels:
+        cluster: monitoring-cluster
+        environment: production
+  
+  serverFiles:
+    prometheus.yml:
+      scrape_configs:
+        - job_name: prometheus
+          static_configs:
+            - targets: ['localhost:9090']
+        
+        - job_name: loki
+          static_configs:
+            - targets: ['monitoring-stack-loki-gateway:80']
+        
+        - job_name: grafana
+          static_configs:
+            - targets: ['monitoring-stack-grafana:80']
+        
+        - job_name: mimir-distributor
+          static_configs:
+            - targets: ['monitoring-stack-mimir-distributor:8080']
+        
+        - job_name: node-exporter
+          static_configs:
+            - targets: ['100.96.193.86:9100']
+              labels:
+                instance: 'target.netbird.cloud'

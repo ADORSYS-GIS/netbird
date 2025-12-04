@@ -220,16 +220,18 @@ services:
     volumes:
       - netbird_management_data:/netbird-data:ro
     environment:
-      - LOKI_URL=http://loki:3100
+      # LOKI_URL is where the exporter will push events. By default it targets
+      # the local Loki service in this compose stack, but you can override it by
+      # setting NETBIRD_EXPORTER_LOKI_URL in the environment before running
+      # `docker compose` (for example, to point at a remote Loki in a
+      # Kubernetes/Helm deployment).
+      - LOKI_URL=${NETBIRD_EXPORTER_LOKI_URL:-http://loki:3100}
       - EVENTS_DB_PATH=/netbird-data/events.db
       - CHECK_INTERVAL=10
       - BATCH_SIZE=100
       - RUST_LOG=info
     networks:
       - monitoring
-    depends_on:
-      loki:
-        condition: service_healthy
     logging:
       driver: "json-file"
       options:
