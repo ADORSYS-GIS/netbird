@@ -81,7 +81,7 @@ By default, Grafana is exposed via a NodePort service. To access Grafana, you ne
     The Helm chart automatically configures Prometheus, Loki, and Mimir as data sources within Grafana using their internal Kubernetes service names. You should not need to manually configure them.
     -   **Prometheus:** `http://monitoring-stack-prometheus-server:80`
     -   **Loki:** `http://monitoring-stack-loki-gateway:80`
-    -   **Mimir:** `http://monitoring-stack-mimir-distributed-nginx:80/prometheus`
+    -   **Mimir:** `http://monitoring-stack-mimir-distributor:8080/metrics`
 
     You can verify the data sources by navigating to **Connections** → **Data sources** in Grafana.
 
