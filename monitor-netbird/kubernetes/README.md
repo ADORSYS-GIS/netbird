@@ -28,72 +28,20 @@ The stack is sized to stay within ~10Gi of persistent storage:
 - Mimir: 3Gi
 - Grafana: 1Gi
 
-## Install
+## Deployment
 
-From the repository root:
-
-```bash
-kubectl apply -f monitor-netbird/kubernetes/namespace.yaml
-
-cd monitor-netbird/kubernetes/helm/monitoring-stack
-helm dependency update
-
-helm install monitoring-stack . \
-  -n monitoring \
-  -f ../../configs/loki-values.yaml \
-  -f ../../configs/prometheus-values.yaml \
-  -f ../../configs/grafana-values.yaml \
-  -f ../../configs/mimir-values.yaml
-
-# Loki service is ClusterIP by default; apply NodePort service for external access
-kubectl apply -f ../configs/loki-nodeport-service.yaml -n monitoring
-```
-
-## Service Access (NodePort)
-
-By default the stack exposes the following NodePorts:
-
-- Grafana: `30300` (HTTP 3000)
-- Prometheus: `30090` (HTTP 9090)
-- Loki: `31100` (HTTP 3100)
-- Mimir: `30080` (HTTP 8080)
-
-You can reach these services using any IP or DNS name that resolves to a cluster
-node (for example, a LAN IP, VPN address, or hostname):
-
-- Grafana: `http://<monitoring-host>:30300`
-- Prometheus: `http://<monitoring-host>:30090`
-- Loki: `http://<monitoring-host>:31100`
-- Mimir: `http://<monitoring-host>:30080`
-
-## Verify Service Names
-
-After installation, verify the actual service names in the cluster:
-
-```bash
-kubectl get svc -n monitoring
-```
-
-If service names differ from the defaults used in the configuration files
-(`prometheus-server`, `loki`, `grafana`, `mimir-distributed-query-frontend`),
-you may need to update the datasource URLs in `grafana-values.yaml` and the
-scrape targets in `prometheus-values.yaml` to match the actual service names.
-
-Service names typically follow the pattern: `<release-name>-<service-name>`
-(e.g., `monitoring-stack-prometheus-server`).
+For detailed deployment instructions, including prerequisites, installation steps, and service access, please refer to the main documentation: [`docs/Monitoring-NetBird-Observability-Kubernetes.md`](docs/Monitoring-NetBird-Observability-Kubernetes.md).
 
 ## External Agents and Targets
 
-The `agents/` directory contains guidance and examples for running exporters on
-Linux hosts that are reachable from the monitoring stack (for example, over a
-VPN, overlay network, corporate network, or local LAN):
+The `agents/` directory contains guidance and examples for running external monitoring agents on hosts that are reachable from the Kubernetes monitoring stack. These agents collect metrics and logs from various sources and push them to the deployed Prometheus and Loki instances.
 
-- Node Exporter for host metrics
-- Docker daemon metrics (as an alternative to cAdvisor)
-- Alloy for system and container logs
-- NetBird events exporter to push management events to Loki
+Refer to [`agents/README.md`](monitor-netbird/kubernetes/agents/README.md) for details on configuring and deploying:
 
-See `agents/README.md` for details.
+-   Node Exporter for host metrics
+-   Docker daemon metrics
+-   Grafana Alloy for system and container logs
+-   NetBird events exporter to push management events to Loki
 
 ## Uninstall
 
