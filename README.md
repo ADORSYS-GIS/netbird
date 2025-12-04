@@ -48,9 +48,6 @@ for a self‑hosted NetBird control plane. It includes:
 - Prometheus for metrics
 - Loki for logs
 - Grafana for dashboards
-- Grafana Alloy for log collection
-- Host and container metrics exporters
-- A NetBird events exporter that forwards management events to Loki
 
 High‑level operator documentation for deploying and managing the monitoring stack is available:
 
