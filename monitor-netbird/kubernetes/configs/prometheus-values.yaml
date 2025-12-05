@@ -2,9 +2,9 @@ prometheus:
   alertmanager:
     enabled: false
   kube-state-metrics:
-    enabled: false
+    enabled: true
   prometheus-node-exporter:
-    enabled: false
+    enabled: true
   prometheus-pushgateway:
     enabled: false
   
@@ -18,13 +18,23 @@ prometheus:
       port: 80
       targetPort: 9090
       nodePort: 30090
-    # Override the chart's default global config
     global:
       evaluation_interval: 15s
       scrape_interval: 15s
       external_labels:
         cluster: monitoring-cluster
         environment: production
+    
+    remoteWrite:
+      - url: http://monitoring-stack-mimir-nginx:80/api/v1/push
+        queue_config:
+          capacity: 10000
+          max_shards: 200
+          min_shards: 1
+          max_samples_per_send: 5000
+          batch_send_deadline: 5s
+          min_backoff: 30ms
+          max_backoff: 5s
   
   extraScrapeConfigs: |
     - job_name: loki
@@ -32,18 +42,25 @@ prometheus:
         - targets: ['monitoring-stack-loki:3100']
           labels:
             instance: 'loki'
+            cluster: 'k8s'
+    
     - job_name: grafana
       static_configs:
         - targets: ['monitoring-stack-grafana:80']
           labels:
             instance: 'grafana'
+            cluster: 'k8s'
+    
     - job_name: mimir-distributor
       static_configs:
         - targets: ['monitoring-stack-mimir-distributor:8080']
           labels:
             instance: 'mimir-distributor'
-    - job_name: node-exporter
+            cluster: 'k8s'
+    
+    - job_name: tempo
       static_configs:
-        - targets: ['monitoring-stack-prometheus-node-exporter:9100']
+        - targets: ['tempo-external:3200']
           labels:
-            instance: 'node-exporter'
+            instance: 'tempo'
+            cluster: 'k8s'
