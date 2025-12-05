@@ -48,7 +48,7 @@ grafana:
         - name: Tempo
           type: tempo
           access: proxy
-          url: http://monitoring-stack-tempo:3200
+          url: http://tempo-external:3200
           jsonData:
             httpMethod: GET
             tracesToLogs:
