@@ -1,0 +1,140 @@
+# Ingress Resources for Monitoring Stack
+# This file creates all ingress resources for the monitoring components
+# LOCAL: Basic configuration for .local domains
+# PRODUCTION: Uncomment TLS sections and update domains
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: monitoring
+  annotations:
+    # LOCAL: Basic rewrite annotation
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    
+    # PRODUCTION: Uncomment below for TLS with cert-manager
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    # nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: grafana.local  # LOCAL: Change to grafana.yourdomain.com for production
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-stack-grafana
+            port:
+              number: 80
+  # PRODUCTION: Uncomment for TLS
+  # tls:
+  # - hosts:
+  #   - grafana.yourdomain.com
+  #   secretName: grafana-tls
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-ingress
+  namespace: monitoring
+  annotations:
+    # LOCAL: Basic rewrite annotation
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    
+    # PRODUCTION: Uncomment below for TLS with cert-manager
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    # nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: prometheus.local  # LOCAL: Change to prometheus.yourdomain.com for production
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-stack-prometheus-server
+            port:
+              number: 80
+  # PRODUCTION: Uncomment for TLS
+  # tls:
+  # - hosts:
+  #   - prometheus.yourdomain.com
+  #   secretName: prometheus-tls
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mimir-ingress
+  namespace: monitoring
+  annotations:
+    # LOCAL: Basic rewrite annotation
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    
+    # PRODUCTION: Uncomment below for TLS with cert-manager
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    # nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: mimir.local  # LOCAL: Change to mimir.yourdomain.com for production
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-stack-mimir-gateway
+            port:
+              number: 80
+  # PRODUCTION: Uncomment for TLS
+  # tls:
+  # - hosts:
+  #   - mimir.yourdomain.com
+  #   secretName: mimir-tls
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tempo-ingress
+  namespace: monitoring
+  annotations:
+    # LOCAL: Basic rewrite annotation
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    
+    # PRODUCTION: Uncomment below for TLS with cert-manager
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    # nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: tempo.local  # LOCAL: Change to tempo.yourdomain.com for production
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: tempo
+            port:
+              number: 3200
+  # PRODUCTION: Uncomment for TLS
+  # tls:
+  # - hosts:
+  #   - tempo.yourdomain.com
+  #   secretName: tempo-tls

@@ -71,10 +71,10 @@ helm install monitoring-stack-mimir grafana/mimir-distributed -f mimir-values.ya
 helm install monitoring-stack-grafana grafana/grafana -f grafana-values.yaml -n monitoring
 
 # Create ingress resources (required for most services)
-kubectl create ingress grafana-ingress --class=nginx --rule="grafana.local/*=monitoring-stack-grafana:80" -n monitoring --annotation=nginx.ingress.kubernetes.io/rewrite-target=/
-kubectl create ingress prometheus-ingress --class=nginx --rule="prometheus.local/*=monitoring-stack-prometheus-server:80" -n monitoring --annotation=nginx.ingress.kubernetes.io/rewrite-target=/
-kubectl create ingress mimir-ingress --class=nginx --rule="mimir.local/*=monitoring-stack-mimir-gateway:80" -n monitoring --annotation=nginx.ingress.kubernetes.io/rewrite-target=/
-kubectl create ingress tempo-ingress --class=nginx --rule="tempo.local/*=tempo:3200" -n monitoring --annotation=nginx.ingress.kubernetes.io/rewrite-target=/
+# All ingress configuration is centralized in ingress-resources.yaml
+# LOCAL: Uses .local domains with basic annotations
+# PRODUCTION: Uncomment TLS sections and update domains in ingress-resources.yaml
+kubectl apply -f ingress-resources.yaml
 ```
 
 ### 6. Access
