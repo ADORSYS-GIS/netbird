@@ -1,21 +1,70 @@
 grafana:
   adminUser: admin
-  adminPassword: admin
+  # PRODUCTION: Use strong password or secret from external secret manager
+  adminPassword: admin  # Change for production
 
   persistence:
     enabled: true
+    type: pvc
     size: 1Gi
+    # PRODUCTION: Use storageClassName for cloud storage
+    # storageClassName: gp3  # AWS
+    # storageClassName: standard-rwo  # GCP
+    # storageClassName: managed-premium  # Azure
 
   service:
-    type: NodePort
+    type: ClusterIP
     port: 80
     targetPort: 3000
-    nodePort: 30300
+
+  # ingress:
+  #   enabled: true
+  #   ingressClassName: nginx
+  #   annotations:
+  #     # LOCAL: Basic rewrite
+  #     nginx.ingress.kubernetes.io/rewrite-target: /
+  #     
+  #     # PRODUCTION: Uncomment below for TLS with cert-manager
+  #     # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  #     # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  #     # nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+  #     # nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+  #   
+  #   labels: {}
+  #   
+  #   path: /
+  #   pathType: Prefix
+  #   
+  #   hosts:
+  #     - grafana.local
+  #     # - grafana.yourdomain.com  # PRODUCTION
+  #   
+  #   tls: []
+  #   # PRODUCTION: Uncomment for TLS
+  #   # tls:
+  #   #   - secretName: grafana-tls
+  #   #     hosts:
+  #   #       - grafana.yourdomain.com
 
   env:
     GF_FEATURE_TOGGLES_ENABLE: publicDashboards
     GF_LOG_LEVEL: info
     GF_AUTH_ANONYMOUS_ENABLED: "false"
+    
+    # PRODUCTION: Security headers
+    # GF_SECURITY_COOKIE_SECURE: "true"
+    # GF_SECURITY_COOKIE_SAMESITE: "lax"
+    # GF_SERVER_ROOT_URL: "https://grafana.yourdomain.com"
+
+  # PRODUCTION: Resource limits
+  resources: {}
+  # resources:
+  #   limits:
+  #     cpu: 500m
+  #     memory: 512Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
 
   datasources:
     datasources.yaml:
@@ -40,7 +89,7 @@ grafana:
         - name: Mimir
           type: prometheus
           access: proxy
-          url: http://monitoring-stack-mimir-nginx:80/prometheus
+          url: http://monitoring-stack-mimir-nginx:8080/prometheus
           jsonData:
             httpMethod: POST
             timeInterval: 15s
@@ -48,7 +97,7 @@ grafana:
         - name: Tempo
           type: tempo
           access: proxy
-          url: http://tempo-external:3200
+          url: http://tempo:3200
           jsonData:
             httpMethod: GET
             tracesToLogs:

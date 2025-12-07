@@ -6,6 +6,14 @@ mimir-distributed:
       common:
         storage:
           backend: filesystem
+          # PRODUCTION: Use object storage
+          # backend: s3
+          # s3:
+          #   endpoint: s3.amazonaws.com
+          #   region: us-east-1
+          #   bucket_name: mimir-blocks
+          #   access_key_id: ${S3_ACCESS_KEY}
+          #   secret_access_key: ${S3_SECRET_KEY}
           filesystem:
             dir: /data/mimir-data
       
@@ -41,34 +49,93 @@ mimir-distributed:
   
   distributor:
     replicas: 1
+    # PRODUCTION: Resource limits
+    resources: {}
+    # resources:
+    #   limits:
+    #     cpu: 1000m
+    #     memory: 1Gi
+    #   requests:
+    #     cpu: 250m
+    #     memory: 256Mi
   
   ingester:
     replicas: 1
     persistentVolume:
       enabled: true
       size: 3Gi
+      # PRODUCTION: Use storageClassName
+      # storageClassName: gp3
     zoneAwareReplication:
       enabled: false
+    # CRITICAL: Disable multi-zone for single-node
+    statefulSet:
+      enabled: true
+    affinity: {}
+    # PRODUCTION: Resource limits
+    resources: {}
+    # resources:
+    #   limits:
+    #     cpu: 2000m
+    #     memory: 4Gi
+    #   requests:
+    #     cpu: 500m
+    #     memory: 1Gi
   
   querier:
     replicas: 1
+    resources: {}
+    # resources:
+    #   limits:
+    #     cpu: 1000m
+    #     memory: 2Gi
+    #   requests:
+    #     cpu: 250m
+    #     memory: 512Mi
   
   query_frontend:
     replicas: 1
+    resources: {}
+    # resources:
+    #   limits:
+    #     cpu: 1000m
+    #     memory: 1Gi
+    #   requests:
+    #     cpu: 250m
+    #     memory: 256Mi
   
   store_gateway:
     replicas: 1
     persistentVolume:
       enabled: true
       size: 3Gi
+      # storageClassName: gp3
     zoneAwareReplication:
       enabled: false
+    affinity: {}
+    resources: {}
+    # resources:
+    #   limits:
+    #     cpu: 1000m
+    #     memory: 2Gi
+    #   requests:
+    #     cpu: 250m
+    #     memory: 512Mi
   
   compactor:
     replicas: 1
     persistentVolume:
       enabled: true
       size: 3Gi
+      # storageClassName: gp3
+    resources: {}
+    # resources:
+    #   limits:
+    #     cpu: 1000m
+    #     memory: 2Gi
+    #   requests:
+    #     cpu: 250m
+    #     memory: 512Mi
   
   ruler:
     replicas: 0
@@ -88,8 +155,33 @@ mimir-distributed:
   nginx:
     replicas: 1
     service:
-      type: NodePort
-      nodePort: 30080
+      type: ClusterIP
+    
+    # ingress:
+    #   enabled: true
+    #   ingressClassName: nginx
+    #   annotations:
+    #     nginx.ingress.kubernetes.io/rewrite-target: /
+    #     
+    #     # PRODUCTION: Uncomment for TLS
+    #     # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    #     # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    #     # nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    #   
+    #   hosts:
+    #     - host: mimir.local  # LOCAL
+    #     # host: mimir.yourdomain.com  # PRODUCTION
+    #     paths:
+    #       - path: /
+    #         pathType: Prefix
+    #   
+    #   tls: []
+    #   # PRODUCTION: Uncomment for TLS
+    #   # tls:
+    #   #   - secretName: mimir-tls
+    #   #     hosts:
+    #   #       - mimir.yourdomain.com
+    
     nginxConfig:
       file: |
         worker_processes  5;
@@ -213,6 +305,10 @@ mimir-distributed:
         }
   
   minio:
+    enabled: false
+  
+  # Disable Kafka (used for ingest storage)
+  kafka:
     enabled: false
   
   memcached:

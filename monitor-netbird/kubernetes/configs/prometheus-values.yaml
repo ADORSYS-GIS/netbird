@@ -1,10 +1,13 @@
 prometheus:
   alertmanager:
     enabled: false
+  
   kube-state-metrics:
     enabled: true
+  
   prometheus-node-exporter:
     enabled: true
+  
   prometheus-pushgateway:
     enabled: false
   
@@ -12,12 +15,54 @@ prometheus:
     persistentVolume:
       enabled: true
       size: 3Gi
+      # PRODUCTION: Use storageClassName
+      # storageClassName: gp3
+    
     retention: 30d
+    
     service:
-      type: NodePort
+      type: ClusterIP
       port: 80
       targetPort: 9090
-      nodePort: 30090
+    
+    # ingress:
+    #   enabled: true
+    #   ingressClassName: nginx
+    #   annotations:
+    #     nginx.ingress.kubernetes.io/rewrite-target: /
+    #     
+    #     # PRODUCTION: Uncomment for TLS
+    #     # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    #     # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    #     # nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+    #   
+    #   hosts:
+    #     - host: prometheus.local
+    #       paths:
+    #         - path: /
+    #           pathType: Prefix
+    #     # - host: prometheus.yourdomain.com  # PRODUCTION
+    #     #   paths:
+    #     #     - path: /
+    #     #       pathType: Prefix
+    #   
+    #   tls: []
+    #   # PRODUCTION: Uncomment for TLS
+    #   # tls:
+    #   #   - secretName: prometheus-tls
+    #   #     hosts:
+    #   #       - prometheus.yourdomain.com
+    
+    # PRODUCTION: Resource limits
+    resources: {}
+    # resources:
+    #   limits:
+    #     cpu: 2000m
+    #     memory: 4Gi
+    #   requests:
+    #     cpu: 500m
+    #     memory: 1Gi
+    
     global:
       evaluation_interval: 15s
       scrape_interval: 15s
@@ -26,7 +71,7 @@ prometheus:
         environment: production
     
     remoteWrite:
-      - url: http://monitoring-stack-mimir-nginx:80/api/v1/push
+      - url: http://monitoring-stack-mimir-nginx:8080/api/v1/push
         queue_config:
           capacity: 10000
           max_shards: 200
@@ -35,6 +80,9 @@ prometheus:
           batch_send_deadline: 5s
           min_backoff: 30ms
           max_backoff: 5s
+        # PRODUCTION: Add TLS if Mimir uses https
+        # tls_config:
+        #   insecure_skip_verify: false
   
   extraScrapeConfigs: |
     - job_name: loki
@@ -60,7 +108,7 @@ prometheus:
     
     - job_name: tempo
       static_configs:
-        - targets: ['tempo-external:3200']
+        - targets: ['tempo:3200']
           labels:
             instance: 'tempo'
             cluster: 'k8s'

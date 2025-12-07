@@ -12,6 +12,14 @@ tempo:
     storage:
       trace:
         backend: local
+        # PRODUCTION: Use object storage
+        # backend: s3
+        # s3:
+        #   bucket: tempo-traces
+        #   endpoint: s3.amazonaws.com
+        #   region: us-east-1
+        #   access_key: ${S3_ACCESS_KEY}
+        #   secret_key: ${S3_SECRET_KEY}
         local:
           path: /var/tempo/traces
         wal:
@@ -61,10 +69,40 @@ tempo:
   persistence:
     enabled: true
     size: 3Gi
+    # PRODUCTION: Use storageClassName
+    # storageClassName: gp3
   
   service:
     type: ClusterIP
-  
+
+  # ingress:
+  #   enabled: true
+  #   ingressClassName: nginx
+  #   annotations:
+  #     nginx.ingress.kubernetes.io/rewrite-target: /
+  #     
+  #     # PRODUCTION: Uncomment for TLS
+  #     # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  #     # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  #     # nginx.ingress.kubernetes.io/ssl-protocols: "TLSv1.2 TLSv1.3"
+  #   
+  #   hosts:
+  #     - host: tempo.local
+  #       paths:
+  #         - path: /
+  #           pathType: Prefix
+  #     # - host: tempo.yourdomain.com  # PRODUCTION
+  #     #   paths:
+  #     #     - path: /
+  #     #       pathType: Prefix
+  #   
+  #   tls: []
+  #   # PRODUCTION: Uncomment for TLS
+  #   # tls:
+  #   #   - secretName: tempo-tls
+  #   #     hosts:
+  #   #       - tempo.yourdomain.com
+
   serviceMonitor:
     enabled: false
   
@@ -76,13 +114,30 @@ tempo:
       cpu: 100m
       memory: 128Mi
   
+  # PRODUCTION: Increase resources
+  # resources:
+  #   limits:
+  #     cpu: 2000m
+  #     memory: 4Gi
+  #   requests:
+  #     cpu: 500m
+  #     memory: 1Gi
+  
+  # Pod-level security context
+  podSecurityContext:
+    fsGroup: 10001
+  
+  # Container-level security context
   securityContext:
     runAsUser: 10001
     runAsGroup: 10001
-    fsGroup: 10001
+    runAsNonRoot: true
   
   affinity: {}
   
   env:
     - name: GOMEMLIMIT
       value: "900MiB"
+    # PRODUCTION: Increase memory limit
+    # - name: GOMEMLIMIT
+    #   value: "3600MiB"
