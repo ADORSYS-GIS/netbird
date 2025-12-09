@@ -1,0 +1,48 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod-dns
+spec:
+  acme:
+    # Let's Encrypt production server
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: onelsob57@gmail.com  
+    
+    # Store ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-prod-dns-key  
+    
+    # DNS-01 challenge using Google Cloud DNS
+    solvers:
+    - dns01:
+        cloudDNS:
+          # GCP project where Cloud DNS zone exists
+          project: observe-472521
+          
+          # Use Workload Identity (recommended for GKE)
+          # Cert-manager pod assumes this GCP service account
+          # No need for key file
+          # serviceAccountSecretRef:
+          #   name: ""  # Empty means use Workload Identity
+
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # Let's Encrypt production server
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: onelsob57@gmail.com # REPLACE: your email for cert notifications
+    
+    # Store ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-prod-key
+    
+    # HTTP-01 challenge using nginx-ingress
+    solvers:
+    - http01:
+        ingress:
+          # Use nginx ingress class
+          ingressClassName: nginx
