@@ -29,17 +29,17 @@ spec:
   # TLS configuration
   tls:
   - hosts:
-    - grafana.monitoring.observe.camer.digital 
-    - loki.monitoring.observe.camer.digital 
-    - mimir.monitoring.observe.camer.digital 
-    - tempo.monitoring.observe.camer.digital 
-    - prometheus.monitoring.observe.camer.digital 
+    - grafana.<YOUR_MONITORING_DOMAIN>
+    - loki.<YOUR_MONITORING_DOMAIN>
+    - mimir.<YOUR_MONITORING_DOMAIN>
+    - tempo.<YOUR_MONITORING_DOMAIN>
+    - prometheus.<YOUR_MONITORING_DOMAIN>
     secretName: monitoring-tls  # cert-manager stores cert here
   
   # Routing rules
   rules:
   # Grafana
-  - host: grafana.monitoring.observe.camer.digital 
+  - host: grafana.<YOUR_MONITORING_DOMAIN>
     http:
       paths:
       - path: /
@@ -51,7 +51,7 @@ spec:
               number: 80
   
   # Loki
-  - host: loki.monitoring.observe.camer.digital 
+  - host: loki.<YOUR_MONITORING_DOMAIN>
     http:
       paths:
       - path: /
@@ -63,7 +63,7 @@ spec:
               number: 80
   
   # Mimir
-  - host: mimir.monitoring.observe.camer.digital 
+  - host: mimir.<YOUR_MONITORING_DOMAIN>
     http:
       paths:
       - path: /
@@ -75,7 +75,7 @@ spec:
               number: 80
   
   # Tempo
-  - host: tempo.monitoring.observe.camer.digital 
+  - host: tempo.<YOUR_MONITORING_DOMAIN>
     http:
       paths:
       - path: /
@@ -87,7 +87,7 @@ spec:
               number: 3200
   
   # Prometheus
-  - host: prometheus.monitoring.observe.camer.digital 
+  - host: prometheus.<YOUR_MONITORING_DOMAIN>
     http:
       paths:
       - path: /

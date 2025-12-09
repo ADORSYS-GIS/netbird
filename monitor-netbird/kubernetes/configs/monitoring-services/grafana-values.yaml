@@ -3,8 +3,8 @@ grafana:
     create: true
     name: observability-sa
     annotations:
-      iam.gke.io/gcp-service-account: gke-observability-sa@observe-472521.iam.gserviceaccount.com
-  
+      iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL> # Replace with your GCP service account email
+
   adminUser: admin
   adminPassword: admin
 
@@ -18,7 +18,7 @@ grafana:
     targetPort: 3000
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/hostname: grafana.monitoring.observe.camer.digital
+      external-dns.alpha.kubernetes.io/hostname: <GRAFANA_DOMAIN_NAME> # Replace with your Grafana domain name (e.g., grafana.yourdomain.com)
 
   env:
     GF_FEATURE_TOGGLES_ENABLE: publicDashboards
@@ -59,6 +59,6 @@ grafana:
           url: http://tempo-external:3200
           jsonData:
             httpMethod: GET
-            
+
   testFramework:
     enabled: false

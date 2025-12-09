@@ -17,6 +17,8 @@ Production-ready Ansible automation for deploying and configuring Keycloak Ident
 
 ## Overview
 
+This document details the Keycloak deployment automation for NetBird. For a high-level overview of the entire project, including the observability stack, refer to the main [README.md](../README.md).
+
 This project provides automated deployment of:
 - **Keycloak 22.0** - Identity and Access Management
 - **PostgreSQL 15** - Keycloak database
