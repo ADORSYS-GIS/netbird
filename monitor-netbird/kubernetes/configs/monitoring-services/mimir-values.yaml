@@ -1,0 +1,122 @@
+mimir-distributed:
+  serviceAccount:
+    create: false
+    name: observability-sa
+    annotations:
+      iam.gke.io/gcp-service-account: observability-sa@observe-472521.iam.gserviceaccount.com
+  
+  mimir:
+    structuredConfig:
+      multitenancy_enabled: false
+      
+      # GCS Storage Configuration
+      common:
+        storage:
+          backend: gcs
+          gcs:
+            bucket_name: observe-472521-observability-mimir-blocks-observe472521
+      
+      blocks_storage:
+        backend: gcs
+        gcs:
+          bucket_name: observe-472521-observability-mimir-blocks-observe472521
+        tsdb:
+          dir: /data/mimir-data/tsdb
+          retention_period: 720h
+        bucket_store:
+          sync_dir: /data/mimir-data/tsdb-sync
+      
+      alertmanager_storage:
+        backend: gcs
+        gcs:
+          bucket_name: observe-472521-observability-mimir-blocks-observe472521
+      
+      ruler_storage:
+        backend: gcs
+        gcs:
+          bucket_name: observe-472521-observability-mimir-blocks-observe472521
+      
+      server:
+        log_level: info
+      
+      limits:
+        ingestion_rate: 80000
+        max_global_series_per_user: 0
+      
+      compactor:
+        data_dir: /data/mimir-data/compactor
+        compaction_interval: 30m
+      
+      ingester:
+        ring:
+          replication_factor: 1
+  
+  distributor:
+    replicas: 1
+  
+  ingester:
+    replicas: 1
+    persistentVolume:
+      enabled: true
+      size: 3Gi
+    zoneAwareReplication:
+      enabled: false
+  
+  querier:
+    replicas: 1
+  
+  query_frontend:
+    replicas: 1
+  
+  store_gateway:
+    replicas: 1
+    persistentVolume:
+      enabled: true
+      size: 3Gi
+    zoneAwareReplication:
+      enabled: false
+  
+  compactor:
+    replicas: 1
+    persistentVolume:
+      enabled: true
+      size: 3Gi
+  
+  ruler:
+    replicas: 0
+    enabled: false
+  
+  alertmanager:
+    replicas: 0
+    enabled: false
+  
+  query_scheduler:
+    replicas: 0
+    enabled: false
+  
+  overrides_exporter:
+    replicas: 1
+  
+  nginx:
+    replicas: 1
+    service:
+      type: ClusterIP
+      port: 80
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        external-dns.alpha.kubernetes.io/hostname: mimir.monitoring.observe.camer.digital
+  
+  minio:
+    enabled: false
+  
+  memcached:
+    enabled: false
+  memcached-queries:
+    enabled: false
+  memcached-metadata:
+    enabled: false
+  memcached-results:
+    enabled: false
+  
+  rollout_operator:
+    enabled: true
