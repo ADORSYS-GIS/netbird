@@ -1,4 +1,10 @@
 tempo:
+  serviceAccount:
+    create: false
+    name: observability-sa
+    annotations:
+      iam.gke.io/gcp-service-account: gke-observability-sa@observe-472521.iam.gserviceaccount.com
+  
   replicas: 1
   
   tempo:
@@ -11,9 +17,11 @@ tempo:
     
     storage:
       trace:
-        backend: local
-        local:
-          path: /var/tempo/traces
+        backend: gcs
+        gcs:
+          bucket_name: observe-472521-observability-tempo-traces-observe472521
+          chunk_buffer_size: 10485760
+          endpoint: ""
         wal:
           path: /var/tempo/wal
     
@@ -64,17 +72,16 @@ tempo:
   
   service:
     type: ClusterIP
+    # ports: 3200
   
+  extraPorts:
+    - name: http
+      port: 3200
+      targetPort: 3200
+      protocol: TCP
+
   serviceMonitor:
     enabled: false
-  
-  resources:
-    limits:
-      cpu: 500m
-      memory: 1Gi
-    requests:
-      cpu: 100m
-      memory: 128Mi
   
   securityContext:
     runAsUser: 10001
@@ -85,4 +92,4 @@ tempo:
   
   env:
     - name: GOMEMLIMIT
-      value: "900MiB"
+      value: "1800MiB"

@@ -4,20 +4,25 @@ prometheus:
   kube-state-metrics:
     enabled: true
   prometheus-node-exporter:
-    enabled: true
+    enabled: false
   prometheus-pushgateway:
     enabled: false
+  serviceAccount:
+  annotations:
+    iam.gke.io/gcp-service-account: gke-observability-sa@observe-472521.iam.gserviceaccount.com
   
   server:
     persistentVolume:
       enabled: true
       size: 3Gi
-    retention: 30d
+    retention: 7d
     service:
-      type: NodePort
+      type: ClusterIP
       port: 80
       targetPort: 9090
-      nodePort: 30090
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+        external-dns.alpha.kubernetes.io/hostname: prometheus.monitoring.observe.camer.digital
     global:
       evaluation_interval: 15s
       scrape_interval: 15s
@@ -39,7 +44,7 @@ prometheus:
   extraScrapeConfigs: |
     - job_name: loki
       static_configs:
-        - targets: ['monitoring-stack-loki:3100']
+        - targets: ['monitoring-stack-loki-gateway:80']
           labels:
             instance: 'loki'
             cluster: 'k8s'
@@ -60,7 +65,7 @@ prometheus:
     
     - job_name: tempo
       static_configs:
-        - targets: ['tempo-external:3200']
+        - targets: ['monitoring-stack-tempo:3200']
           labels:
             instance: 'tempo'
             cluster: 'k8s'

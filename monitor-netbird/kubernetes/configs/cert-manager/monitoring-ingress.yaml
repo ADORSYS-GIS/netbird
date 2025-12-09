@@ -1,0 +1,99 @@
+# Ingress for all monitoring services
+# File: configs/cert-manager/monitoring-ingress.yaml
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-stack-ingress
+  namespace: observability
+  annotations:
+    # Use nginx ingress controller
+    kubernetes.io/ingress.class: nginx
+    
+    # cert-manager: request certificate from ClusterIssuer
+    cert-manager.io/cluster-issuer: letsencrypt-prod  # or letsencrypt-staging for testing
+    
+    # Nginx annotations for observability stack
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"  # Force HTTPS
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"  # Backend uses HTTP
+    
+    # Increase timeouts for long-running queries
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    
+    # Increase body size for log/metric ingestion
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    
+spec:
+  # TLS configuration
+  tls:
+  - hosts:
+    - grafana.monitoring.observe.camer.digital 
+    - loki.monitoring.observe.camer.digital 
+    - mimir.monitoring.observe.camer.digital 
+    - tempo.monitoring.observe.camer.digital 
+    - prometheus.monitoring.observe.camer.digital 
+    secretName: monitoring-tls  # cert-manager stores cert here
+  
+  # Routing rules
+  rules:
+  # Grafana
+  - host: grafana.monitoring.observe.camer.digital 
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-stack-grafana  # Adjust to your service name
+            port:
+              number: 80
+  
+  # Loki
+  - host: loki.monitoring.observe.camer.digital 
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-stack-loki-gateway  # Adjust to your service name
+            port:
+              number: 80
+  
+  # Mimir
+  - host: mimir.monitoring.observe.camer.digital 
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-stack-mimir-nginx  # Adjust to your service name
+            port:
+              number: 80
+  
+  # Tempo
+  - host: tempo.monitoring.observe.camer.digital 
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: tempo-external  # Adjust to your service name
+            port:
+              number: 3200
+  
+  # Prometheus
+  - host: prometheus.monitoring.observe.camer.digital 
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-stack-prometheus-server  # Adjust to your service name
+            port:
+              number: 80

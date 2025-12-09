@@ -1,4 +1,10 @@
 grafana:
+  serviceAccount:
+    create: true
+    name: observability-sa
+    annotations:
+      iam.gke.io/gcp-service-account: gke-observability-sa@observe-472521.iam.gserviceaccount.com
+  
   adminUser: admin
   adminPassword: admin
 
@@ -7,10 +13,12 @@ grafana:
     size: 1Gi
 
   service:
-    type: NodePort
+    type: ClusterIP
     port: 80
     targetPort: 3000
-    nodePort: 30300
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/hostname: grafana.monitoring.observe.camer.digital
 
   env:
     GF_FEATURE_TOGGLES_ENABLE: publicDashboards
@@ -51,29 +59,6 @@ grafana:
           url: http://tempo-external:3200
           jsonData:
             httpMethod: GET
-            tracesToLogs:
-              datasourceUid: "loki"
-              tags: ["job", "instance", "pod", "namespace"]
-              mappedTags: [{ key: "service.name", value: "service" }]
-              mapTagNamesEnabled: false
-              spanStartTimeShift: "1h"
-              spanEndTimeShift: "1h"
-              filterByTraceID: false
-              filterBySpanID: false
-            tracesToMetrics:
-              datasourceUid: "prometheus"
-              tags: [{ key: "service.name", value: "service" }, { key: "job" }]
-              queries:
-                - name: "Sample query"
-                  query: "sum(rate(tempo_spanmetrics_latency_bucket{$$__tags}[5m]))"
-            serviceMap:
-              datasourceUid: "prometheus"
-            search:
-              hide: false
-            nodeGraph:
-              enabled: true
-            lokiSearch:
-              datasourceUid: "loki"
-
+            
   testFramework:
     enabled: false

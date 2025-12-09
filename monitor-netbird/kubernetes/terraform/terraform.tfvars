@@ -1,0 +1,7 @@
+project_id               = "observe-472521"
+region                   = "europe-west3"
+cluster_name             = "observe-prod-cluster"
+cluster_location         = "europe-west3"
+namespace                = "observability"
+k8s_service_account_name = "observability-sa"
+gcp_service_account_name = "gke-observability-sa"
