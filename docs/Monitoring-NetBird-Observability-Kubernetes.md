@@ -218,7 +218,7 @@ Prometheus automatically scrapes:
 - Loki: `monitoring-stack-loki-gateway:80`
 - Grafana: `monitoring-stack-grafana:80`
 - Mimir Distributor: `monitoring-stack-mimir-distributor:8080`
-- Tempo: `monitoring-stack-tempo:3200`
+- Tempo: `tempo-external:3200`
 
 **View active targets**:
 ```
