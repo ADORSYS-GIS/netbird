@@ -3,7 +3,7 @@ mimir-distributed:
     create: false
     name: observability-sa
     annotations:
-      iam.gke.io/gcp-service-account: observability-sa@observe-472521.iam.gserviceaccount.com
+      iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL>
   
   mimir:
     structuredConfig:
@@ -14,12 +14,12 @@ mimir-distributed:
         storage:
           backend: gcs
           gcs:
-            bucket_name: observe-472521-observability-mimir-blocks-observe472521
+            bucket_name: <MIMIR_BLOCKS_BUCKET_NAME>
       
       blocks_storage:
         backend: gcs
         gcs:
-          bucket_name: observe-472521-observability-mimir-blocks-observe472521
+          bucket_name: <MIMIR_BLOCKS_BUCKET_NAME>
         tsdb:
           dir: /data/mimir-data/tsdb
           retention_period: 720h
@@ -29,12 +29,12 @@ mimir-distributed:
       alertmanager_storage:
         backend: gcs
         gcs:
-          bucket_name: observe-472521-observability-mimir-blocks-observe472521
+          bucket_name: <MIMIR_RULER_BUCKET_NAME>
       
       ruler_storage:
         backend: gcs
         gcs:
-          bucket_name: observe-472521-observability-mimir-blocks-observe472521
+          bucket_name: <MIMIR_ALERTMANAGER_BUCKET_NAME>
       
       server:
         log_level: info
@@ -104,7 +104,7 @@ mimir-distributed:
       port: 80
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
-        external-dns.alpha.kubernetes.io/hostname: mimir.monitoring.observe.camer.digital
+        external-dns.alpha.kubernetes.io/hostname: mimir.<YOUR_MONITORING_DOMAIN>
   
   minio:
     enabled: false

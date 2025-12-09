@@ -9,7 +9,7 @@ prometheus:
     enabled: false
   serviceAccount:
   annotations:
-    iam.gke.io/gcp-service-account: gke-observability-sa@observe-472521.iam.gserviceaccount.com
+    iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL>
   
   server:
     persistentVolume:
@@ -22,13 +22,13 @@ prometheus:
       targetPort: 9090
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
-        external-dns.alpha.kubernetes.io/hostname: prometheus.monitoring.observe.camer.digital
+        external-dns.alpha.kubernetes.io/hostname: prometheus.<YOUR_MONITORING_DOMAIN>
     global:
       evaluation_interval: 15s
       scrape_interval: 15s
       external_labels:
-        cluster: monitoring-cluster
-        environment: production
+        cluster: <CLUSTER_NAME>
+        environment: <ENVIRONMENT>
     
     remoteWrite:
       - url: http://monitoring-stack-mimir-nginx:80/api/v1/push

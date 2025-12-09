@@ -3,7 +3,7 @@ tempo:
     create: false
     name: observability-sa
     annotations:
-      iam.gke.io/gcp-service-account: gke-observability-sa@observe-472521.iam.gserviceaccount.com
+      iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL>
   
   replicas: 1
   
@@ -19,7 +19,7 @@ tempo:
       trace:
         backend: gcs
         gcs:
-          bucket_name: observe-472521-observability-tempo-traces-observe472521
+          bucket_name: <TEMPO_TRACES_BUCKET_NAME>
           chunk_buffer_size: 10485760
           endpoint: ""
         wal:
