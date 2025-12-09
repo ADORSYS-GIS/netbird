@@ -1,0 +1,138 @@
+# ==============================================================================
+# INDIVIDUAL CERTIFICATES FOR observability SERVICES
+# ==============================================================================
+# File: observability-certificates.yaml
+# Apply with: kubectl apply -f observability-certificates.yaml
+
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: grafana-tls
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/component: certificate
+spec:
+  # Secret name where certificate will be stored
+  secretName: grafana-tls
+  
+  # Use staging issuer first for testing
+  issuerRef:
+    name: letsencrypt-staging  # Change to letsencrypt-prod after testing
+    kind: ClusterIssuer
+  
+  # Certificate configuration
+  commonName: grafana.yourdomain.com  # CHANGE THIS!
+  dnsNames:
+  - grafana.yourdomain.com  # CHANGE THIS!
+  
+  # Certificate duration and renewal
+  duration: 2160h # 90 days
+  renewBefore: 360h # 15 days before expiration
+  
+  # Private key configuration
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+    rotationPolicy: Always
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: loki-tls
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: certificate
+spec:
+  secretName: loki-tls
+  issuerRef:
+    name: letsencrypt-staging  # Change to letsencrypt-prod after testing
+    kind: ClusterIssuer
+  commonName: loki.yourdomain.com  # CHANGE THIS!
+  dnsNames:
+  - loki.yourdomain.com  # CHANGE THIS!
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+    rotationPolicy: Always
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: tempo-tls
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: tempo
+    app.kubernetes.io/component: certificate
+spec:
+  secretName: tempo-tls
+  issuerRef:
+    name: letsencrypt-staging  # Change to letsencrypt-prod after testing
+    kind: ClusterIssuer
+  commonName: tempo.yourdomain.com  # CHANGE THIS!
+  dnsNames:
+  - tempo.yourdomain.com  # CHANGE THIS!
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+    rotationPolicy: Always
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: prometheus-tls
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: prometheus
+    app.kubernetes.io/component: certificate
+spec:
+  secretName: prometheus-tls
+  issuerRef:
+    name: letsencrypt-staging  # Change to letsencrypt-prod after testing
+    kind: ClusterIssuer
+  commonName: prometheus.yourdomain.com  # CHANGE THIS!
+  dnsNames:
+  - prometheus.yourdomain.com  # CHANGE THIS!
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+    rotationPolicy: Always
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: mimir-tls
+  namespace: observability
+  labels:
+    app.kubernetes.io/name: mimir
+    app.kubernetes.io/component: certificate
+spec:
+  secretName: mimir-tls
+  issuerRef:
+    name: letsencrypt-staging  # Change to letsencrypt-prod after testing
+    kind: ClusterIssuer
+  commonName: mimir.yourdomain.com  # CHANGE THIS!
+  dnsNames:
+  - mimir.yourdomain.com  # CHANGE THIS!
+  duration: 2160h
+  renewBefore: 360h
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+    rotationPolicy: Always
