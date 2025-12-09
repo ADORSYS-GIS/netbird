@@ -24,9 +24,9 @@ Edit `deploy/group_vars/keycloak.yml`:
 ```yaml
 keycloak_deploy_mode: true
 keycloak_external_mode: false
-keycloak_host: "auth.example.com"
-keycloak_admin_password: "{{ vault_password }}"
-keycloak_db_password: "{{ vault_db_password }}"
+keycloak_host: "<KEYCLOAK_DOMAIN>" # Replace with your Keycloak domain (e.g., auth.yourdomain.com)
+keycloak_admin_password: "{{ vault_keycloak_admin_password }}" # Use Ansible Vault for this
+keycloak_db_password: "{{ vault_keycloak_db_password }}" # Use Ansible Vault for this
 ```
 
 ### 2. Run Playbook
@@ -38,7 +38,7 @@ ansible-playbook -i deploy/inventory.ini deploy/deploy_keycloak.yml
 ### 3. Setup Caddy
 
 ```
-auth.example.com {
+<KEYCLOAK_DOMAIN> { # Replace with your Keycloak domain
     reverse_proxy localhost:8080 {
         header_up Host {host}
         header_up X-Forwarded-For {remote}
@@ -53,7 +53,7 @@ auth.example.com {
 |----------|---------|-------------|
 | `keycloak_deploy_mode` | false | Deploy new instance |
 | `keycloak_external_mode` | false | Use external instance |
-| `keycloak_host` | auth.example.com | Domain name |
+| `keycloak_host` | `<KEYCLOAK_DOMAIN>` | Domain name for Keycloak |
 | `keycloak_http_port` | 8080 | Internal HTTP port |
 | `keycloak_admin_user` | admin | Admin username |
 | `keycloak_realm` | netbird | Realm name |
@@ -75,7 +75,7 @@ auth.example.com {
 
 ## Output
 
-Configuration saved to: `/opt/keycloak/{realm}-config.env`
+Configuration saved to: `/opt/keycloak/<REALM_NAME>-config.env`
 
 Contains:
 - OIDC endpoints
@@ -110,7 +110,7 @@ docker ps
 ## Integration
 
 Role exports these facts:
-- `netbird_oidc_configuration_endpoint`
-- `netbird_client_id`
-- `netbird_mgmt_client_id`
-- `netbird_mgmt_client_secret`
+- `netbird_oidc_configuration_endpoint`: The OIDC configuration endpoint for NetBird.
+- `netbird_client_id`: The client ID for the NetBird frontend.
+- `netbird_mgmt_client_id`: The client ID for the NetBird management backend.
+- `netbird_mgmt_client_secret`: The client secret for the NetBird management backend.

@@ -7,9 +7,9 @@ loki:
     storage:
       type: gcs
       bucketNames:
-        chunks: observe-472521-observability-loki-chunks-observe472521
-        ruler: observe-472521-observability-loki-ruler-observe472521
-        admin: observe-472521-observability-loki-chunks-observe472521
+        chunks: <LOKI_CHUNKS_BUCKET_NAME> # Replace with your Loki chunks bucket name
+        ruler: <LOKI_RULER_BUCKET_NAME> # Replace with your Loki ruler bucket name
+        admin: <LOKI_ADMIN_BUCKET_NAME> # Replace with your Loki admin bucket name
       gcs:
         chunkBufferSize: 0
         requestTimeout: "0s"
@@ -50,7 +50,7 @@ loki:
       storage:
         type: gcs
         gcs:
-          bucket_name: observe-472521-observability-loki-ruler-observe472521
+          bucket_name: <LOKI_RULER_BUCKET_NAME> # Replace with your Loki ruler bucket name
     
     ingester:
       chunk_encoding: snappy
@@ -70,7 +70,7 @@ loki:
     create: false
     name: observability-sa
     annotations:
-      iam.gke.io/gcp-service-account: gke-observability-sa@observe-472521.iam.gserviceaccount.com
+      iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL> # Replace with your GCP service account email
   
   singleBinary:
     replicas: 1
@@ -88,7 +88,7 @@ loki:
       port: 80
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
-        external-dns.alpha.kubernetes.io/hostname: loki.monitoring.observe.camer.digital
+        external-dns.alpha.kubernetes.io/hostname: <LOKI_DOMAIN_NAME> # Replace with your Loki domain name (e.g., loki.yourdomain.com)
     affinity: {}
   
   backend:

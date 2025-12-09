@@ -35,25 +35,21 @@ data "google_container_cluster" "primary" {
 variable "project_id" {
   description = "GCP Project ID"
   type        = string
-  default     = "observe-472521"
 }
 
 variable "region" {
   description = "GCP Region"
   type        = string
-  default     = "europe-west3"
 }
 
 variable "cluster_name" {
   description = "GKE Cluster Name"
   type        = string
-  default     = "observe-prod-cluster"
 }
 
 variable "cluster_location" {
   description = "GKE Cluster Location"
   type        = string
-  default     = "europe-west3"
 }
 
 variable "namespace" {
@@ -76,14 +72,15 @@ variable "gcp_service_account_name" {
 
 # GCS Buckets
 locals {
+  # Define generic bucket names. The project_id will be prepended automatically.
   buckets = [
-    "loki-chunks-observe472521",
-    "loki-ruler-observe472521",
-    "mimir-blocks-observe472521",
-    "tempo-traces-observe472521"
+    "loki-chunks",
+    "loki-ruler",
+    "mimir-blocks",
+    "tempo-traces"
   ]
   
-  bucket_prefix = "${var.project_id}-observability"
+  bucket_prefix = "${var.project_id}" # Prefix with project ID for uniqueness
 }
 
 resource "google_storage_bucket" "observability_buckets" {
@@ -159,11 +156,12 @@ resource "kubernetes_service_account" "observability_sa" {
     namespace = kubernetes_namespace.observability.metadata[0].name
     
     annotations = {
+      # This annotation binds the Kubernetes Service Account to the GCP Service Account for Workload Identity
       "iam.gke.io/gcp-service-account" = google_service_account.observability_sa.email
     }
     
     labels = {
-      managed-by = "terraform"
+      managed-by = "terraform" # Indicates that this resource is managed by Terraform
     }
   }
 }
