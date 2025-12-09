@@ -6,7 +6,7 @@ spec:
   acme:
     # Let's Encrypt production server
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: onelsob57@gmail.com  
+    email: <YOUR_EMAIL_ADDRESS>
     
     # Store ACME account private key
     privateKeySecretRef:
@@ -17,7 +17,7 @@ spec:
     - dns01:
         cloudDNS:
           # GCP project where Cloud DNS zone exists
-          project: observe-472521
+          project: <GCP_PROJECT_ID>
           
           # Use Workload Identity (recommended for GKE)
           # Cert-manager pod assumes this GCP service account
@@ -34,7 +34,7 @@ spec:
   acme:
     # Let's Encrypt production server
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: onelsob57@gmail.com # REPLACE: your email for cert notifications
+    email: <YOUR_EMAIL_ADDRESS> # REPLACE: your email for cert notifications
     
     # Store ACME account private key
     privateKeySecretRef:

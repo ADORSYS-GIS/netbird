@@ -1,8 +1,8 @@
 # Global configuration
 global:
   labels:
-    cluster: monitoring-cluster
-    environment: production
+    cluster: <CLUSTER_NAME> # Replace with your cluster name
+    environment: <ENVIRONMENT> # Replace with your environment (e.g., production, staging, development)
 
 # Enable/disable components
 loki:

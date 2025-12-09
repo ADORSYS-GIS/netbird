@@ -1,298 +1,181 @@
-# NetBird infrastructure and monitoring
+# NetBird Infrastructure and Observability
 
-This repository provides deployment automation and observability tooling for self-hosted NetBird infrastructure. It includes identity provider setup via Ansible and a complete Grafana-based monitoring stack deployable on Docker Compose or Kubernetes.
+Production-grade infrastructure automation and observability stack for self-hosted NetBird deployments.
 
----
+## What's Included
 
-## Overview
+### Identity Management
+- Automated Keycloak deployment with PostgreSQL backend
+- Pre-configured NetBird realm and client settings
+- Reverse proxy integration support via Caddy
 
-### What's included
+### Observability Stack
+- **Prometheus**: Metrics collection and alerting
+- **Loki**: Log aggregation and search
+- **Mimir**: Long-term metric storage with horizontal scalability
+- **Tempo**: Distributed tracing
+- **Grafana**: Unified visualization dashboard
+- **NetBird Events Exporter**: Control plane monitoring
 
-**Identity management**
-- Automated Keycloak deployment with PostgreSQL
-- NetBird realm and client configuration
-- Reverse-proxy integration support
+### Deployment Options
+- **Docker Compose**: Single-host deployments for development and testing
+- **Kubernetes (Helm)**: Production-ready cluster deployments with GCS backend
 
-**Observability stack**
-- Prometheus for metrics collection and alerting
-- Loki for log aggregation and search
-- Mimir for long-term metric storage
-- Tempo for distributed tracing
-- Grafana for unified visualization
-- NetBird events exporter for control plane monitoring
+## Quick Start
 
-**Deployment options**
-- Docker Compose for single-host deployments
-- Kubernetes (Helm) for production clusters
+### Prerequisites
+- Target infrastructure (Linux hosts for Ansible, Kubernetes cluster for Helm)
+- Docker and Docker Compose (for single-host deployments)
+- kubectl and Helm 3.x (for Kubernetes deployments)
+- Ansible 2.9+ (for Keycloak automation)
 
----
+### Deploy Keycloak with Ansible
 
-## Quick start
-
-### Deploy Keycloak (Ansible)
-
-1. Configure your target hosts in `deploy/inventory.ini`
+1. Configure target hosts in `deploy/inventory.ini`
 2. Set deployment variables in `deploy/group_vars/keycloak.yml`
 3. Run the playbook:
    ```bash
    ansible-playbook -i deploy/inventory.ini deploy/deploy_keycloak.yml
    ```
 
-Refer to [docs/keycloak-role.md](docs/keycloak-role.md) for detailed configuration options.
+See [Keycloak Deployment Guide](docs/keycloak-role.md) for detailed configuration.
 
-### Deploy monitoring stack
+### Deploy Observability Stack
 
-Choose your deployment method:
-
-**Docker Compose (single host)**
+#### Docker Compose (Development/Testing)
 ```bash
 cd monitor-netbird
 docker compose up -d
 ```
 
-**Kubernetes (production)**
-```bash
-cd monitor-netbird/kubernetes
-kubectl apply -f namespace.yaml
-cd helm/monitoring-stack
-helm dependency update
-helm install monitoring-stack . -n monitoring \
-  -f ../../configs/loki-values.yaml \
-  -f ../../configs/prometheus-values.yaml \
-  -f ../../configs/grafana-values.yaml \
-  -f ../../configs/mimir-values.yaml \
-  -f ../../configs/tempo-values.yaml
-```
+Access Grafana at `http://localhost:3000` with default credentials `admin/admin`.
 
-Access Grafana at `http://localhost:3000` (Docker) or `http://<NODE_IP>:30300` (Kubernetes).
+See [Docker Compose Monitoring Guide](docs/Monitoring-NetBird-Observability-Docker-Compose.md) for details.
 
-**Default credentials:** `admin` / `admin`
+#### Kubernetes (Production)
 
----
+* See [Terraform Infrastructure Guide](monitor-netbird/kubernetes/terraform/README.md) for GCP resource provisioning.
+
+* See [Kubernetes Monitoring Guide](docs/Monitoring-NetBird-Observability-Kubernetes.md) for complete setup instructions.
 
 ## Documentation
 
-### Deployment guides
+### Deployment Guides
+- [Keycloak Ansible Deployment](docs/keycloak-role.md): Identity provider automation
+- [Docker Compose Monitoring](docs/Monitoring-NetBird-Observability-Docker-Compose.md): Single-host observability
+- [Kubernetes Monitoring](docs/Monitoring-NetBird-Observability-Kubernetes.md): Production cluster deployment
+- [Terraform Infrastructure](monitor-netbird/kubernetes/terraform/README.md): GCP resource provisioning
 
-- **[Keycloak deployment](docs/keycloak-role.md)**: Complete Ansible automation guide for identity provider setup
-- **[Docker Compose monitoring](docs/Monitoring-NetBird-Observability-Docker-Compose.md)**: Deploy observability stack on single host
-- **[Kubernetes monitoring](docs/Monitoring-NetBird-Observability-Kubernetes.md)**: Production-ready Helm deployment on Kubernetes
+### Component Documentation
+- [NetBird Events Exporter](monitor-netbird/exporter/README.md): Custom metrics exporter
+- [Caddy Reverse Proxy](docs/Caddy-Deployment.md): Reverse proxy configuration
 
-### Additional resources
+### External Resources
+- [NetBird Documentation](https://docs.netbird.io/)
+- [Prometheus Documentation](https://prometheus.io/docs/)
+- [Grafana Documentation](https://grafana.com/docs/)
 
-- **[NetBird events exporter](monitor-netbird/exporter/README.md)**: Custom exporter for NetBird control plane events and metrics
-- **[Caddy deployment](docs/Caddy-Deployment.md)**: Reverse proxy configuration for NetBird services
-- **[Keycloak role mapping](docs/keycloak-role.md)**: Identity provider integration details
+## Architecture Overview
 
----
-
-## Repository structure
-
+### Docker Compose Stack
 ```
-.
-├── deploy/                          # Ansible automation
-│   ├── roles/keycloak/              # Keycloak role
-│   ├── group_vars/                  # Configuration variables
-│   ├── inventory.ini                # Target hosts
-│   └── deploy_keycloak.yml          # Main playbook
-├── monitor-netbird/                 # Observability stack
-│   ├── docker-compose.yml           # Docker deployment
-│   ├── kubernetes/                  # Kubernetes deployment
-│   │   ├── configs/                 # Helm values files
-│   │   ├── helm/monitoring-stack/   # Umbrella chart
-│   │   └── namespace.yaml           # Kubernetes namespace
-│   ├── exporter/                    # NetBird events exporter
-│   └── prometheus/                  # Prometheus configuration
-└── docs/                            # Documentation
-    ├── Monitoring-NetBird-Observability-Docker-Compose.md
-    ├── Monitoring-NetBird-Observability-Kubernetes.md
-    ├── keycloak-role.md
-    └── img/                         # Screenshots and diagrams
+┌─────────────────────────────────────────┐
+│         Grafana (Port 3000)             │
+│              Dashboards                 │
+└────────────┬────────────────────────────┘
+             │
+    ┌────────┴────────┬──────────┬─────────┐
+    │                 │          │         │
+┌───▼────┐     ┌─────▼─────┐ ┌──▼───┐ ┌───▼────┐
+│Prometh-│     │   Loki    │ │Mimir │ │ Tempo  │
+│ eus    │     │           │ │      │ │        │
+└────────┘     └───────────┘ └──────┘ └────────┘
 ```
 
----
+### Kubernetes Stack
+```
+┌──────────────────────────────────────────┐
+│   Ingress (TLS via cert-manager)         │
+└────────────┬─────────────────────────────┘
+             │
+    ┌────────┴────────┬──────────┬─────────┐
+    │                 │          │         │
+┌───▼────┐     ┌─────▼─────┐ ┌──▼───┐  ┌───▼────┐
+│Grafana │     │Prometheus │ │Loki  │  │ Mimir  │
+│        │     │           │ │      │  │        │
+└────────┘     └───────────┘ └──┬───┘  └───┬────┘
+                                │          │
+                           ┌────▼──────────▼─────┐
+                           │  GCS Buckets        │
+                           │  (Object Storage)   │
+                           └─────────────────────┘
+```
 
-## Components
-
-### Keycloak identity provider
-
-- PostgreSQL backend for persistent storage
-- Pre-configured NetBird realm
-- OAuth2/OIDC client setup
-- Custom role and group mappings
-- TLS-ready configuration
-
-### Monitoring stack
-
-**Metrics**
-- Prometheus: Short-term storage, alerting, and scraping
-- Mimir: Long-term metric storage with horizontal scalability
-- Node exporter: Host-level system metrics
-
-**Logs**
-- Loki: Log aggregation with label-based indexing
-- Promtail: Log shipper for Docker and Kubernetes
-- Grafana Alloy: Unified telemetry collector (optional)
-
-**Traces**
-- Tempo: Distributed tracing backend
-- OTLP and Jaeger protocol support
-- Integration with Prometheus and Loki for trace correlation
-
-**Visualization**
-- Grafana: Unified dashboard platform
-- Pre-configured data sources
-- NetBird-specific dashboards (via exporter)
-
----
-
-## Features
-
-### Keycloak automation
-
-- Idempotent Ansible playbooks
-- Secure credential management
-- Support for external Keycloak instances
-- Reverse proxy integration (Nginx, Caddy, Traefik)
-- Realm export/import capabilities
-
-### Monitoring capabilities
-
-- Self-monitoring: Stack observes its own health
-- Multi-tenancy support via Mimir
-- Distributed tracing with service maps
-- Log and metric correlation
-- NetBird control plane events tracking
-- Custom alerting rules
-- Persistent storage with configurable retention
-
-### Deployment flexibility
-
-- Single-command Docker Compose setup
-- Production-ready Kubernetes Helm charts
-- NodePort and LoadBalancer service types
-- Configurable resource limits
-- Persistent volume management
-- High availability options (Kubernetes)
-
----
-
-## Production considerations
+## Production Considerations
 
 ### Security
+- Change default Grafana credentials immediately
+- Enable TLS for all external endpoints
+- Configure RBAC for Kubernetes deployments
+- Use secrets management for sensitive data
+- Implement network policies between namespaces
 
-- Change default credentials immediately
-- Enable TLS for all services
-- Configure authentication and RBAC
-- Use Kubernetes secrets for sensitive data
-- Implement network policies
-- Regular security updates
-
-### High availability
-
+### High Availability
 - Run multiple replicas for stateless components
-- Enable zone-aware replication (Kubernetes)
-- Configure anti-affinity rules
-- Use external load balancers
-- Implement health checks and readiness probes
+- Distribute pods across availability zones
+- Configure pod disruption budgets
+- Use external load balancers in production
 
-### Scalability
-
-- Mimir supports horizontal scaling for metrics
-- Loki can scale reads and writes independently
-- Tempo distributed mode for high trace volumes
-- Resource requests and limits tuning
-- Storage class selection for performance
+### Storage
+- Use production-grade storage classes
+- Configure appropriate retention policies
+- Implement backup and restore procedures
+- Monitor disk usage and set alerts
 
 ### Monitoring
-
-- Alert on monitoring stack health
-- Track ingestion rates and storage growth
-- Monitor resource consumption
-- Dead man's switch for alerting pipeline
-- Backup and disaster recovery procedures
-
----
-
-## Next steps
-
-### After Keycloak deployment
-
-1. Configure NetBird to use Keycloak as IDP
-2. Create user accounts and groups
-3. Test OAuth2 authentication flow
-4. Configure role-based access control
-
-### After monitoring stack deployment
-
-1. Verify all data sources in Grafana
-2. Add scrape targets for your services
-3. Configure log shipping to Loki
-4. Set up trace collection to Tempo
-5. Create custom dashboards
-6. Configure alerting rules
-7. Implement backup procedures
-
-### Integrations
-
-- Deploy NetBird events exporter for control plane monitoring
-- Configure Grafana Alloy for unified telemetry collection
-- Add Prometheus exporters for external services
-- Create custom recording and alerting rules
-- Build team-specific dashboards
-
----
+- Set up alerting for component failures
+- Monitor ingestion rates and storage growth
+- Configure dead man's switch alerts
+- Track resource usage of monitoring pods
 
 ## Troubleshooting
 
-### Keycloak issues
+### Common Issues
 
+**Pods not starting**
 ```bash
-# Check Ansible playbook output
-ansible-playbook -i deploy/inventory.ini deploy/deploy_keycloak.yml -vv
-
-# Verify Keycloak service status
-systemctl status keycloak
-
-# Check PostgreSQL connectivity
-psql -U keycloak -d keycloak -h localhost
+kubectl describe pod -n observability <pod-name>
+kubectl logs -n observability <pod-name>
 ```
 
-### Monitoring stack issues
+**Data source connection failures**
+1. Verify pods are running: `kubectl get pods -n observability`
+2. Check service endpoints: `kubectl get svc -n observability`
+3. Test internal connectivity from a debug pod
 
-**Docker Compose**
+**Storage issues**
 ```bash
-# Check service status
-docker compose -f monitor-netbird/docker-compose.yml ps
-
-# View logs
-docker compose -f monitor-netbird/docker-compose.yml logs <service>
-
-# Restart services
-docker compose -f monitor-netbird/docker-compose.yml restart
+kubectl get pv
+kubectl get pvc -n observability
+kubectl describe pvc -n observability <pvc-name>
 ```
 
-**Kubernetes**
-```bash
-# Check pod status
-kubectl get pods -n monitoring
+See component-specific documentation for detailed troubleshooting.
 
-# View pod logs
-kubectl logs -n monitoring <pod-name>
+## Default Retention Periods
 
-# Describe pod for events
-kubectl describe pod -n monitoring <pod-name>
-
-# Test data source connectivity
-kubectl run -n monitoring test-pod --rm -it --image=curlimages/curl -- sh
-```
-
----
+| Component  | Retention | Configurable In |
+|------------|-----------|-----------------|
+| Prometheus |  7 days   | prometheus-values.yaml |
+| Loki       | 30 days   | loki-values.yaml |
+| Mimir      | 30 days   | mimir-values.yaml |
+| Tempo      | 30 days   | tempo-values.yaml |
 
 ## License
 
-This project is provided as-is for use with self-hosted NetBird deployments. Refer to individual component licenses:
+This project is provided as-is for self-hosted NetBird deployments.
 
+Component licenses:
 - Keycloak: Apache License 2.0
 - Prometheus: Apache License 2.0
 - Loki: AGPL-3.0
@@ -300,15 +183,9 @@ This project is provided as-is for use with self-hosted NetBird deployments. Ref
 - Tempo: AGPL-3.0
 - Grafana: AGPL-3.0
 
----
-
 ## Support
 
-For issues and questions:
-
-- Check the [documentation](docs/)
-- Review [troubleshooting guides](#troubleshooting)
-- Open a GitHub issue
-- Refer to upstream component documentation
-
-For NetBird-specific questions, consult the [official NetBird documentation](https://docs.netbird.io/).
+- Documentation: [docs/](docs/)
+- Issues: GitHub issue tracker
+- NetBird: [Official documentation](https://docs.netbird.io/)
+- Component docs: See respective official documentation
