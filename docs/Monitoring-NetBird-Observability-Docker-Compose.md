@@ -1,4 +1,4 @@
-# NetBird Monitoring and Observability
+# Observability Stack with Docker Compose
 
 This document describes how to spin up a **test NetBird deployment** and attach the **`monitor-netbird` observability stack** to it.
 
@@ -353,13 +353,5 @@ This repository provides a baseline for **test and lab deployments**, but the co
 - Regularly updating all components to their latest stable versions.
 
 ---
-
-## Next Steps
-
-From here you can:
-
-- Build custom Grafana dashboards for NetBird usage, host health, and container performance.
-- Add alerting rules in Prometheus and route them via Alertmanager.
-- Extend the `netbird-events-exporter` or Alloy configuration to capture additional signals relevant to your environment.
 
 The `monitor-netbird` stack is intended to be a clean, understandable baseline you can confidently adapt to your own infrastructure. For Kubernetes deployments, refer to [Monitoring-NetBird-Observability-Kubernetes.md](Monitoring-NetBird-Observability-Kubernetes.md).
