@@ -1,68 +1,58 @@
-# GKE Observability Infrastructure Setup
+# GKE Observability Infrastructure
 
-Terraform configuration for provisioning GCP resources required by the NetBird observability stack on GKE.
+Terraform configuration for provisioning GCP resources required by the observability stack on GKE.
 
 ## Overview
 
-This configuration creates the complete infrastructure foundation for running Loki, Mimir, and Tempo on GKE with Google Cloud Storage backends. It handles GCS bucket provisioning, IAM configuration, and Workload Identity setup for secure, keyless authentication.
+Creates GCS buckets, IAM configuration, and Workload Identity setup for Loki, Mimir, and Tempo on GKE with keyless authentication.
 
 ### Resources Created
 
-**Google Cloud Storage Buckets**
-- `<PROJECT_ID>-loki-chunks`: Loki log chunk storage
+**Storage Buckets:**
+- `<PROJECT_ID>-loki-chunks`: Log chunk storage
 - `<PROJECT_ID>-loki-ruler`: Loki ruler data
-- `<PROJECT_ID>-mimir-blocks`: Mimir long-term metrics
-- `<PROJECT_ID>-tempo-traces`: Tempo distributed traces
+- `<PROJECT_ID>-mimir-blocks`: Long-term metrics
+- `<PROJECT_ID>-tempo-traces`: Distributed traces
 
-All buckets include versioning, uniform bucket-level access, and 90-day lifecycle policies.
+**IAM:**
+- Service Account: `gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com`
+- Bucket permissions: `storage.objectAdmin` and `storage.legacyBucketWriter`
+- Workload Identity binding
 
-**IAM Configuration**
-- GCP Service Account: `gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com`
-- Bucket permissions: `roles/storage.objectAdmin` and `roles/storage.legacyBucketWriter`
-- Workload Identity binding to Kubernetes Service Account
-
-**Kubernetes Resources**
+**Kubernetes:**
 - Namespace: `observability`
-- Service Account: `observability-sa` (annotated for Workload Identity)
+- Service Account: `observability-sa` (Workload Identity enabled)
 
 ## Prerequisites
 
-### Required Tools
+### Tools
 - Terraform 1.0+
 - gcloud CLI
 - kubectl
 
 ### GCP Setup
 
-1. Authenticate with GCP:
-   ```bash
-   gcloud auth application-default login
-   ```
+```bash
+# Authenticate
+gcloud auth application-default login
 
-2. Enable required APIs:
-   ```bash
-   gcloud services enable storage.googleapis.com \
-     iam.googleapis.com \
-     container.googleapis.com
-   ```
+# Enable APIs
+gcloud services enable storage.googleapis.com iam.googleapis.com container.googleapis.com
 
-3. Get GKE credentials:
-   ```bash
-   gcloud container clusters get-credentials <GKE_CLUSTER_NAME> \
-     --region=<GCP_REGION> \
-     --project=<PROJECT_ID>
-   ```
+# Get cluster credentials
+gcloud container clusters get-credentials <CLUSTER_NAME> \
+  --region=<REGION> \
+  --project=<PROJECT_ID>
+```
 
 ## Configuration
 
-### Variable Configuration
-
-Edit `terraform.tfvars` with your environment values:
+Create `terraform.tfvars`:
 
 ```hcl
-project_id                = "your-gcp-project-id"
+project_id                = "your-project-id"
 region                    = "europe-west3"
-cluster_name              = "your-gke-cluster-name"
+cluster_name              = "your-cluster-name"
 cluster_location          = "europe-west3"
 namespace                 = "observability"
 k8s_service_account_name  = "observability-sa"
@@ -73,70 +63,60 @@ gcp_service_account_name  = "gke-observability-sa"
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `project_id` | GCP project ID | `my-netbird-project` |
-| `region` | GCP region for resources | `europe-west3` |
-| `cluster_name` | GKE cluster name | `netbird-prod` |
-| `cluster_location` | GKE cluster zone/region | `europe-west3` |
+| `project_id` | GCP project ID | `my-project` |
+| `region` | GCP region | `europe-west3` |
+| `cluster_name` | GKE cluster name | `prod-cluster` |
+| `cluster_location` | Cluster region/zone | `europe-west3` |
 | `namespace` | Kubernetes namespace | `observability` |
 | `k8s_service_account_name` | K8s service account | `observability-sa` |
 | `gcp_service_account_name` | GCP service account | `gke-observability-sa` |
 
 ## Deployment
 
-### Initialize Terraform
 ```bash
 cd monitor-netbird/kubernetes/terraform
+
+# Initialize
 terraform init
-```
 
-### Preview Changes
-```bash
+# Preview changes
 terraform plan
-```
 
-Review the planned resources carefully before applying.
-
-### Apply Configuration
-```bash
+# Apply
 terraform apply
 ```
 
-Type `yes` when prompted to create the resources.
-
 ### Verify Deployment
 
-**GCS Buckets**
+**Check GCS buckets:**
 ```bash
 gcloud storage buckets list --filter="name:<PROJECT_ID>"
 ```
 
-**GCP Service Account**
+**Check service account:**
 ```bash
 gcloud iam service-accounts list \
   --filter="email:gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com"
 ```
 
-**Kubernetes Resources**
+**Check Kubernetes resources:**
 ```bash
 kubectl get namespace observability
 kubectl get serviceaccount -n observability observability-sa
 kubectl describe serviceaccount -n observability observability-sa
 ```
 
-**Workload Identity Annotation**
+**Verify Workload Identity annotation:**
 ```bash
-kubectl get serviceaccount observability-sa -n observability -o yaml | \
-  grep iam.gke.io
+kubectl get serviceaccount observability-sa -n observability -o yaml | grep iam.gke.io
 ```
 
-Expected output:
+Expected:
 ```yaml
 iam.gke.io/gcp-service-account: gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com
 ```
 
-## Workload Identity Test
-
-Verify that pods can access GCS using Workload Identity:
+### Test Workload Identity
 
 ```bash
 kubectl run -it --rm test-workload-identity \
@@ -146,14 +126,13 @@ kubectl run -it --rm test-workload-identity \
   -- gcloud storage buckets list --filter="name:<PROJECT_ID>-"
 ```
 
-If successful, this command lists the created GCS buckets, confirming proper authentication.
+Should list the created buckets if authentication is working.
 
-## Integration with Helm
+## Helm Integration
 
-After applying this Terraform configuration, update your Helm values files with the created resource names:
+After applying Terraform, update your Helm values files:
 
-### Loki Configuration
-Edit `monitor-netbird/kubernetes/configs/monitoring-services/loki-values.yaml`:
+**Loki** (`loki-values.yaml`):
 ```yaml
 loki:
   storage:
@@ -165,8 +144,7 @@ loki:
       iam.gke.io/gcp-service-account: gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com
 ```
 
-### Mimir Configuration
-Edit `monitor-netbird/kubernetes/configs/monitoring-services/mimir-values.yaml`:
+**Mimir** (`mimir-values.yaml`):
 ```yaml
 mimir:
   storage:
@@ -176,8 +154,7 @@ mimir:
       iam.gke.io/gcp-service-account: gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com
 ```
 
-### Tempo Configuration
-Edit `monitor-netbird/kubernetes/configs/monitoring-services/tempo-values.yaml`:
+**Tempo** (`tempo-values.yaml`):
 ```yaml
 tempo:
   storage:
@@ -187,17 +164,15 @@ tempo:
       iam.gke.io/gcp-service-account: gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com
 ```
 
-Proceed to the [Kubernetes Monitoring Guide](../../../docs/Monitoring-NetBird-Observability-Kubernetes.md) to deploy the observability stack.
+Proceed to the [Kubernetes Monitoring Guide](../../../docs/Monitoring-NetBird-Observability-Kubernetes.md).
 
-## Terraform Outputs
-
-After successful deployment, Terraform outputs key values for Helm configuration:
+## Outputs
 
 ```bash
 terraform output
 ```
 
-Example output:
+Example:
 ```hcl
 gcp_service_account_email = "gke-observability-sa@my-project.iam.gserviceaccount.com"
 gcs_bucket_names = {
@@ -212,79 +187,62 @@ k8s_service_account = "observability-sa"
 
 ## Cleanup
 
-To destroy all resources:
-
 ```bash
 terraform destroy
 ```
 
-**Warning**: This deletes all GCS buckets and their contents. Ensure you have backups before proceeding.
+Warning: This deletes all buckets and their contents. Back up data first.
 
 ## Troubleshooting
 
-### Permission Denied on GCS Access
+### Permission Denied on GCS
 
-**Symptoms**: Pods receive "Permission denied" when accessing GCS buckets.
-
-**Solution**: Verify Workload Identity binding and IAM policies.
-
-1. Check GCP Service Account IAM policy:
-   ```bash
-   gcloud iam service-accounts get-iam-policy \
-     gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com
-   ```
-
-   Expected binding:
-   ```yaml
-   - members:
-     - serviceAccount:<PROJECT_ID>.svc.id.goog[observability/observability-sa]
-     role: roles/iam.workloadIdentityUser
-   ```
-
-2. Verify bucket IAM policies:
-   ```bash
-   gcloud storage buckets get-iam-policy gs://<PROJECT_ID>-loki-chunks
-   ```
-
-### Kubernetes Provider Authentication Fails
-
-**Symptoms**: Terraform fails to authenticate with GKE cluster.
-
-**Solution**: Ensure kubectl context is configured:
+**Check IAM policy:**
 ```bash
-gcloud container clusters get-credentials <GKE_CLUSTER_NAME> \
-  --region=<GCP_REGION> \
-  --project=<PROJECT_ID>
+gcloud iam service-accounts get-iam-policy \
+  gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com
 ```
 
-Verify connection:
+Expected binding:
+```yaml
+- members:
+  - serviceAccount:<PROJECT_ID>.svc.id.goog[observability/observability-sa]
+  role: roles/iam.workloadIdentityUser
+```
+
+**Check bucket IAM:**
 ```bash
+gcloud storage buckets get-iam-policy gs://<PROJECT_ID>-loki-chunks
+```
+
+### Kubernetes Provider Authentication
+
+Ensure kubectl is configured:
+```bash
+gcloud container clusters get-credentials <CLUSTER_NAME> \
+  --region=<REGION> \
+  --project=<PROJECT_ID>
+
 kubectl cluster-info
 ```
 
-### GCS Bucket Already Exists
+### Bucket Already Exists
 
-**Symptoms**: Terraform reports bucket already exists.
-
-**Solution**: Import existing bucket into Terraform state:
+Import existing bucket:
 ```bash
 terraform import 'google_storage_bucket.observability_buckets["loki-chunks"]' \
   <PROJECT_ID>-loki-chunks
 ```
 
-Repeat for other buckets as needed.
-
 ### Workload Identity Not Working
 
-**Symptoms**: Pods cannot authenticate to GCP despite correct annotations.
+**Checklist:**
+1. Verify Workload Identity enabled on cluster
+2. Check cluster has correct Workload Identity pool
+3. Confirm service account annotation is correct
+4. Ensure IAM binding has correct namespace and service account
 
-**Checklist**:
-1. Verify Workload Identity is enabled on the GKE cluster
-2. Check that the GKE cluster has the correct Workload Identity pool
-3. Confirm the service account annotation is correct
-4. Ensure the IAM binding includes the correct namespace and service account name
-
-Test with debug pod:
+**Debug:**
 ```bash
 kubectl run -it --rm debug \
   --image=google/cloud-sdk:slim \
@@ -292,22 +250,22 @@ kubectl run -it --rm debug \
   --namespace=observability \
   -- bash
 
-# Inside the pod
+# Inside pod
 gcloud auth list
 gcloud config list
 ```
 
 ## Security Notes
 
-- All buckets use versioning for data protection
+- Buckets use versioning for data protection
 - Uniform bucket-level access enforces consistent permissions
-- Lifecycle policies automatically clean up old data
-- Workload Identity eliminates need for service account keys
-- IAM follows principle of least privilege
+- Lifecycle policies clean up old data after 90 days
+- Workload Identity eliminates service account keys
+- IAM follows least privilege principle
 
 ## Next Steps
 
-1. Review and customize Helm values files with bucket names
-2. Deploy cert-manager and Ingress controller if using TLS
-3. Follow the [Kubernetes Monitoring Guide](../../../docs/Monitoring-NetBird-Observability-Kubernetes.md)
-4. Configure monitoring and alerting for the observability stack itself
+1. Update Helm values files with bucket names from `terraform output`
+2. Deploy cert-manager if using TLS
+3. Follow [Kubernetes Monitoring Guide](../../../docs/Monitoring-NetBird-Observability-Kubernetes.md)
+4. Configure monitoring for the observability stack itself
