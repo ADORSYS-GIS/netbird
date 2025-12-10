@@ -4,7 +4,7 @@
 Grafana Alloy is a unified telemetry collector that gathers logs, metrics, and traces from applications and forwards them to an LGTM stack.
 
 **Why use Alloy?** While Prometheus uses a pull model and scrapes metrics itself, Alloy acts as a central collector that can:
-- Push logs to Loki (which doesn't have a built-in agent)
+- Scrape logs from applications and push to Loki
 - Collect traces from various protocols and send to Tempo
 - Provide a single deployment point for log and trace collection
 
