@@ -1,40 +1,44 @@
-# NetBird Observability Stack on Kubernetes
+# Observability Stack on Kubernetes
 
-Production-grade deployment guide for running Prometheus, Loki, Mimir, Tempo, and Grafana on Kubernetes with persistent storage and TLS ingress.
+Production deployment of Prometheus, Loki, Mimir, Tempo, and Grafana on Kubernetes with persistent storage and TLS ingress.
 
-## Stack Components
+## What This Deploys
 
-- **Prometheus**: Metrics collection and short-term storage (7 days)
-- **Loki**: Log aggregation with GCS backend (30 days)
-- **Mimir**: Horizontally scalable long-term metrics storage (30 days)
-- **Tempo**: Distributed tracing with GCS backend (30 days)
-- **Grafana**: Unified visualization and dashboards
+A complete observability stack ready to monitor any Kubernetes workload:
+
+- **Prometheus**: Metrics collection (7-day retention)
+- **Loki**: Log aggregation with GCS backend (30-day retention)
+- **Mimir**: Scalable long-term metrics (30-day retention)
+- **Tempo**: Distributed tracing with GCS backend (30-day retention)
+- **Grafana**: Unified visualization
+
+This stack is deployment-agnostic. While it can monitor NetBird, it works with any application or infrastructure.
 
 ## Prerequisites
 
-### Required Infrastructure
+### Required
 - Kubernetes cluster (K3s, EKS, GKE, or AKS)
 - kubectl configured with cluster access
 - Helm 3.x or later
 - Sufficient storage for persistent volumes
 
-### GKE-Specific Requirements
-For GKE deployments, provision infrastructure first:
-1. Complete the [Terraform Infrastructure Setup](../monitor-netbird/kubernetes/terraform/README.md)
-2. Update Helm values files with GCS bucket names and service account
-3. Ensure Workload Identity is enabled on your GKE cluster
+### GKE-Specific
+For GKE with GCS backends:
+1. Complete [Terraform Infrastructure Setup](../monitor-netbird/kubernetes/terraform/README.md)
+2. Update Helm values with bucket names and service account
+3. Ensure Workload Identity is enabled on cluster
 
-### Optional Components
-- cert-manager (required for TLS certificates)
-- Ingress controller (NGINX or similar)
-- external-dns (for automatic DNS management)
+### Optional
+- cert-manager for TLS certificates
+- Ingress controller (NGINX recommended)
+- external-dns for automatic DNS management
 
 ## Deployment
 
 ### Step 1: Create Namespaces
 
 ```bash
-kubectl apply -f monitor-netbird/kubernetes/namespace.yaml
+kubectl apply -f monitor-netbird/kubernetes/namespace.yaml # If it doesn't already exist
 kubectl create namespace cert-manager
 kubectl create namespace ingress-nginx
 ```
@@ -47,41 +51,35 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo update
 ```
 
-### Step 3: Install cert-manager (Optional but Recommended)
+### Step 3: Install cert-manager (Optional)
 
-Required if you plan to use TLS certificates with Ingress.
+Required for TLS with Let's Encrypt:
 
-**Install CRDs**:
 ```bash
+# Install CRDs
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.15.0/cert-manager.crds.yaml
-```
 
-**Install cert-manager**:
-```bash
+# Install cert-manager
 helm repo add jetstack https://charts.jetstack.io
 helm repo update
 helm install cert-manager jetstack/cert-manager \
   --namespace cert-manager \
   --version v1.15.0 \
   --set installCRDs=false
-```
 
-**Wait for cert-manager pods to be ready**:
-```bash
+# Wait for ready
 kubectl wait --for=condition=ready pod \
   -l app.kubernetes.io/instance=cert-manager \
   -n cert-manager \
   --timeout=300s
-```
 
-**Apply ClusterIssuer**:
-```bash
+# Apply ClusterIssuer
 kubectl apply -f monitor-netbird/kubernetes/configs/cert-manager/cluster-issuer.yaml
 ```
 
 ### Step 4: Install Ingress Controller (Optional)
 
-For production environments with external access requirements.
+For external access:
 
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -89,39 +87,31 @@ helm repo update
 helm install ingress-nginx ingress-nginx/ingress-nginx \
   --namespace ingress-nginx \
   --set controller.service.type=LoadBalancer
-```
 
-**Get Ingress external IP**:
-```bash
+# Get external IP
 kubectl get svc -n ingress-nginx ingress-nginx-controller \
   -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
 
-Configure DNS A records pointing to this IP for your domain names.
+Configure DNS A records pointing to this IP.
 
 ### Step 5: Configure Helm Values
 
-Edit the values files in `monitor-netbird/kubernetes/configs/monitoring-services/` to match your environment.
+Edit files in `monitor-netbird/kubernetes/configs/monitoring-services/` to match your environment.
 
-**Critical placeholders to replace**:
+**Critical placeholders to replace:**
 
-| Placeholder | Description | Location |
-|-------------|-------------|----------|
+| Placeholder | Description | Files |
+|-------------|-------------|-------|
 | `<PROJECT_ID>` | GCP project ID | All GCS bucket references |
-| `<GCP_SERVICE_ACCOUNT_EMAIL>` | Workload Identity SA email | Service account annotations (grafana-values.yaml , loki-values.yaml , mimir-values.yaml , prometheus-values.yaml , tempo-values.yaml) |
+| `<GCP_SERVICE_ACCOUNT_EMAIL>` | Workload Identity email | All *-values.yaml |
 | `<GRAFANA_DOMAIN_NAME>` | Grafana domain | grafana-values.yaml, monitoring-ingress.yaml |
 | `<LOKI_DOMAIN_NAME>` | Loki domain | loki-values.yaml, monitoring-ingress.yaml |
-| `<YOUR_MONITORING_DOMAIN>` | Base monitoring domain | monitoring-ingress.yaml |
-| `<LOKI_CHUNKS_BUCKET_NAME>` | Loki chunks bucket | loki-values.yaml |
-| `<LOKI_RULER_BUCKET_NAME>` | Loki ruler bucket | loki-values.yaml |
-| `<LOKI_ADMIN_BUCKET_NAME>` | Loki admin bucket | loki-values.yaml |
-| `<MIMIR_BLOCKS_BUCKET_NAME>` | Mimir blocks bucket | mimir-values.yaml |
-| `<MIMIR_RULER_BUCKET_NAME>` | Mimir ruler bucket | mimir-values.yaml |
-| `<MIMIR_ALERTMANAGER_BUCKET_NAME>` | Mimir alertmanager bucket | mimir-values.yaml |
-| `<TEMPO_TRACES_BUCKET_NAME>` | Tempo traces bucket | tempo-values.yaml |
-| `<CLUSTER_NAME>` | Kubernetes cluster name | prometheus-values.yaml , values.yaml |
-| `<ENVIRONMENT>` | Deployment environment | prometheus-values.yaml , values.yaml |
-| `<YOUR_EMAIL_ADDRESS>` | Email for Let's Encrypt | cluster-issuer.yaml |
+| `<YOUR_MONITORING_DOMAIN>` | Base domain | monitoring-ingress.yaml |
+| `<*_BUCKET_NAME>` | GCS bucket names | loki-values.yaml, mimir-values.yaml, tempo-values.yaml |
+| `<CLUSTER_NAME>` | Cluster identifier | prometheus-values.yaml |
+| `<ENVIRONMENT>` | Environment name | prometheus-values.yaml |
+| `<YOUR_EMAIL_ADDRESS>` | Let's Encrypt email | cluster-issuer.yaml |
 
 ### Step 6: Deploy Monitoring Stack
 
@@ -137,14 +127,14 @@ helm install monitoring-stack . -n observability \
 cd ../../../../
 ```
 
-### Step 7: Apply Ingress and NodePort Resources
+### Step 7: Apply Ingress Resources
 
-**For TLS-enabled Ingress** (requires cert-manager):
+**For TLS Ingress:**
 ```bash
 kubectl apply -f monitor-netbird/kubernetes/configs/cert-manager/monitoring-ingress.yaml
 ```
 
-**For NodePort access** (development/testing):
+**For NodePort (testing):**
 ```bash
 kubectl apply -f monitor-netbird/kubernetes/configs/monitoring-services/loki-nodeport-service.yaml
 kubectl apply -f monitor-netbird/kubernetes/configs/monitoring-services/tempo-nodeport-service.yaml
@@ -158,74 +148,50 @@ kubectl get svc -n observability
 kubectl get ingress -n observability
 ```
 
-All pods should reach `Running` status within 5 minutes.
-
-**Check pod logs if issues occur**:
+All pods should reach Running status within 5 minutes. Check logs if issues occur:
 ```bash
 kubectl logs -n observability <pod-name> --tail=50
 ```
 
-## Access and Configuration
+## Access Grafana
 
-### Access Grafana
-
-**Via Ingress** (production):
+**Via Ingress:**
 ```
 https://<GRAFANA_DOMAIN_NAME>
 ```
 
-**Via NodePort** (development):
+**Via NodePort:**
 ```
 http://<NODE_IP>:30300
 ```
 
-**Default credentials**: `admin` / `admin`
+**Default credentials:** `admin` / `admin`
 
-**Security Warning**: Change the default password immediately after first login.
+Change the password immediately after first login.
 
 ### Configure Data Sources
 
-Data sources are pre-configured in `grafana-values.yaml` but should be verified:
+Data sources are pre-configured in `grafana-values.yaml`. Verify each:
 
-1. Navigate to **Connections** → **Data sources**
-2. Verify each data source:
+1. Go to Connections > Data sources
+2. Test each data source:
    - **Prometheus**: `http://monitoring-stack-prometheus-server:80`
    - **Loki**: `http://monitoring-stack-loki-gateway:80`
    - **Mimir**: `http://monitoring-stack-mimir-nginx:80/prometheus`
    - **Tempo**: `http://tempo-external:3200`
-3. Click **Save & test** for each to verify connectivity
+3. Click Save & test for each
 
-### Service Endpoints
+## Monitoring Your Applications
 
-| Service | Internal URL | NodePort | Ingress |
-|---------|--------------|----------|---------|
-| Grafana | `monitoring-stack-grafana:80` | 30300 | Yes |
-| Prometheus | `monitoring-stack-prometheus-server:80` | 30090 | Yes |
-| Loki | `monitoring-stack-loki-gateway:80` | 31100 | Yes |
-| Mimir | `monitoring-stack-mimir-nginx:80` | 30080 | Yes |
-| Tempo | `tempo-external:3200` | 31200 | Yes |
-
-## Data Collection
-
-### Metrics Collection
+### Collect Metrics
 
 Prometheus automatically scrapes:
-- Kubernetes cluster components (API server, nodes, cAdvisor)
+- Kubernetes components (API server, nodes, cAdvisor)
 - kube-state-metrics
-- Monitoring stack components (configured in prometheus-values.yaml)
+- Monitoring stack components
 
-**Pre-configured scrape targets** in `prometheus-values.yaml`:
-- Loki: `monitoring-stack-loki-gateway:80`
-- Grafana: `monitoring-stack-grafana:80`
-- Mimir Distributor: `monitoring-stack-mimir-distributor:8080`
-- Tempo: `tempo-external:3200`
+**Add custom scrape targets** in `prometheus-values.yaml`:
 
-**View active targets**:
-```
-http://<PROMETHEUS_DOMAIN>/targets
-```
-
-**Add custom scrape targets** by editing `prometheus-values.yaml`:
 ```yaml
 prometheus:
   extraScrapeConfigs: |
@@ -236,57 +202,39 @@ prometheus:
             environment: 'production'
 ```
 
-Then upgrade the deployment:
+Then upgrade:
 ```bash
 helm upgrade monitoring-stack ./helm/monitoring-stack -n observability \
-  -f configs/monitoring-services/prometheus-values.yaml \
-  -f configs/monitoring-services/loki-values.yaml \
-  -f configs/monitoring-services/grafana-values.yaml \
-  -f configs/monitoring-services/mimir-values.yaml \
-  -f configs/monitoring-services/tempo-values.yaml
+  -f configs/monitoring-services/*.yaml
 ```
 
-### Log Collection
+View active targets: `http://<PROMETHEUS_DOMAIN>/targets`
 
-**Using Promtail** (DaemonSet for cluster-wide log collection):
+### Collect Logs
+
+**Deploy Promtail** for cluster-wide log collection:
 ```bash
 helm install promtail grafana/promtail -n observability \
   --set "loki.serviceName=monitoring-stack-loki-gateway"
 ```
 
-**Direct log ingestion endpoint**:
+**Direct log ingestion:**
 ```
 POST http://monitoring-stack-loki-gateway:80/loki/api/v1/push
 ```
 
-**Example using Docker logging driver**:
-```yaml
-logging:
-  driver: loki
-  options:
-    loki-url: "http://<LOKI_DOMAIN>:31100/loki/api/v1/push"
-    labels: "app,environment"
-```
+### Collect Traces
 
-### Trace Collection
+Configure applications to send traces to Tempo:
 
-Configure applications to send traces to Tempo using the following endpoints:
-
-**OTLP endpoints** (via tempo-external service):
+**OTLP endpoints:**
 - gRPC: `tempo-external:4317` (NodePort: 31317)
 - HTTP: `tempo-external:4318` (NodePort: 31318)
 
-**Jaeger endpoints**:
+**Jaeger endpoints:**
 - Thrift HTTP: `tempo-external:14268` (NodePort: 31268)
 
-**Additional supported protocols** (via monitoring-stack-tempo service):
-- Jaeger gRPC: Port 14250
-- Jaeger Thrift Binary: Port 6832
-- Jaeger Thrift Compact: Port 6831
-- Zipkin: Port 9411
-- OpenCensus: Port 55678
-
-**Example OpenTelemetry configuration**:
+**Example OpenTelemetry config:**
 ```yaml
 exporters:
   otlp:
@@ -295,93 +243,67 @@ exporters:
       insecure: true
 ```
 
-## Querying Data
+## Query Examples
 
-### Prometheus Queries
+### Prometheus
 
-Navigate to **Explore** and select **Prometheus**.
-
-**Example queries**:
 ```promql
-# Cluster CPU usage by node
+# CPU usage by node
 sum(rate(container_cpu_usage_seconds_total[5m])) by (node)
 
-# Memory usage by namespace
+# Memory by namespace
 sum(container_memory_usage_bytes) by (namespace)
 
-# Pod restart count
+# Pod restarts
 kube_pod_container_status_restarts_total
 
-# Monitoring stack health
+# Stack health
 up{job=~"prometheus|loki|grafana|mimir.*|tempo"}
-
-# Loki ingestion rate
-rate(loki_ingester_chunks_created_total[5m])
-
-# Mimir active series
-cortex_ingester_active_series
 ```
 
-### Loki Queries
+### Loki
 
-Select **Loki** data source in **Explore**.
-
-**Example queries**:
 ```logql
-# All logs from observability namespace
+# All logs from namespace
 {namespace="observability"}
 
 # Error logs
 {namespace="observability"} |= "error"
 
-# Log rate per second
+# Log rate
 rate({namespace="observability"}[1m])
-
-# Logs from specific pod
-{namespace="observability", pod=~"loki.*"}
 
 # Parse JSON logs
 {namespace="observability"} | json | level="error"
 ```
 
-### Tempo Queries
+### Tempo
 
-Select **Tempo** data source in **Explore**.
+Use the search interface to filter by service name, span duration, status, or query by trace ID directly.
 
-Use the search interface to filter by:
-- Service name
-- Span duration
-- Status (error/success)
-- Tags
+## Retention and Storage
 
-Or query by trace ID directly:
-```
-<trace-id>
-```
+### Default Retention
 
-## Storage and Retention
-
-### Retention Configuration
-
-| Component | Retention | Configuration File |
-|-----------|-----------|-------------------|
-| Prometheus | 7 days | prometheus-values.yaml |
-| Loki | 30 days (720h) | loki-values.yaml |
-| Mimir | 30 days (720h) | mimir-values.yaml |
-| Tempo | 30 days (720h) | tempo-values.yaml |
+| Component  | Retention | File |
+|------------|-----------|------|
+| Prometheus | 7 days    | prometheus-values.yaml |
+| Loki       | 30 days   | loki-values.yaml |
+| Mimir      | 30 days   | mimir-values.yaml |
+| Tempo      | 30 days   | tempo-values.yaml |
 
 ### Modify Retention
 
-Edit the respective values file and upgrade the Helm release:
+Edit the values file and upgrade:
 
-**Prometheus retention** (in prometheus-values.yaml):
+**Prometheus:**
 ```yaml
 prometheus:
   server:
     retention: 7d
 ```
 
-**Loki retention** (in loki-values.yaml):
+**Loki:**
 ```yaml
 loki:
   loki:
@@ -389,7 +311,7 @@ loki:
       retention_period: 720h
 ```
 
-**Mimir retention** (in mimir-values.yaml):
+**Mimir:**
 ```yaml
 mimir-distributed:
   mimir:
@@ -399,7 +321,7 @@ mimir-distributed:
           retention_period: 720h
 ```
 
-**Tempo retention** (in tempo-values.yaml):
+**Tempo:**
 ```yaml
 tempo:
   tempo:
@@ -408,31 +330,25 @@ tempo:
         block_retention: 720h
 ```
 
-Then upgrade:
+Apply changes:
 ```bash
 helm upgrade monitoring-stack ./helm/monitoring-stack -n observability \
-  -f configs/monitoring-services/loki-values.yaml \
-  -f configs/monitoring-services/prometheus-values.yaml \
-  -f configs/monitoring-services/grafana-values.yaml \
-  -f configs/monitoring-services/mimir-values.yaml \
-  -f configs/monitoring-services/tempo-values.yaml
+  -f configs/monitoring-services/*.yaml
 ```
 
-### Persistent Volume Configuration
+### Persistent Volumes
 
-Each component uses persistent storage:
+Default sizes:
 
-| Component | Default Size | Storage Class |
-|-----------|-------------|---------------|
-| Prometheus | 3Gi | Cluster default |
+| Component | Size | Storage Class |
+|-----------|------|---------------|
+| Prometheus | 3Gi | default |
 | Loki | 5Gi | standard-rwo |
-| Mimir (Ingester) | 3Gi | Cluster default |
-| Mimir (Store Gateway) | 3Gi | Cluster default |
-| Mimir (Compactor) | 3Gi | Cluster default |
-| Tempo | 3Gi | Cluster default |
-| Grafana | 1Gi | Cluster default |
+| Mimir | 3Gi per component | default |
+| Tempo | 3Gi | default |
+| Grafana | 1Gi | default |
 
-Verify persistent volumes:
+Check volumes:
 ```bash
 kubectl get pv
 kubectl get pvc -n observability
@@ -442,18 +358,12 @@ kubectl get pvc -n observability
 
 ### Security
 
-**Immediate actions**:
+**Immediate:**
 - Change default Grafana password
-- Enable TLS for all external endpoints
+- Enable TLS for external endpoints
 - Configure authentication (OAuth, LDAP, SAML)
 
-**Ongoing measures**:
-- Implement RBAC policies
-- Use Kubernetes secrets for credentials
-- Apply network policies
-- Regular security updates
-
-**Example NetworkPolicy** for observability namespace:
+**Network Policy example:**
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -476,7 +386,7 @@ spec:
 
 ### High Availability
 
-**Increase replicas** for critical components in values files:
+Increase replicas in values files:
 
 ```yaml
 # loki-values.yaml
@@ -492,29 +402,9 @@ mimir-distributed:
     replicas: 3
     zoneAwareReplication:
       enabled: true
-
-# tempo-values.yaml
-tempo:
-  replicas: 3
 ```
 
-**Configure pod anti-affinity** to distribute pods across nodes:
-```yaml
-affinity:
-  podAntiAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchExpressions:
-              - key: app
-                operator: In
-                values:
-                  - loki
-          topologyKey: kubernetes.io/hostname
-```
-
-**Example PodDisruptionBudget**:
+**PodDisruptionBudget example:**
 ```yaml
 apiVersion: policy/v1
 kind: PodDisruptionBudget
@@ -530,7 +420,7 @@ spec:
 
 ### Resource Management
 
-**Set resource requests and limits** in values files:
+Set requests and limits:
 ```yaml
 resources:
   requests:
@@ -541,7 +431,7 @@ resources:
     cpu: "2000m"
 ```
 
-**Monitor resource usage**:
+Monitor usage:
 ```bash
 kubectl top pods -n observability
 kubectl top nodes
@@ -549,93 +439,56 @@ kubectl top nodes
 
 ## Troubleshooting
 
-### Pod Startup Issues
+### Pod Issues
 
-**Check pod status**:
 ```bash
 kubectl describe pod -n observability <pod-name>
 kubectl logs -n observability <pod-name> --previous
 ```
 
-**Common causes**:
-- Insufficient node resources
-- Storage provisioning failures
-- Image pull errors
-- Configuration errors in values files
+Common causes: insufficient resources, storage failures, image pull errors, configuration errors.
 
-### Data Source Connection Failures
+### Data Source Failures
 
-1. Verify pods are healthy:
-   ```bash
-   kubectl get pods -n observability
-   ```
-
-2. Check service endpoints:
-   ```bash
-   kubectl get endpoints -n observability
-   ```
-
-3. Test internal connectivity:
+1. Check pod health: `kubectl get pods -n observability`
+2. Check endpoints: `kubectl get endpoints -n observability`
+3. Test connectivity:
    ```bash
    kubectl run -n observability test-pod --rm -it \
      --image=curlimages/curl -- sh
-   # Inside pod:
+   # Test each service
    curl http://monitoring-stack-prometheus-server:80/-/healthy
    curl http://monitoring-stack-loki-gateway:80/ready
-   curl http://monitoring-stack-mimir-nginx:80/ready
-   curl http://tempo-external:3200/ready
    ```
 
 ### Ingress Issues
 
-**Check Ingress status**:
 ```bash
 kubectl describe ingress -n observability monitoring-stack-ingress
-```
-
-**Verify certificate provisioning**:
-```bash
 kubectl get certificate -n observability
-kubectl describe certificate -n observability monitoring-tls
-```
-
-**Check cert-manager logs**:
-```bash
 kubectl logs -n cert-manager -l app=cert-manager
 ```
 
-**Common issues**:
-- DNS not pointing to Ingress IP
-- ClusterIssuer not ready
-- Rate limiting from Let's Encrypt (use letsencrypt-staging for testing)
+Common issues: DNS not pointing to Ingress IP, ClusterIssuer not ready, Let's Encrypt rate limits.
 
 ### Storage Issues
 
-**Check persistent volumes**:
 ```bash
 kubectl get pv
 kubectl get pvc -n observability
 kubectl describe pvc -n observability <pvc-name>
 ```
 
-**Common issues**:
-- Storage class not available
-- Insufficient cluster storage capacity
-- PVC pending due to node affinity constraints
+Common causes: storage class unavailable, insufficient capacity, node affinity constraints.
 
-### GCS Access Issues (GKE)
+### GCS Access (GKE)
 
-**Verify Workload Identity annotation**:
+Verify Workload Identity:
 ```bash
 kubectl get serviceaccount -n observability observability-sa -o yaml
 ```
 
-Expected annotation:
-```yaml
-iam.gke.io/gcp-service-account: gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com
-```
-
-**Test GCS access**:
+Test GCS access:
 ```bash
 kubectl run -it --rm test-gcs \
   --image=google/cloud-sdk:slim \
@@ -644,76 +497,42 @@ kubectl run -it --rm test-gcs \
   -- gcloud storage buckets list --filter="name:<PROJECT_ID>-"
 ```
 
-**Check IAM policies**:
+Check IAM:
 ```bash
 gcloud iam service-accounts get-iam-policy \
   gke-observability-sa@<PROJECT_ID>.iam.gserviceaccount.com
 ```
 
-### Loki Specific Issues
-
-**Check Loki readiness**:
-```bash
-kubectl logs -n observability -l app.kubernetes.io/name=loki --tail=100
-```
-
-**Common issues**:
-- GCS bucket access denied
-- Insufficient retention settings causing data loss
-- Schema version mismatch
-
-### Mimir Specific Issues
-
-**Check Mimir components**:
-```bash
-kubectl logs -n observability -l app.kubernetes.io/name=mimir-distributed --tail=100
-```
-
-**Verify remote write from Prometheus**:
-```bash
-kubectl logs -n observability -l app.kubernetes.io/name=prometheus --tail=50 | grep -i mimir
-```
-
 ## Maintenance
 
-### Upgrade Procedure
+### Upgrade
 
 1. Update chart versions in `Chart.yaml`
 2. Run `helm dependency update`
-3. Review release notes for breaking changes
-4. Test in staging environment
-5. Perform upgrade:
+3. Test in staging
+4. Upgrade:
    ```bash
    helm upgrade monitoring-stack ./helm/monitoring-stack -n observability \
-     -f configs/monitoring-services/loki-values.yaml \
-     -f configs/monitoring-services/prometheus-values.yaml \
-     -f configs/monitoring-services/grafana-values.yaml \
-     -f configs/monitoring-services/mimir-values.yaml \
-     -f configs/monitoring-services/tempo-values.yaml
+     -f configs/monitoring-services/*.yaml
    ```
 
-### Backup Procedures
+### Backup
 
-**Grafana dashboards**:
+**Grafana dashboards:**
 ```bash
 kubectl exec -n observability deployment/monitoring-stack-grafana -- \
   grafana-cli admin export-dashboard > dashboards-backup.json
 ```
 
-**Prometheus data snapshot**:
-```bash
-kubectl cp observability/<prometheus-pod>:/data ./prometheus-backup
-```
-
-**Configuration backup**:
+**Configuration:**
 ```bash
 kubectl get configmap -n observability -o yaml > configmaps-backup.yaml
 kubectl get secret -n observability -o yaml > secrets-backup.yaml
 ```
 
-### Monitoring the Monitoring Stack
+### Monitor the Stack
 
-**Create alerts** by adding to `prometheus-values.yaml`:
+Add alerts in `prometheus-values.yaml`:
 ```yaml
 prometheus:
   serverFiles:
@@ -726,34 +545,19 @@ prometheus:
               for: 5m
               annotations:
                 summary: "Monitoring pod {{ $labels.job }} is down"
-            
-            - alert: HighMemoryUsage
-              expr: container_memory_usage_bytes{namespace="observability"} / container_spec_memory_limit_bytes{namespace="observability"} > 0.9
-              for: 5m
-              annotations:
-                summary: "High memory usage in {{ $labels.pod }}"
 ```
 
 ## Uninstallation
 
-**Remove Helm release**:
 ```bash
 helm uninstall monitoring-stack -n observability
-```
-
-**Delete additional resources**:
-```bash
 kubectl delete -f monitor-netbird/kubernetes/configs/monitoring-services/loki-nodeport-service.yaml
 kubectl delete -f monitor-netbird/kubernetes/configs/monitoring-services/tempo-nodeport-service.yaml
 kubectl delete -f monitor-netbird/kubernetes/configs/cert-manager/monitoring-ingress.yaml
-```
-
-**Delete namespace** (removes all resources and PVCs):
-```bash
 kubectl delete namespace observability
 ```
 
-**Warning**: This permanently deletes all monitoring data. Back up critical data before proceeding.
+Warning: This permanently deletes all monitoring data.
 
 ## Additional Resources
 
@@ -762,6 +566,4 @@ kubectl delete namespace observability
 - [Mimir Documentation](https://grafana.com/docs/mimir/latest/)
 - [Tempo Documentation](https://grafana.com/docs/tempo/latest/)
 - [Grafana Documentation](https://grafana.com/docs/grafana/latest/)
-- [cert-manager Documentation](https://cert-manager.io/docs/)
-- [Kubernetes Documentation](https://kubernetes.io/docs/)
 - [Docker Compose Deployment](Monitoring-NetBird-Observability-Docker-Compose.md)
