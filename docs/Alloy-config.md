@@ -145,19 +145,39 @@ docker exec alloy alloy tools check /etc/alloy/config.alloy
 
 ## Verification Queries
 
-Use these queries in Grafana to verify data is flowing correctly:
+Use these queries in Grafana to verify data is flowing correctly.
+
+**Before running queries, you must select the correct data source in Grafana:**
+
+1. **For Logs Verification**: 
+   - Go to Grafana dashboard
+   - Click on the data source selector (top-left corner)
+   - Select **Loki** data source
+   - Then run the logs query
+
+2. **For Traces Verification**:
+   - Go to Grafana dashboard  
+   - Click on the data source selector (top-left corner)
+   - Select **Tempo** data source
+   - Then run the traces query
 
 ### Logs Verification
 ```promql
-# Check if logs are being received
+# Check if logs are being received (example)
 {job="myapp"} |= "test"
 ```
 
+*Many other LogQL queries available for filtering and searching logs.*
+**Reference**: [Grafana LogQL Documentation](https://grafana.com/docs/loki/latest/logql/)
+
 ### Traces Verification
 ```promql
-# Check trace metrics
+# Check trace metrics (example)
 sum(rate(traces_received_total[5m])) by (service)
 ```
+
+*Many other PromQL queries available for trace analysis and metrics.*
+**Reference**: [Prometheus PromQL Documentation](https://prometheus.io/docs/prometheus/latest/querying/basics/)
 
 ## Troubleshooting
 
@@ -209,4 +229,3 @@ This Alloy setup provides a complete telemetry pipeline:
 - **Traces**: Application traces (OTLP/Jaeger) → Alloy → Tempo  
 - **Visualization**: All data available in Grafana
 
-Replace `<YOUR_DOMAIN>` with your actual domain name in all configuration files before deployment.
