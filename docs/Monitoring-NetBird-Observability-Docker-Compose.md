@@ -19,7 +19,7 @@ The instructions below assume you are in the root of this repository.
 - Permission to run `docker compose`.
 - The NetBird stack started from this repository. Ensure the Docker Compose project name is consistent if you've customized it, as the monitoring stack relies on these names for network and volume connectivity.
 
-If you deliberately run NetBird with a different project name, update the external network and volume names in `monitor-netbird/docker-compose.yaml` accordingly before starting the monitoring stack. Refer to the [Docker Compose documentation](https://docs.docker.com/compose/compose-file/07-network-config/) for more details on network configuration.
+If you deliberately run NetBird with a different project name, update the external network and volume names in `monitor-netbird/docker-compose.yaml` accordingly before starting the monitoring stack. Refer to the [Docker Compose documentation](https://docs.docker.com/reference/compose-file/networks/) for more details on network configuration.
 
 ---
 
@@ -172,7 +172,7 @@ Replace `<HOST_IP_OR_DOMAIN>` with the same host you used for `NETBIRD_DOMAIN` w
 
 ### 4.1 Login
 
-Grafana runs with its default admin credentials (`admin`/`admin`) unless you have overridden them via environment variables. **Change the admin password immediately after first login**, especially in any environment accessible to others. Refer to the [Grafana Security documentation](https://grafana.com/docs/grafana/latest/setup-and-administration/security/) for best practices.
+Grafana runs with its default admin credentials (`admin`/`admin`) unless you have overridden them via environment variables. **Change the admin password immediately after first login**, especially in any environment accessible to others. Refer to the [Grafana Security documentation](https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/) for best practices.
 
 ### 4.2 Configure Prometheus data source
 
