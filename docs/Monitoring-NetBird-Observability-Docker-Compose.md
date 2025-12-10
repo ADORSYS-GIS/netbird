@@ -218,6 +218,25 @@ Example Loki data source configuration:
 
 ## 5. What gets scraped and collected
 
+### 5.1 Accessing the Prometheus UI
+
+Prometheus exposes its built-in web UI on port **9090** of the host where Docker is running.
+
+Open your browser and go to:
+
+```text
+http://<YOUR_HOST_IP_OR_DOMAIN>:9090/
+```
+
+Replace `<YOUR_HOST_IP_OR_DOMAIN>` with the same host/IP you used for the rest of the stack.
+From there you can:
+
+* View **Status → Targets** to confirm all metric endpoints are `UP`.
+* Explore time-series data with **Graph** or **PromQL** queries.
+* Inspect service metadata and scrape configurations.
+
+Just like Grafana, Prometheus is intended for internal access only. Set up proper network controls and TLS if exposing it beyond a local or lab environment.
+
 With this setup:
 
 - **Host metrics**
