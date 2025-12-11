@@ -134,12 +134,6 @@ cd ../../../../
 kubectl apply -f monitor-netbird/kubernetes/configs/cert-manager/monitoring-ingress.yaml
 ```
 
-**For NodePort (testing):**
-```bash
-kubectl apply -f monitor-netbird/kubernetes/configs/monitoring-services/loki-nodeport-service.yaml
-kubectl apply -f monitor-netbird/kubernetes/configs/monitoring-services/tempo-nodeport-service.yaml
-```
-
 ### Step 8: Verify Deployment
 
 ```bash
@@ -178,7 +172,7 @@ Data sources are pre-configured in `grafana-values.yaml`. Verify each:
    - **Prometheus**: `http://monitoring-stack-prometheus-server:80`
    - **Loki**: `http://monitoring-stack-loki-gateway:80`
    - **Mimir**: `http://monitoring-stack-mimir-nginx:80/prometheus`
-   - **Tempo**: `http://tempo-external:3200`
+   - **Tempo**: `http://monitoring-stack-tempo-query-frontend:3200`
 3. Click Save & test for each
 
 ## Monitoring Your Applications
@@ -228,19 +222,16 @@ POST http://monitoring-stack-loki-gateway:80/loki/api/v1/push
 Configure applications to send traces to Tempo:
 
 **OTLP endpoints:**
-- gRPC: `tempo-external:4317` (NodePort: 31317)
-- HTTP: `tempo-external:4318` (NodePort: 31318)
-
-**Jaeger endpoints:**
-- Thrift HTTP: `tempo-external:14268` (NodePort: 31268)
+- gRPC: `https://tempo-grpc.<YOUR_MONITORING_DOMAIN>:443`
+- HTTP: `https://tempo-push.<YOUR_MONITORING_DOMAIN>/v1/traces`
 
 **Example OpenTelemetry config:**
 ```yaml
 exporters:
   otlp:
-    endpoint: "tempo-external:4317"
+    endpoint: "https://tempo-grpc.<YOUR_MONITORING_DOMAIN>:443"
     tls:
-      insecure: true
+      insecure: false
 ```
 
 ## Query Examples
@@ -551,8 +542,6 @@ prometheus:
 
 ```bash
 helm uninstall monitoring-stack -n observability
-kubectl delete -f monitor-netbird/kubernetes/configs/monitoring-services/loki-nodeport-service.yaml
-kubectl delete -f monitor-netbird/kubernetes/configs/monitoring-services/tempo-nodeport-service.yaml
 kubectl delete -f monitor-netbird/kubernetes/configs/cert-manager/monitoring-ingress.yaml
 kubectl delete namespace observability
 ```
