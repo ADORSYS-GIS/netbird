@@ -1,95 +1,91 @@
-tempo:
+tempo-distributed:
+
   serviceAccount:
     create: false
     name: observability-sa
     annotations:
       iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL>
-  
-  replicas: 1
-  
-  tempo:
-    auth_enabled: false
-    
-    server:
-      http_listen_port: 3200
-      grpc_listen_port: 9095
-      log_level: info
-    
-    storage:
-      trace:
-        backend: gcs
-        gcs:
-          bucket_name: <TEMPO_TRACES_BUCKET_NAME>
-          chunk_buffer_size: 10485760
-          endpoint: ""
-        wal:
-          path: /var/tempo/wal
-    
-    receivers:
-      jaeger:
-        protocols:
-          thrift_http:
-            endpoint: 0.0.0.0:14268
-          grpc:
-            endpoint: 0.0.0.0:14250
-          thrift_binary:
-            endpoint: 0.0.0.0:6832
-          thrift_compact:
-            endpoint: 0.0.0.0:6831
-      zipkin:
-        endpoint: 0.0.0.0:9411
-      otlp:
-        protocols:
-          http:
-            endpoint: 0.0.0.0:4318
-          grpc:
-            endpoint: 0.0.0.0:4317
-      opencensus:
-        endpoint: 0.0.0.0:55678
-    
-    ingester:
+
+  # Global Overrides
+  global_overrides:
+    per_tenant_override_config: /runtime-config/overrides.yaml
+    defaults:
+      metrics_generator:
+        processors: [service-graphs, span-metrics]
+
+  # Storage (GCS)
+  storage:
+    trace:
+      backend: gcs
+      gcs:
+        bucket_name: <GCS_BUCKET_NAME>
+        chunk_buffer_size: 10485760
+    wal:
+      path: /var/tempo/wal
+
+  # Enable OTLP Receivers (This automatically exposes ports on Service)
+  traces:
+    otlp:
+      grpc:
+        enabled: true
+      http:
+        enabled: true
+    jaeger:
+      thriftCompact:
+        enabled: true
+      thriftHttp:
+        enabled: true
+    zipkin:
+      enabled: true
+
+  # Distributor
+  distributor:
+    replicas: 1
+    ring:
+      replication_factor: 1
+    config:
+      log_received_spans:
+        enabled: false
+
+  # Ingester
+  ingester:
+    replicas: 1
+    config:
+      replication_factor: 1
       trace_idle_period: 10s
-      max_block_bytes: 1000000
+      max_block_bytes: 1_000_000
       max_block_duration: 5m
-    
-    compactor:
+
+  # Compactor
+  compactor:
+    replicas: 1
+    config:
       compaction:
         block_retention: 720h
-    
-    queryFrontend:
+
+  # Querier
+  querier:
+    replicas: 1
+
+  # Query Frontend
+  queryFrontend:
+    replicas: 1
+    config:
       search:
         duration_slo: 5s
-        throughput_bytes_slo: 1073741824
-    
-    global_overrides:
-      max_bytes_per_trace: 5000000
-    
-    retention: 720h
-  
-  persistence:
-    enabled: true
-    size: 3Gi
-  
-  service:
-    type: ClusterIP
-    # ports: 3200
-  
-  extraPorts:
-    - name: http
-      port: 3200
-      targetPort: 3200
-      protocol: TCP
+        throughput_bytes_slo: 1.074e+09
 
-  serviceMonitor:
+  # Gateway
+  gateway:
+    enabled: true
+    replicas: 1
+    ingress:
+      enabled: false
+    service:
+      type: ClusterIP
+
+  memcached:
+    enabled: true
+
+  memcachedExporter:
     enabled: false
-  
-  securityContext:
-    runAsUser: 10001
-    runAsGroup: 10001
-    fsGroup: 10001
-  
-  affinity: {}
-  
-  env:
-    - name: GOMEMLIMIT
-      value: "1800MiB"

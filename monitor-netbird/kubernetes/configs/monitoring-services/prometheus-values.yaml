@@ -23,6 +23,13 @@ prometheus:
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
         external-dns.alpha.kubernetes.io/hostname: prometheus.<YOUR_MONITORING_DOMAIN>
+    resources:
+      requests:
+        memory: 2Gi
+        cpu: 500m
+      limits:
+        memory: 4Gi
+        cpu: 1000m
     global:
       evaluation_interval: 15s
       scrape_interval: 15s
@@ -65,7 +72,7 @@ prometheus:
     
     - job_name: tempo
       static_configs:
-        - targets: ['monitoring-stack-tempo:3200']
+        - targets: ['monitoring-stack-tempo-query-frontend:3200']
           labels:
             instance: 'tempo'
             cluster: 'k8s'
