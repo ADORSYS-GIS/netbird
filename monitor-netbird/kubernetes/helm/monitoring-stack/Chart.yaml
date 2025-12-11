@@ -26,7 +26,7 @@ dependencies:
     repository: "https://grafana.github.io/helm-charts"
     condition: mimir-distributed.enabled
 
-  - name: tempo
-    version: "1.10.3"
+  - name: tempo-distributed
+    version: "1.57.0"
     repository: "https://grafana.github.io/helm-charts"
-    condition: tempo.enabled
+    condition: tempo-distributed.enabled
