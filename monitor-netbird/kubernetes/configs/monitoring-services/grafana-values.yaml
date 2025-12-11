@@ -56,9 +56,21 @@ grafana:
         - name: Tempo
           type: tempo
           access: proxy
-          url: http://tempo-external:3200
+          url: http://monitoring-stack-tempo-query-frontend:3200
           jsonData:
             httpMethod: GET
-
+            tracesToLogsV2: {}
+            datasourceUid: loki
+            spanStartTimeShift: '-1h'
+            spanEndTimeShift: '1h'
+            filterByTraceID: true
+            filterBySpanID: false
+          tracesToMetrics:
+            datasourceUid: prometheus
+          serviceMap:
+            datasourceUid: prometheus
+          nodeGraph:
+            enabled: true
+            
   testFramework:
     enabled: false
