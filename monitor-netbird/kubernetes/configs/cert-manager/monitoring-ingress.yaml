@@ -1,42 +1,28 @@
-# Ingress for all monitoring services
-# File: configs/cert-manager/monitoring-ingress.yaml
-
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: monitoring-stack-ingress
   namespace: observability
   annotations:
-    # Use nginx ingress controller
     kubernetes.io/ingress.class: nginx
-    
-    # cert-manager: request certificate from ClusterIssuer
-    cert-manager.io/cluster-issuer: letsencrypt-prod  # or letsencrypt-staging for testing
-    
-    # Nginx annotations for observability stack
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"  # Force HTTPS
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"  # Backend uses HTTP
-    
-    # Increase timeouts for long-running queries
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
-    
-    # Increase body size for log/metric ingestion
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    
 spec:
-  # TLS configuration
   tls:
   - hosts:
     - grafana.<YOUR_MONITORING_DOMAIN>
     - loki.<YOUR_MONITORING_DOMAIN>
     - mimir.<YOUR_MONITORING_DOMAIN>
     - tempo.<YOUR_MONITORING_DOMAIN>
+    - tempo-push.<YOUR_MONITORING_DOMAIN>
     - prometheus.<YOUR_MONITORING_DOMAIN>
-    secretName: monitoring-tls  # cert-manager stores cert here
-  
-  # Routing rules
+    secretName: monitoring-tls
+
   rules:
   # Grafana
   - host: grafana.<YOUR_MONITORING_DOMAIN>
@@ -46,10 +32,10 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: monitoring-stack-grafana  # Adjust to your service name
+            name: monitoring-stack-grafana
             port:
               number: 80
-  
+
   # Loki
   - host: loki.<YOUR_MONITORING_DOMAIN>
     http:
@@ -58,10 +44,10 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: monitoring-stack-loki-gateway  # Adjust to your service name
+            name: monitoring-stack-loki-gateway
             port:
               number: 80
-  
+
   # Mimir
   - host: mimir.<YOUR_MONITORING_DOMAIN>
     http:
@@ -70,11 +56,11 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: monitoring-stack-mimir-nginx  # Adjust to your service name
+            name: monitoring-stack-mimir-nginx
             port:
               number: 80
-  
-  # Tempo
+
+  # Tempo - Query Endpoint (for Grafana to query traces)
   - host: tempo.<YOUR_MONITORING_DOMAIN>
     http:
       paths:
@@ -82,10 +68,22 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: tempo-external  # Adjust to your service name
+            name: monitoring-stack-tempo-query-frontend
             port:
               number: 3200
-  
+
+  # Tempo - Push Endpoint (for applications/collectors to push traces via HTTP)
+  - host: tempo-push.<YOUR_MONITORING_DOMAIN>
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-stack-tempo-distributor
+            port:
+              number: 4318
+
   # Prometheus
   - host: prometheus.<YOUR_MONITORING_DOMAIN>
     http:
@@ -94,6 +92,36 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: monitoring-stack-prometheus-server  # Adjust to your service name
+            name: monitoring-stack-prometheus-server
             port:
               number: 80
+
+---
+# Tempo gRPC Ingress - For OTLP gRPC trace ingestion
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: monitoring-stack-ingress-grpc
+  namespace: observability
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+spec:
+  tls:
+  - hosts:
+    - tempo-grpc.<YOUR_MONITORING_DOMAIN>
+    secretName: monitoring-grpc-tls
+
+  rules:
+  - host: tempo-grpc.<YOUR_MONITORING_DOMAIN>
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: monitoring-stack-tempo-distributor
+            port:
+              number: 4317
