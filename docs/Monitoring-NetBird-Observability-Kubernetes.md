@@ -105,8 +105,6 @@ Edit files in `monitor-netbird/kubernetes/configs/monitoring-services/` to match
 |-------------|-------------|-------|
 | `<PROJECT_ID>` | GCP project ID | All GCS bucket references |
 | `<GCP_SERVICE_ACCOUNT_EMAIL>` | Workload Identity email | All *-values.yaml |
-| `<GRAFANA_DOMAIN_NAME>` | Grafana domain | grafana-values.yaml, monitoring-ingress.yaml |
-| `<LOKI_DOMAIN_NAME>` | Loki domain | loki-values.yaml, monitoring-ingress.yaml |
 | `<YOUR_MONITORING_DOMAIN>` | Base domain | monitoring-ingress.yaml |
 | `<*_BUCKET_NAME>` | GCS bucket names | loki-values.yaml, mimir-values.yaml, tempo-values.yaml |
 | `<CLUSTER_NAME>` | Cluster identifier | prometheus-values.yaml |
