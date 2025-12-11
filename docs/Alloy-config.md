@@ -44,6 +44,23 @@ services:
       - TEMPO_ENDPOINT=https://tempo.<YOUR_DOMAIN>:4317
       - PROMETHEUS_ENDPOINT=https://prometheus.<YOUR_DOMAIN>/api/v1/write
 
+  # Node Exporter for system metrics collection
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"  # Node exporter metrics endpoint
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    restart: unless-stopped
+
 volumes:
   alloy-data:
 ```
@@ -79,12 +96,12 @@ loki.write "loki" {
 // =============================================================================
 // Step 1: Discover all running Docker containers
 discovery.docker "containers" {
-  host = "unix:///var/run/docker.sock"  // Connect to Docker daemon socket
+  host = "unix://var/run/docker.sock"  // Connect to Docker daemon socket
 }
 
 // Step 2: Collect logs from discovered containers
 loki.source.docker "containers" {
-  host       = "unix:///var/run/docker.sock"  // Docker daemon socket path
+  host       = "unix://var/run/docker.sock"  // Docker daemon socket path
   targets    = discovery.docker.containers.targets  // Use discovered containers as targets
   forward_to = [loki.process.containers.receiver]  // Send logs to processing stage
 }
@@ -121,8 +138,7 @@ loki.source.journal "system_logs" {
 loki.source.file "app_logs" {
   targets = [
     // Custom application logs
-    {__path__ = "/var/log/myapp/*.log", job = "myapp"},           
-    {__path__ = "/var/log/nginx/*.log", job = "nginx"},           
+    {__path__ = "/var/log/myapp/*.log", job = "myapp"},                      
     {__path__ = "/var/log/mysql/*.log", job = "mysql"},          
     {__path__ = "/var/log/redis/*.log", job = "redis"},           
     {__path__ = "/var/log/auth.log", job = "auth"},           
@@ -136,7 +152,6 @@ loki.source.file "app_logs" {
 // =============================================================================
 
 // Step 1: Collect system metrics (CPU, memory, disk, network)
-// Note: Deploy node-exporter container to expose system metrics at port 9100
 prometheus.scrape "node_metrics" {
   targets = [{
     __address__ = "node-exporter:9100"  // Node exporter endpoint for system metrics
@@ -147,7 +162,7 @@ prometheus.scrape "node_metrics" {
 
 // Step 2: Discover Docker containers that expose metrics
 discovery.docker "metrics_targets" {
-  host = "unix:///var/run/docker.sock"  // Connect to Docker daemon
+  host = "unix://var/run/docker.sock"  // Connect to Docker daemon
 }
 
 // Step 3: Filter containers to only include those with Prometheus metrics enabled
@@ -234,73 +249,18 @@ docker exec alloy alloy tools check /etc/alloy/config.alloy
 
 Use these queries in Grafana to verify data is flowing correctly.
 
-**Before running queries, you must select the correct data source in Grafana:**
+**Before running queries, select the appropriate data source in Grafana:**
+- Loki for logs, Prometheus for metrics, Tempo for traces
 
-1. **For Logs Verification**: 
-   - Go to Grafana dashboard
-   - Click on the data source selector (top-left corner)
-   - Select **Loki** data source
-   - Then run the logs query
+| Data Type | Data Source | Example Queries | Purpose |
+|-----------|-------------|----------------|---------|
+| **Logs** | Loki | `{job="myapp"} |= "test"`<br>`{job="containers"} |= "error"`<br>`{job="systemd-journal"} |= "error"` | Verify log collection from applications, containers, and system |
+| **Metrics** | Prometheus | `up{job="node"}`<br>`rate(cpu_total[5m])`<br>`alloy_build_info` | Check system metrics, CPU usage, and Alloy health |
+| **Traces** | Tempo | `sum(rate(traces_received_total[5m]))`<br>`rate(traces_spanmetrics_latency_bucket[5m])` | Verify trace ingestion and span metrics |
 
-2. **For Metrics Verification**:
-   - Go to Grafana dashboard
-   - Click on the data source selector (top-left corner)
-   - Select **Prometheus** data source
-   - Then run the metrics query
-
-3. **For Traces Verification**:
-   - Go to Grafana dashboard  
-   - Click on the data source selector (top-left corner)
-   - Select **Tempo** data source
-   - Then run the traces query
-
-### Logs Verification
-```promql
-# Check if logs are being received (example)
-{job="myapp"} |= "test"
-
-# Check Docker container logs
-{job="containers"} |= "error"
-
-# Check system logs
-{job="systemd-journal"} |= "error"
-```
-
-*Many other LogQL queries available for filtering and searching logs.*
-**Reference**: [Grafana LogQL Documentation](https://grafana.com/docs/loki/latest/logql/)
-
-### Metrics Verification
-```promql
-# Check if system metrics are being received
-up{job="node"}
-
-# Check CPU usage
-rate(cpu_total[5m]) by (instance)
-
-# Check memory usage
-(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100
-
-# Check application metrics (if available)
-rate(http_requests_total[5m]) by (service)
-
-# Check Alloy's own metrics
-alloy_build_info
-```
-
-*Many other PromQL queries available for system and application monitoring.*
-**Reference**: [Prometheus PromQL Documentation](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-
-### Traces Verification
-```promql
-# Check trace metrics (example)
-sum(rate(traces_received_total[5m])) by (service)
-
-# Check span metrics
-rate(traces_spanmetrics_latency_bucket[5m])
-
-# Check trace errors
-rate(traces_spanmetrics_latency_count{status="error"}[5m])
-```
+**References:**
+- [Grafana LogQL Documentation](https://grafana.com/docs/loki/latest/logql/)
+- [Prometheus PromQL Documentation](https://prometheus.io/docs/prometheus/latest/querying/basics/)
 
 ## Troubleshooting
 
@@ -351,3 +311,7 @@ This Alloy setup provides a complete telemetry pipeline:
 - **Logs**: Application/Docker logs → Alloy → Loki
 - **Traces**: Application traces (OTLP/Jaeger) → Alloy → Tempo  
 - **Visualization**: All data available in Grafana
+
+---
+
+**Want to learn more about Alloy?** Check out the [official Grafana Alloy documentation](https://grafana.com/docs/alloy/latest/) for advanced configuration options, integrations, and best practices for production deployments.
