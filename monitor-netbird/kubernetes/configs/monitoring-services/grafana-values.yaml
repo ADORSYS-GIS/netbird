@@ -18,7 +18,7 @@ grafana:
     targetPort: 3000
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/hostname: <GRAFANA_DOMAIN_NAME> # Replace with your Grafana domain name (e.g., grafana.yourdomain.com)
+      external-dns.alpha.kubernetes.io/hostname: grafana.<YOUR_MONITORING_DOMAIN> # Replace with your Grafana domain name (e.g., grafana.yourdomain.com)
 
   env:
     GF_FEATURE_TOGGLES_ENABLE: publicDashboards

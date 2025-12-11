@@ -88,7 +88,7 @@ loki:
       port: 80
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
-        external-dns.alpha.kubernetes.io/hostname: <LOKI_DOMAIN_NAME> # Replace with your Loki domain name (e.g., loki.yourdomain.com)
+        external-dns.alpha.kubernetes.io/hostname: loki.<YOUR_MONITORING_DOMAIN> # Replace with your Loki domain name (e.g., loki.yourdomain.com)
     affinity: {}
   
   backend:
