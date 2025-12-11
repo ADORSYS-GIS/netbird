@@ -9,7 +9,7 @@ Grafana Alloy is a unified telemetry collector that gathers logs, metrics, and t
 - Collect traces from various protocols and send to Tempo
 - Provide a single deployment point for log, metric, and trace collection
 
-## Quick Start
+## Getting Started with Alloy Deployment
 
 ### 1. Docker Compose Setup
 
@@ -254,7 +254,7 @@ Use these queries in Grafana to verify data is flowing correctly.
 
 | Data Type | Data Source | Example Queries | Purpose |
 |-----------|-------------|----------------|---------|
-| **Logs** | Loki | `{job="myapp"} |= "test"`<br>`{job="containers"} |= "error"`<br>`{job="systemd-journal"} |= "error"` | Verify log collection from applications, containers, and system |
+| **Logs** | Loki | `{job="myapp"} |Verify log collection from application|= "error"`<br>`{job="systemd-journal"} |= "error"` | Verify log collection from applications, containers, and system |
 | **Metrics** | Prometheus | `up{job="node"}`<br>`rate(cpu_total[5m])`<br>`alloy_build_info` | Check system metrics, CPU usage, and Alloy health |
 | **Traces** | Tempo | `sum(rate(traces_received_total[5m]))`<br>`rate(traces_spanmetrics_latency_bucket[5m])` | Verify trace ingestion and span metrics |
 
@@ -287,6 +287,18 @@ curl http://localhost:12345/metrics | grep loki
 curl https://loki.<YOUR_DOMAIN>/ready
 ```
 
+**No metrics in Prometheus:**
+```bash
+# Check if Alloy is receiving metrics
+curl http://localhost:12345/metrics | grep prometheus
+
+# Verify Prometheus endpoint
+curl https://prometheus.<YOUR_DOMAIN>/api/v1/query?query=up
+
+# Check node-exporter connectivity
+curl http://localhost:9100/metrics | head -10
+```
+
 **No traces in Tempo:**
 ```bash
 # Check trace ingestion
@@ -296,19 +308,13 @@ curl http://localhost:12345/metrics | grep traces
 curl https://tempo.<YOUR_DOMAIN>:3200/ready
 ```
 
-## Production Considerations
-
-1. **Resource Limits**: Set CPU/memory limits in production Docker Compose
-2. **Security**: Use TLS certificates for external endpoints
-3. **High Availability**: Run multiple Alloy instances for critical environments
-4. **Log Retention**: Configure appropriate retention policies in your LGTM stack
-5. **Trace Sampling**: Use sampling for high-volume applications to reduce storage costs
 
 ## Integration Flow
 
 This Alloy setup provides a complete telemetry pipeline:
 
 - **Logs**: Application/Docker logs → Alloy → Loki
+- **Metrics**: System/Application metrics → Node Exporter → Alloy → Prometheus
 - **Traces**: Application traces (OTLP/Jaeger) → Alloy → Tempo  
 - **Visualization**: All data available in Grafana
 
