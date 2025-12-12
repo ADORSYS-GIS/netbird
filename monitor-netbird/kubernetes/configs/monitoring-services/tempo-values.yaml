@@ -1,9 +1,9 @@
 tempo-distributed:
   serviceAccount:
     create: false
-    name: observability-sa
+    name: ${k8s_service_account_name}
     annotations:
-      iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL>
+      iam.gke.io/gcp-service-account: ${gcp_service_account_email}
 
   # Global Overrides
   global_overrides:
@@ -17,7 +17,7 @@ tempo-distributed:
     trace:
       backend: gcs
       gcs:
-        bucket_name: <GCS_BUCKET_NAME>
+        bucket_name: ${tempo_traces_bucket}
         chunk_buffer_size: 10485760
     wal:
       path: /var/tempo/wal

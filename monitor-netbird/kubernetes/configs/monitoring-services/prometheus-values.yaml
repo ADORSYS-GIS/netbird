@@ -8,8 +8,10 @@ prometheus:
   prometheus-pushgateway:
     enabled: false
   serviceAccount:
+    create: false
+    name: ${k8s_service_account_name}
   annotations:
-    iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL>
+    iam.gke.io/gcp-service-account: ${gcp_service_account_email}
   
   server:
     persistentVolume:
@@ -22,7 +24,7 @@ prometheus:
       targetPort: 9090
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
-        external-dns.alpha.kubernetes.io/hostname: prometheus.<YOUR_MONITORING_DOMAIN>
+        external-dns.alpha.kubernetes.io/hostname: prometheus.${monitoring_domain}
     resources:
       requests:
         memory: 2Gi
@@ -34,8 +36,8 @@ prometheus:
       evaluation_interval: 15s
       scrape_interval: 15s
       external_labels:
-        cluster: <CLUSTER_NAME>
-        environment: <ENVIRONMENT>
+        cluster: ${cluster_name}
+        environment: ${environment}
     
     remoteWrite:
       - url: http://monitoring-stack-mimir-nginx:80/api/v1/push
