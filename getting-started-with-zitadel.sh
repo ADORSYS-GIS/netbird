@@ -387,7 +387,12 @@ init_zitadel() {
     echo "Failed requesting getting Zitadel PAT"
     exit 1
   fi
-
+  if [ "NETBIRD_DOMAIN" = "localhost"]; then
+  docker exec  self-hosted-netbird-caddy-1  cat /data/caddy/pki/authorities/local/root.crt > /tmp/caddy-root.crt
+  sudo cp /tmp/caddy-root.crt /usr/local/share/ca-certificates/caddy-local.crt
+  sudo update-ca-certificates
+  fi
+  
   echo -n "Waiting for Zitadel to become ready "
   wait_api "$INSTANCE_URL" "$PAT"
 
