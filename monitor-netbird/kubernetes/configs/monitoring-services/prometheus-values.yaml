@@ -1,16 +1,13 @@
-fullnameOverride: "monitoring-prometheus"
-
-alertmanager:
-  enabled: false
-kube-state-metrics:
-  enabled: true
-prometheus-node-exporter:
-  enabled: false
-prometheus-pushgateway:
-  enabled: false
-serviceAccount:
-  create: false  # Use existing service account created by Terraform
-  name: automation-sa
+prometheus:
+  alertmanager:
+    enabled: false
+  kube-state-metrics:
+    enabled: true
+  prometheus-node-exporter:
+    enabled: false
+  prometheus-pushgateway:
+    enabled: false
+  serviceAccount: observability-sa
   annotations:
     iam.gke.io/gcp-service-account: ${gcp_service_account_email} 
 
