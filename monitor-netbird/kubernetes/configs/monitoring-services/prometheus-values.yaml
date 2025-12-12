@@ -7,7 +7,7 @@ prometheus:
     enabled: false
   prometheus-pushgateway:
     enabled: false
-  serviceAccount:
+  serviceAccount: observability-sa
   annotations:
     iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL>
   
