@@ -1,6 +1,6 @@
 grafana:
   serviceAccount:
-    create: true
+    create: false
     name: observability-sa
     annotations:
       iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL> # Replace with your GCP service account email
@@ -71,6 +71,5 @@ grafana:
             datasourceUid: prometheus
           nodeGraph:
             enabled: true
-            
   testFramework:
     enabled: false

@@ -48,9 +48,7 @@ prometheus:
           min_backoff: 30ms
           max_backoff: 5s
   
-  # Depending on your Loki setup, you may need to scrape different endpoints
   extraScrapeConfigs: |
-  
     - job_name: loki
       metrics_path: /metrics
       static_configs:
