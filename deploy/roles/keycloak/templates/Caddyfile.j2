@@ -1,0 +1,55 @@
+# Caddy configuration for Keycloak reverse proxy
+# This file proxies HTTPS requests to the Keycloak HTTP backend
+
+{{ keycloak_host }} {
+    # Automatic HTTPS:
+    # - For *.nip.io, *.localhost, or IP addresses: use internal CA (self-signed)
+    # - For real FQDNs: use Let's Encrypt automatically
+    {% if '.nip.io' in keycloak_host or 'localhost' in keycloak_host or keycloak_host.replace('.','').isdigit() %}
+    tls internal
+    {% endif %}
+    
+    # Reverse proxy to Keycloak container
+    reverse_proxy netbird-keycloak:8080 {
+        # Forward original headers for Keycloak edge proxy mode
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Port {http.request.port}
+        
+        # Health check on root path instead
+        health_uri /
+        health_interval 30s
+        health_timeout 10s
+        health_status 2xx
+    }
+    
+    # Enable compression
+    encode gzip
+    
+    # Logging
+    log {
+        output file /var/log/caddy/keycloak-access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        format json
+    }
+    
+    # Security headers
+    header {
+        # Enable HSTS (only for production domains)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Prevent clickjacking
+        X-Frame-Options "SAMEORIGIN"
+        # XSS Protection
+        X-Content-Type-Options "nosniff"
+        X-XSS-Protection "1; mode=block"
+        # Referrer Policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Remove server header
+        -Server
+    }
+}
