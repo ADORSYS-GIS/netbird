@@ -1,9 +1,0 @@
----
-# Keycloak role handlers
-# 
-# NOTE: Docker-related handlers are in deploy_handlers.yml
-#       They are only loaded when keycloak_deploy_mode: true
-#       This prevents parsing errors in external mode
-
-# No handlers defined here - external mode doesn't need any
-# All configuration changes are applied immediately via Keycloak API

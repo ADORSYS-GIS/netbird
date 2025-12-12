@@ -15,10 +15,11 @@ netbird_caddy_email: "your-email@example.com"
 # They should be updated with actual values from your Keycloak setup.
 netbird_auth_audience: "netbird-client"
 netbird_auth_client_id: "netbird-client"
-netbird_auth_authority: "https://your-idp.com/realms/your-realm" # e.g., https://keycloak.example.com/realms/netbird
+netbird_auth_authority: "https://your.keycloak.domain/realms/your-realm" # e.g., https://keycloak.example.com/realms/netbird
 
 # Secrets - IMPORTANT: Replace these with strong, unique, and randomly generated secrets.
 # For production, consider using Ansible Vault to encrypt these secrets.
+netbird_management_secret: "YOUR_MANAGEMENT_SECRET"
 netbird_relay_secret: "YOUR_RELAY_SECRET" # Secret for the NetBird Relay service.
 netbird_turn_secret: "YOUR_TURN_SECRET" # Secret for the CoTURN server.
 netbird_turn_password: "YOUR_TURN_PASSWORD" # Password for the CoTURN 'self' user.
