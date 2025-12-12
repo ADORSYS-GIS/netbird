@@ -1,6 +1,6 @@
 grafana:
   serviceAccount:
-    create: true
+    create: false
     name: observability-sa
     annotations:
       iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL> # Replace with your GCP service account email
@@ -18,7 +18,7 @@ grafana:
     targetPort: 3000
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/hostname: <GRAFANA_DOMAIN_NAME> # Replace with your Grafana domain name (e.g., grafana.yourdomain.com)
+      external-dns.alpha.kubernetes.io/hostname: grafana.<YOUR_MONITORING_DOMAIN> # Replace with your Grafana domain name (e.g., grafana.yourdomain.com)
 
   env:
     GF_FEATURE_TOGGLES_ENABLE: publicDashboards
@@ -56,9 +56,20 @@ grafana:
         - name: Tempo
           type: tempo
           access: proxy
-          url: http://tempo-external:3200
+          url: http://monitoring-stack-tempo-query-frontend:3200
           jsonData:
             httpMethod: GET
-
+            tracesToLogsV2: {}
+            datasourceUid: loki
+            spanStartTimeShift: '-1h'
+            spanEndTimeShift: '1h'
+            filterByTraceID: true
+            filterBySpanID: false
+          tracesToMetrics:
+            datasourceUid: prometheus
+          serviceMap:
+            datasourceUid: prometheus
+          nodeGraph:
+            enabled: true
   testFramework:
     enabled: false

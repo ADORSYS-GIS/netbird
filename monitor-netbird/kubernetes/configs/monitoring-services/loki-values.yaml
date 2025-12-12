@@ -1,9 +1,9 @@
 loki:
-  deploymentMode: SingleBinary
+  deploymentMode: Distributed
   
   loki:
     auth_enabled: false
-    
+
     storage:
       type: gcs
       bucketNames:
@@ -21,7 +21,7 @@ loki:
     
     schemaConfig:
       configs:
-        - from: "2025-12-01"
+        - from: <LOKI_SCHEMA_FROM_DATE>
           store: tsdb
           object_store: gcs
           schema: v13
@@ -73,7 +73,7 @@ loki:
       iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL> # Replace with your GCP service account email
   
   singleBinary:
-    replicas: 1
+    replicas: 0
     persistence:
       enabled: true             
       size: 5Gi                
@@ -82,13 +82,14 @@ loki:
     
   gateway:
     enabled: true
-    replicas: 1
+    replicas: 2
+    maxUnavailable: 1
     service:
       type: ClusterIP
       port: 80
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
-        external-dns.alpha.kubernetes.io/hostname: <LOKI_DOMAIN_NAME> # Replace with your Loki domain name (e.g., loki.yourdomain.com)
+        external-dns.alpha.kubernetes.io/hostname: loki.<YOUR_MONITORING_DOMAIN> # Replace with your Loki domain name (e.g., loki.yourdomain.com)
     affinity: {}
   
   backend:
@@ -98,28 +99,34 @@ loki:
   write:
     replicas: 0
   ingester:
-    replicas: 0
+    replicas: 2
+    maxUnavailable: 1
   querier:
-    replicas: 0
+    replicas: 2
+    maxUnavailable: 1
   queryFrontend:
-    replicas: 0
+    replicas: 2
+    maxUnavailable: 1
   queryScheduler:
-    replicas: 0
+    replicas: 2
+    maxUnavailable: 1
   distributor:
-    replicas: 0
+    replicas: 2
+    maxUnavailable: 1
   compactor:
-    replicas: 0
+    replicas: 1
   indexGateway:
-    replicas: 0
+    replicas: 2
+    maxUnavailable: 1
   bloomCompactor:
     replicas: 0
   bloomGateway:
     replicas: 0
   
   chunksCache:
-    enabled: false
+    enabled: true
   resultsCache:
-    enabled: false
+    enabled: true
   
   minio:
     enabled: false

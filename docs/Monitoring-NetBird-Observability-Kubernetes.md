@@ -105,13 +105,12 @@ Edit files in `monitor-netbird/kubernetes/configs/monitoring-services/` to match
 |-------------|-------------|-------|
 | `<PROJECT_ID>` | GCP project ID | All GCS bucket references |
 | `<GCP_SERVICE_ACCOUNT_EMAIL>` | Workload Identity email | All *-values.yaml |
-| `<GRAFANA_DOMAIN_NAME>` | Grafana domain | grafana-values.yaml, monitoring-ingress.yaml |
-| `<LOKI_DOMAIN_NAME>` | Loki domain | loki-values.yaml, monitoring-ingress.yaml |
 | `<YOUR_MONITORING_DOMAIN>` | Base domain | monitoring-ingress.yaml |
 | `<*_BUCKET_NAME>` | GCS bucket names | loki-values.yaml, mimir-values.yaml, tempo-values.yaml |
 | `<CLUSTER_NAME>` | Cluster identifier | prometheus-values.yaml |
 | `<ENVIRONMENT>` | Environment name | prometheus-values.yaml |
 | `<YOUR_EMAIL_ADDRESS>` | Let's Encrypt email | cluster-issuer.yaml |
+| `<LOKI_SCHEMA_FROM_DATE>` | Loki schema from date | loki-values.yaml |
 
 ### Step 6: Deploy Monitoring Stack
 
@@ -119,6 +118,7 @@ Edit files in `monitor-netbird/kubernetes/configs/monitoring-services/` to match
 cd monitor-netbird/kubernetes/helm/monitoring-stack
 helm dependency update
 helm install monitoring-stack . -n observability \
+  -f ../../helm/monitoring-stack/values.yaml \
   -f ../../configs/monitoring-services/loki-values.yaml \
   -f ../../configs/monitoring-services/prometheus-values.yaml \
   -f ../../configs/monitoring-services/grafana-values.yaml \
@@ -132,12 +132,6 @@ cd ../../../../
 **For TLS Ingress:**
 ```bash
 kubectl apply -f monitor-netbird/kubernetes/configs/cert-manager/monitoring-ingress.yaml
-```
-
-**For NodePort (testing):**
-```bash
-kubectl apply -f monitor-netbird/kubernetes/configs/monitoring-services/loki-nodeport-service.yaml
-kubectl apply -f monitor-netbird/kubernetes/configs/monitoring-services/tempo-nodeport-service.yaml
 ```
 
 ### Step 8: Verify Deployment
@@ -178,7 +172,7 @@ Data sources are pre-configured in `grafana-values.yaml`. Verify each:
    - **Prometheus**: `http://monitoring-stack-prometheus-server:80`
    - **Loki**: `http://monitoring-stack-loki-gateway:80`
    - **Mimir**: `http://monitoring-stack-mimir-nginx:80/prometheus`
-   - **Tempo**: `http://tempo-external:3200`
+   - **Tempo**: `http://monitoring-stack-tempo-query-frontend:3200`
 3. Click Save & test for each
 
 ## Monitoring Your Applications
@@ -205,7 +199,12 @@ prometheus:
 Then upgrade:
 ```bash
 helm upgrade monitoring-stack ./helm/monitoring-stack -n observability \
-  -f configs/monitoring-services/*.yaml
+  -f ../../helm/monitoring-stack/values.yaml \
+  -f ../../configs/monitoring-services/loki-values.yaml \
+  -f ../../configs/monitoring-services/prometheus-values.yaml \
+  -f ../../configs/monitoring-services/grafana-values.yaml \
+  -f ../../configs/monitoring-services/mimir-values.yaml \
+  -f ../../configs/monitoring-services/tempo-values.yaml
 ```
 
 View active targets: `http://<PROMETHEUS_DOMAIN>/targets`
@@ -228,19 +227,16 @@ POST http://monitoring-stack-loki-gateway:80/loki/api/v1/push
 Configure applications to send traces to Tempo:
 
 **OTLP endpoints:**
-- gRPC: `tempo-external:4317` (NodePort: 31317)
-- HTTP: `tempo-external:4318` (NodePort: 31318)
-
-**Jaeger endpoints:**
-- Thrift HTTP: `tempo-external:14268` (NodePort: 31268)
+- gRPC: `https://tempo-grpc.<YOUR_MONITORING_DOMAIN>:443`
+- HTTP: `https://tempo-push.<YOUR_MONITORING_DOMAIN>/v1/traces`
 
 **Example OpenTelemetry config:**
 ```yaml
 exporters:
   otlp:
-    endpoint: "tempo-external:4317"
+    endpoint: "https://tempo-grpc.<YOUR_MONITORING_DOMAIN>:443"
     tls:
-      insecure: true
+      insecure: false
 ```
 
 ## Query Examples
@@ -333,7 +329,12 @@ tempo:
 Apply changes:
 ```bash
 helm upgrade monitoring-stack ./helm/monitoring-stack -n observability \
-  -f configs/monitoring-services/*.yaml
+  -f ../../helm/monitoring-stack/values.yaml \
+  -f ../../configs/monitoring-services/loki-values.yaml \
+  -f ../../configs/monitoring-services/prometheus-values.yaml \
+  -f ../../configs/monitoring-services/grafana-values.yaml \
+  -f ../../configs/monitoring-services/mimir-values.yaml \
+  -f ../../configs/monitoring-services/tempo-values.yaml
 ```
 
 ### Persistent Volumes
@@ -513,7 +514,12 @@ gcloud iam service-accounts get-iam-policy \
 4. Upgrade:
    ```bash
    helm upgrade monitoring-stack ./helm/monitoring-stack -n observability \
-     -f configs/monitoring-services/*.yaml
+    -f ../../helm/monitoring-stack/values.yaml \
+    -f ../../configs/monitoring-services/loki-values.yaml \
+    -f ../../configs/monitoring-services/prometheus-values.yaml \
+    -f ../../configs/monitoring-services/grafana-values.yaml \
+    -f ../../configs/monitoring-services/mimir-values.yaml \
+    -f ../../configs/monitoring-services/tempo-values.yaml
    ```
 
 ### Backup
@@ -551,8 +557,6 @@ prometheus:
 
 ```bash
 helm uninstall monitoring-stack -n observability
-kubectl delete -f monitor-netbird/kubernetes/configs/monitoring-services/loki-nodeport-service.yaml
-kubectl delete -f monitor-netbird/kubernetes/configs/monitoring-services/tempo-nodeport-service.yaml
 kubectl delete -f monitor-netbird/kubernetes/configs/cert-manager/monitoring-ingress.yaml
 kubectl delete namespace observability
 ```

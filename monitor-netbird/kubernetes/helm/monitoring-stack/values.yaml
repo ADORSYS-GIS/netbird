@@ -17,5 +17,6 @@ grafana:
 mimir-distributed:
   enabled: true
 
-tempo:
+tempo-distributed:
   enabled: true
+
