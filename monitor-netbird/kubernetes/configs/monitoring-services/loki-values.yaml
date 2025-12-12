@@ -1,9 +1,9 @@
 loki:
-  deploymentMode: SingleBinary
+  deploymentMode: Distributed
   
   loki:
     auth_enabled: false
-    
+
     storage:
       type: gcs
       bucketNames:
@@ -73,7 +73,7 @@ loki:
       iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL> # Replace with your GCP service account email
   
   singleBinary:
-    replicas: 1
+    replicas: 0
     persistence:
       enabled: true             
       size: 5Gi                
@@ -82,7 +82,8 @@ loki:
     
   gateway:
     enabled: true
-    replicas: 1
+    replicas: 2
+    maxUnavailable: 1
     service:
       type: ClusterIP
       port: 80

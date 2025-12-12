@@ -110,6 +110,7 @@ Edit files in `monitor-netbird/kubernetes/configs/monitoring-services/` to match
 | `<CLUSTER_NAME>` | Cluster identifier | prometheus-values.yaml |
 | `<ENVIRONMENT>` | Environment name | prometheus-values.yaml |
 | `<YOUR_EMAIL_ADDRESS>` | Let's Encrypt email | cluster-issuer.yaml |
+| `<LOKI_SCHEMA_FROM_DATE>` | Loki schema from date | loki-values.yaml |
 
 ### Step 6: Deploy Monitoring Stack
 
@@ -117,6 +118,7 @@ Edit files in `monitor-netbird/kubernetes/configs/monitoring-services/` to match
 cd monitor-netbird/kubernetes/helm/monitoring-stack
 helm dependency update
 helm install monitoring-stack . -n observability \
+  -f ../../helm/monitoring-stack/values.yaml \
   -f ../../configs/monitoring-services/loki-values.yaml \
   -f ../../configs/monitoring-services/prometheus-values.yaml \
   -f ../../configs/monitoring-services/grafana-values.yaml \
@@ -197,7 +199,12 @@ prometheus:
 Then upgrade:
 ```bash
 helm upgrade monitoring-stack ./helm/monitoring-stack -n observability \
-  -f configs/monitoring-services/*.yaml
+  -f ../../helm/monitoring-stack/values.yaml \
+  -f ../../configs/monitoring-services/loki-values.yaml \
+  -f ../../configs/monitoring-services/prometheus-values.yaml \
+  -f ../../configs/monitoring-services/grafana-values.yaml \
+  -f ../../configs/monitoring-services/mimir-values.yaml \
+  -f ../../configs/monitoring-services/tempo-values.yaml
 ```
 
 View active targets: `http://<PROMETHEUS_DOMAIN>/targets`
@@ -322,7 +329,12 @@ tempo:
 Apply changes:
 ```bash
 helm upgrade monitoring-stack ./helm/monitoring-stack -n observability \
-  -f configs/monitoring-services/*.yaml
+  -f ../../helm/monitoring-stack/values.yaml \
+  -f ../../configs/monitoring-services/loki-values.yaml \
+  -f ../../configs/monitoring-services/prometheus-values.yaml \
+  -f ../../configs/monitoring-services/grafana-values.yaml \
+  -f ../../configs/monitoring-services/mimir-values.yaml \
+  -f ../../configs/monitoring-services/tempo-values.yaml
 ```
 
 ### Persistent Volumes
@@ -502,7 +514,12 @@ gcloud iam service-accounts get-iam-policy \
 4. Upgrade:
    ```bash
    helm upgrade monitoring-stack ./helm/monitoring-stack -n observability \
-     -f configs/monitoring-services/*.yaml
+    -f ../../helm/monitoring-stack/values.yaml \
+    -f ../../configs/monitoring-services/loki-values.yaml \
+    -f ../../configs/monitoring-services/prometheus-values.yaml \
+    -f ../../configs/monitoring-services/grafana-values.yaml \
+    -f ../../configs/monitoring-services/mimir-values.yaml \
+    -f ../../configs/monitoring-services/tempo-values.yaml
    ```
 
 ### Backup
