@@ -9,6 +9,6 @@
   vars_files:
     - inventory/group_vars/all.yml # Load variables from the all.yml file in group_vars.
   roles:
-    - role: system-preparation # Role to prepare the system (install Docker, configure firewall, etc.).
+    # Role to prepare the system (install Docker, configure firewall, etc.).
     - role: netbird-caddy-deployment # Role to deploy NetBird services and Caddy.
     # - role: keycloak-setup # This role is commented out as Keycloak setup is kept aside for now.
