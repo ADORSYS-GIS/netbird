@@ -20,5 +20,3 @@ mimir-distributed:
 tempo-distributed:
   enabled: true
 
-tempo:
-  enabled: false
