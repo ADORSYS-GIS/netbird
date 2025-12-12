@@ -7,9 +7,9 @@ loki:
     storage:
       type: gcs
       bucketNames:
-        chunks: <LOKI_CHUNKS_BUCKET_NAME> # Replace with your Loki chunks bucket name
-        ruler: <LOKI_RULER_BUCKET_NAME> # Replace with your Loki ruler bucket name
-        admin: <LOKI_ADMIN_BUCKET_NAME> # Replace with your Loki admin bucket name
+        chunks: ${loki_chunks_bucket}
+        ruler: ${loki_ruler_bucket}
+        admin: ${loki_admin_bucket}
       gcs:
         chunkBufferSize: 0
         requestTimeout: "0s"
@@ -21,7 +21,7 @@ loki:
     
     schemaConfig:
       configs:
-        - from: <LOKI_SCHEMA_FROM_DATE>
+        - from: ${loki_schema_from_date}
           store: tsdb
           object_store: gcs
           schema: v13
@@ -50,7 +50,7 @@ loki:
       storage:
         type: gcs
         gcs:
-          bucket_name: <LOKI_RULER_BUCKET_NAME> # Replace with your Loki ruler bucket name
+          bucket_name: ${loki_ruler_bucket}
     
     ingester:
       chunk_encoding: snappy
@@ -68,9 +68,9 @@ loki:
   
   serviceAccount:
     create: false
-    name: observability-sa
+    name: ${k8s_service_account_name}
     annotations:
-      iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL> # Replace with your GCP service account email
+      iam.gke.io/gcp-service-account: ${gcp_service_account_email}
   
   singleBinary:
     replicas: 0
@@ -89,7 +89,7 @@ loki:
       port: 80
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
-        external-dns.alpha.kubernetes.io/hostname: loki.<YOUR_MONITORING_DOMAIN> # Replace with your Loki domain name (e.g., loki.yourdomain.com)
+        external-dns.alpha.kubernetes.io/hostname: loki.${monitoring_domain}
     affinity: {}
   
   backend:

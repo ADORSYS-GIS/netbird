@@ -81,19 +81,12 @@ Production cluster deployment with horizontal scalability and GCS backend storag
 - Workload Identity for keyless GCS authentication
 - Production-grade high availability configuration
 
-**Follow these guides in order:**
+**Follow the guide:**
 
-1. **[Terraform Infrastructure Guide](monitor-netbird/kubernetes/terraform/README.md)**
-   - Provision GCS buckets for data storage
-   - Configure IAM and Workload Identity
-   - Set up Kubernetes service accounts
-
-2. **[Kubernetes Monitoring Guide](docs/Monitoring-NetBird-Observability-Kubernetes.md)**
-   - Deploy the observability stack
-   - Configure data sources
-   - Set up monitoring for your workloads
-
-This route requires completion of both guides in sequence.
+[**Kubernetes Observability Guide**](docs/Kubernetes-Observability.md)
+   - Automates infrastructure provisioning (GCS, IAM) via Terraform.
+   - Deploys the full stack (Loki, Mimir, Tempo, Prometheus, Grafana).
+   - Configures ingress and authentication.
 
 ## Architecture
 
