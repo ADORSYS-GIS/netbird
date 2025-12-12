@@ -7,7 +7,7 @@ prometheus:
     enabled: false
   prometheus-pushgateway:
     enabled: false
-  serviceAccount:
+  serviceAccount: observability-sa
   annotations:
     iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL>
   
@@ -23,6 +23,13 @@ prometheus:
       annotations:
         cert-manager.io/cluster-issuer: letsencrypt-prod
         external-dns.alpha.kubernetes.io/hostname: prometheus.<YOUR_MONITORING_DOMAIN>
+    resources:
+      requests:
+        memory: 2Gi
+        cpu: 500m
+      limits:
+        memory: 4Gi
+        cpu: 1000m
     global:
       evaluation_interval: 15s
       scrape_interval: 15s
@@ -43,8 +50,18 @@ prometheus:
   
   extraScrapeConfigs: |
     - job_name: loki
+      metrics_path: /metrics
       static_configs:
-        - targets: ['monitoring-stack-loki-gateway:80']
+        - targets: 
+          - 'monitoring-stack-loki-distributor:3100'
+          - 'monitoring-stack-loki-ingester-zone-a-headless:3100'
+          - 'monitoring-stack-loki-ingester-zone-b-headless:3100'
+          - 'monitoring-stack-loki-ingester-zone-c-headless:3100'
+          - 'monitoring-stack-loki-querier:3100'
+          - 'monitoring-stack-loki-query-frontend:3100'
+          - 'monitoring-stack-loki-compactor:3100'
+          - 'monitoring-stack-loki-index-gateway:3100'
+          - 'monitoring-stack-loki-query-scheduler:3100'
           labels:
             instance: 'loki'
             cluster: 'k8s'
@@ -65,7 +82,7 @@ prometheus:
     
     - job_name: tempo
       static_configs:
-        - targets: ['monitoring-stack-tempo:3200']
+        - targets: ['monitoring-stack-tempo-query-frontend:3200']
           labels:
             instance: 'tempo'
             cluster: 'k8s'
