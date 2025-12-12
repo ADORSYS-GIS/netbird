@@ -1,12 +1,12 @@
 grafana:
   serviceAccount:
     create: false
-    name: observability-sa
+    name: ${k8s_service_account_name}
     annotations:
-      iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL> # Replace with your GCP service account email
+      iam.gke.io/gcp-service-account: ${gcp_service_account_email}
 
   adminUser: admin
-  adminPassword: admin
+  adminPassword: ${grafana_admin_password}
 
   persistence:
     enabled: true
@@ -18,7 +18,7 @@ grafana:
     targetPort: 3000
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/hostname: grafana.<YOUR_MONITORING_DOMAIN> # Replace with your Grafana domain name (e.g., grafana.yourdomain.com)
+      external-dns.alpha.kubernetes.io/hostname: grafana.${monitoring_domain}
 
   env:
     GF_FEATURE_TOGGLES_ENABLE: publicDashboards
