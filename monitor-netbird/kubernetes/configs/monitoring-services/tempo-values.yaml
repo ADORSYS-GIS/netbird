@@ -1,5 +1,4 @@
 tempo-distributed:
-
   serviceAccount:
     create: false
     name: observability-sa

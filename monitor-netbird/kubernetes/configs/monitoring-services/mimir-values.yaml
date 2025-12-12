@@ -34,7 +34,7 @@ mimir-distributed:
       ruler_storage:
         backend: gcs
         gcs:
-          bucket_name: <MIMIR_ALERTMANAGER_BUCKET_NAME>
+          bucket_name: <MIMIR_RULER_BUCKET_NAME>
       
       server:
         log_level: info
