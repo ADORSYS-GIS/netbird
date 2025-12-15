@@ -48,14 +48,12 @@ locals {
   buckets = [
     "loki-chunks",
     "loki-ruler",
-    "loki-admin",
     "mimir-blocks",
     "mimir-ruler",
-    "mimir-alertmanager",
     "tempo-traces",
   ]
 
-  bucket_prefix         = var.project_id
+  bucket_prefix         = "${var.project_id}"
   loki_schema_from_date = var.loki_schema_from_date
 }
 
@@ -65,7 +63,7 @@ resource "google_storage_bucket" "observability_buckets" {
 
   name          = "${local.bucket_prefix}-${each.key}"
   location      = var.region
-  force_destroy = false
+  force_destroy = true
 
   uniform_bucket_level_access = true
 
@@ -150,12 +148,14 @@ resource "google_service_account_iam_member" "workload_identity_binding" {
 }
 
 # Cert-Manager ClusterIssuer
-resource "kubernetes_manifest" "letsencrypt_cluster_issuer" {
+# Cert-Manager Issuer (Namespaced for Automation)
+resource "kubernetes_manifest" "letsencrypt_issuer" {
   manifest = {
     apiVersion = "cert-manager.io/v1"
-    kind       = "ClusterIssuer"
+    kind       = "Issuer"
     metadata = {
-      name = "letsencrypt-prod"
+      name      = "letsencrypt-prod"
+      namespace = var.namespace
     }
     spec = {
       acme = {
@@ -168,7 +168,7 @@ resource "kubernetes_manifest" "letsencrypt_cluster_issuer" {
           {
             http01 = {
               ingress = {
-                ingressClassName = "nginx"
+                class = "nginx-monitoring"
               }
             }
           }
@@ -202,19 +202,44 @@ resource "helm_release" "cert_manager" {
 resource "helm_release" "nginx_ingress" {
   count = var.install_nginx_ingress ? 1 : 0
 
-  name             = "ingress-nginx"
+  name             = "nginx-monitoring"
   repository       = "https://kubernetes.github.io/ingress-nginx"
   chart            = "ingress-nginx"
   namespace        = "ingress-nginx"
   create_namespace = true
   version          = var.nginx_ingress_version
 
+  set {
+    name  = "controller.ingressClassResource.name"
+    value = "nginx-monitoring"
+  }
+
+  set {
+    name  = "controller.ingressClass"
+    value = "nginx-monitoring"
+  }
+
+  set {
+    name  = "controller.ingressClassResource.controllerValue"
+    value = "k8s.io/ingress-nginx-monitoring"
+  }
+
+  set {
+    name  = "controller.ingressClassResource.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "controller.ingressClassByName"
+    value = "true"
+  }
+
   wait = true
 }
 
 # Loki
 resource "helm_release" "loki" {
-  name       = "monitoring-stack-loki"
+  name       = "monitoring-loki"
   repository = "https://grafana.github.io/helm-charts"
   chart      = "loki"
   namespace  = kubernetes_namespace.observability.metadata[0].name
@@ -226,7 +251,7 @@ resource "helm_release" "loki" {
       k8s_service_account_name  = kubernetes_service_account.observability_sa.metadata[0].name
       loki_chunks_bucket        = google_storage_bucket.observability_buckets["loki-chunks"].name
       loki_ruler_bucket         = google_storage_bucket.observability_buckets["loki-ruler"].name
-      loki_admin_bucket         = google_storage_bucket.observability_buckets["loki-admin"].name
+      loki_admin_bucket         = google_storage_bucket.observability_buckets["loki-chunks"].name
       loki_schema_from_date     = local.loki_schema_from_date
       monitoring_domain         = var.monitoring_domain
     })
@@ -241,7 +266,7 @@ resource "helm_release" "loki" {
 
 # Mimir
 resource "helm_release" "mimir" {
-  name       = "monitoring-stack-mimir"
+  name       = "monitoring-mimir"
   repository = "https://grafana.github.io/helm-charts"
   chart      = "mimir-distributed"
   namespace  = kubernetes_namespace.observability.metadata[0].name
@@ -253,7 +278,7 @@ resource "helm_release" "mimir" {
       k8s_service_account_name  = kubernetes_service_account.observability_sa.metadata[0].name
       mimir_blocks_bucket       = google_storage_bucket.observability_buckets["mimir-blocks"].name
       mimir_ruler_bucket        = google_storage_bucket.observability_buckets["mimir-ruler"].name
-      mimir_alertmanager_bucket = google_storage_bucket.observability_buckets["mimir-alertmanager"].name
+      mimir_alertmanager_bucket = google_storage_bucket.observability_buckets["mimir-ruler"].name
       monitoring_domain         = var.monitoring_domain
     })
   ]
@@ -267,7 +292,7 @@ resource "helm_release" "mimir" {
 
 # Tempo
 resource "helm_release" "tempo" {
-  name       = "monitoring-stack-tempo"
+  name       = "monitoring-tempo"
   repository = "https://grafana.github.io/helm-charts"
   chart      = "tempo-distributed"
   namespace  = kubernetes_namespace.observability.metadata[0].name
@@ -278,6 +303,7 @@ resource "helm_release" "tempo" {
       gcp_service_account_email = google_service_account.observability_sa.email
       k8s_service_account_name  = kubernetes_service_account.observability_sa.metadata[0].name
       tempo_traces_bucket       = google_storage_bucket.observability_buckets["tempo-traces"].name
+      monitoring_domain         = var.monitoring_domain
     })
   ]
 
@@ -290,7 +316,7 @@ resource "helm_release" "tempo" {
 
 # Prometheus
 resource "helm_release" "prometheus" {
-  name       = "monitoring-stack-prometheus"
+  name       = "monitoring-prometheus"
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "prometheus"
   namespace  = kubernetes_namespace.observability.metadata[0].name
@@ -303,6 +329,8 @@ resource "helm_release" "prometheus" {
       monitoring_domain         = var.monitoring_domain
       cluster_name              = var.cluster_name
       environment               = var.environment
+      project_id                = var.project_id
+      region                    = var.region
     })
   ]
 
@@ -314,7 +342,7 @@ resource "helm_release" "prometheus" {
 
 # Grafana
 resource "helm_release" "grafana" {
-  name       = "monitoring-stack-grafana"
+  name       = "monitoring-grafana"
   repository = "https://grafana.github.io/helm-charts"
   chart      = "grafana"
   namespace  = kubernetes_namespace.observability.metadata[0].name
@@ -343,8 +371,8 @@ resource "kubernetes_ingress_v1" "monitoring_stack" {
     name      = "monitoring-stack-ingress"
     namespace = kubernetes_namespace.observability.metadata[0].name
     annotations = {
-      "kubernetes.io/ingress.class"                       = "nginx"
-      "cert-manager.io/cluster-issuer"                    = "letsencrypt-prod"
+      "kubernetes.io/ingress.class"                       = "nginx-monitoring"
+      "cert-manager.io/issuer"                            = "letsencrypt-prod"
       "nginx.ingress.kubernetes.io/ssl-redirect"          = "true"
       "nginx.ingress.kubernetes.io/backend-protocol"      = "HTTP"
       "nginx.ingress.kubernetes.io/proxy-connect-timeout" = "300"
@@ -376,7 +404,7 @@ resource "kubernetes_ingress_v1" "monitoring_stack" {
           path_type = "Prefix"
           backend {
             service {
-              name = "monitoring-stack-grafana"
+              name = "monitoring-grafana"
               port {
                 number = 80
               }
@@ -395,7 +423,7 @@ resource "kubernetes_ingress_v1" "monitoring_stack" {
           path_type = "Prefix"
           backend {
             service {
-              name = "monitoring-stack-loki-gateway"
+              name = "monitoring-loki-gateway"
               port {
                 number = 80
               }
@@ -414,7 +442,7 @@ resource "kubernetes_ingress_v1" "monitoring_stack" {
           path_type = "Prefix"
           backend {
             service {
-              name = "monitoring-stack-mimir-nginx"
+              name = "monitoring-mimir-nginx"
               port {
                 number = 80
               }
@@ -433,7 +461,7 @@ resource "kubernetes_ingress_v1" "monitoring_stack" {
           path_type = "Prefix"
           backend {
             service {
-              name = "monitoring-stack-tempo-query-frontend"
+              name = "monitoring-tempo-query-frontend"
               port {
                 number = 3200
               }
@@ -452,7 +480,7 @@ resource "kubernetes_ingress_v1" "monitoring_stack" {
           path_type = "Prefix"
           backend {
             service {
-              name = "monitoring-stack-tempo-distributor"
+              name = "monitoring-tempo-distributor"
               port {
                 number = 4318
               }
@@ -471,7 +499,7 @@ resource "kubernetes_ingress_v1" "monitoring_stack" {
           path_type = "Prefix"
           backend {
             service {
-              name = "monitoring-stack-prometheus-server"
+              name = "monitoring-prometheus-server"
               port {
                 number = 80
               }
@@ -484,7 +512,7 @@ resource "kubernetes_ingress_v1" "monitoring_stack" {
 
   depends_on = [
     helm_release.grafana,
-    kubernetes_manifest.letsencrypt_cluster_issuer
+    kubernetes_manifest.letsencrypt_issuer
   ]
 }
 
@@ -494,8 +522,8 @@ resource "kubernetes_ingress_v1" "tempo_grpc" {
     name      = "monitoring-stack-ingress-grpc"
     namespace = kubernetes_namespace.observability.metadata[0].name
     annotations = {
-      "kubernetes.io/ingress.class"                  = "nginx"
-      "cert-manager.io/cluster-issuer"               = "letsencrypt-prod"
+      "kubernetes.io/ingress.class"                  = "nginx-monitoring"
+      "cert-manager.io/issuer"                       = "letsencrypt-prod"
       "nginx.ingress.kubernetes.io/ssl-redirect"     = "true"
       "nginx.ingress.kubernetes.io/backend-protocol" = "GRPC"
     }
@@ -517,7 +545,7 @@ resource "kubernetes_ingress_v1" "tempo_grpc" {
           path_type = "Prefix"
           backend {
             service {
-              name = "monitoring-stack-tempo-distributor"
+              name = "monitoring-tempo-distributor"
               port {
                 number = 4317
               }
@@ -530,6 +558,6 @@ resource "kubernetes_ingress_v1" "tempo_grpc" {
 
   depends_on = [
     helm_release.tempo,
-    kubernetes_manifest.letsencrypt_cluster_issuer
+    kubernetes_manifest.letsencrypt_issuer
   ]
 }

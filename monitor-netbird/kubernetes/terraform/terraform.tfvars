@@ -1,26 +1,26 @@
 # GCP Configuration
-project_id       = "your-gcp-project-id"
-region           = "us-central1"
-cluster_name     = "your-gke-cluster-name"
-cluster_location = "us-central1-a"
+project_id       = "<YOUR_GCP_PROJECT_ID>"
+region           = "<YOUR_GCP_REGION>"
+cluster_name     = "<YOUR_CLUSTER_NAME>"
+cluster_location = "<YOUR_CLUSTER_LOCATION>"
 
 # Kubernetes Configuration
-namespace                = "observability"
-k8s_service_account_name = "observability-sa"
-gcp_service_account_name = "gke-observability-sa"
+namespace                = "<YOUR_K8S_NAMESPACE>"
+k8s_service_account_name = "<YOUR_K8S_SERVICE_ACCOUNT_NAME>"
+gcp_service_account_name = "<YOUR_GCP_SERVICE_ACCOUNT_NAME>"
 
 # Environment
-environment = "production"
+environment = "<YOUR_ENVIRONMENT>"
 
 # Domain Configuration
-monitoring_domain = "monitoring.yourdomain.com"
-letsencrypt_email = "your-email@example.com"
+monitoring_domain = "<YOUR_DOMAIN>"
+letsencrypt_email = "<YOUR_EMAIL>"
 
 # Grafana
-grafana_admin_password = "your-secure-password-here"
+grafana_admin_password = "<YOUR_SECURE_PASSWORD>"
 
 # Helm Chart Versions (optional - defaults will be used if not specified)
-# loki_version       = "6.16.0"
+loki_version = "6.16.0"
 # mimir_version      = "5.5.0"
 # tempo_version      = "1.10.1"
 # prometheus_version = "25.27.0"
@@ -28,7 +28,7 @@ grafana_admin_password = "your-secure-password-here"
 
 # Optional Components (set to true if you want Terraform to install these)
 install_cert_manager  = false
-install_nginx_ingress = false
+install_nginx_ingress = true
 
 # Loki Schema From Date
-loki_schema_from_date = "2025-12-12"
+loki_schema_from_date = "2025-12-13"
