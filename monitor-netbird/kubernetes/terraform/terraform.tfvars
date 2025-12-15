@@ -1,33 +1,35 @@
 # GCP Configuration
-project_id       = "<YOUR_GCP_PROJECT_ID>"
-region           = "<YOUR_GCP_REGION>"
-cluster_name     = "<YOUR_CLUSTER_NAME>"
-cluster_location = "<YOUR_CLUSTER_LOCATION>"
+project_id       = "<PROJECT_ID>"
+region           = "<REGION>"
+cluster_name     = "<CLUSTER_NAME>"
+cluster_location = "<REGION>"
 
 # Kubernetes Configuration
-namespace                = "<YOUR_K8S_NAMESPACE>"
-k8s_service_account_name = "<YOUR_K8S_SERVICE_ACCOUNT_NAME>"
-gcp_service_account_name = "<YOUR_GCP_SERVICE_ACCOUNT_NAME>"
+namespace                = "<NAMESPACE>"
+k8s_service_account_name = "<K8S_SERVICE_ACCOUNT_NAME>"
+gcp_service_account_name = "<GCP_SERVICE_ACCOUNT_NAME>"
 
 # Environment
-environment = "<YOUR_ENVIRONMENT>"
+environment = "<ENVIRONMENT>"
 
 # Domain Configuration
-monitoring_domain = "<YOUR_DOMAIN>"
-letsencrypt_email = "<YOUR_EMAIL>"
+monitoring_domain = "<MONITORING_DOMAIN>"
+letsencrypt_email = "<LETS_ENCRYPT_EMAIL>"
 
 # Grafana
-grafana_admin_password = "<YOUR_SECURE_PASSWORD>"
+grafana_admin_password = "<GRAFANA_ADMIN_PASSWORD>"
 
 # Helm Chart Versions (optional - defaults will be used if not specified)
-loki_version = "6.16.0"
-# mimir_version      = "5.5.0"
-# tempo_version      = "1.10.1"
-# prometheus_version = "25.27.0"
-# grafana_version    = "8.5.2"
+loki_version       = "6.20.0"
+mimir_version      = "5.5.0"
+tempo_version      = "1.57.0"
+prometheus_version = "25.27.0"
+grafana_version    = "10.3.0"
 
 # Optional Components (set to true if you want Terraform to install these)
 install_cert_manager  = false
+ingress_class_name    = "nginx"            # Set to your cluster's ingress class (e.g., "nginx", "traefik")
+cert_issuer_name      = "letsencrypt-prod" # Set to your Cert-Manager Issuer name
 install_nginx_ingress = false
 
 # Loki Schema From Date

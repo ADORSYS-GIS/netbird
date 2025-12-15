@@ -10,7 +10,7 @@ prometheus-pushgateway:
   enabled: false
 serviceAccount:
   create: false  # Use existing service account created by Terraform
-  name: automation-sa
+  name: ${k8s_service_account_name}
   annotations:
     iam.gke.io/gcp-service-account: ${gcp_service_account_email} 
 
@@ -25,9 +25,9 @@ server:
     targetPort: 9090
   ingress:
     enabled: false
-    ingressClassName: nginx-monitoring
+    ingressClassName: ${ingress_class_name}
     annotations:
-      cert-manager.io/issuer: letsencrypt-prod
+      cert-manager.io/issuer: ${cert_issuer_name}
       external-dns.alpha.kubernetes.io/hostname: prometheus.${monitoring_domain}
   resources:
     requests:
@@ -60,9 +60,7 @@ extraScrapeConfigs: |
     static_configs:
       - targets: 
         - 'monitoring-loki-distributor:3100'
-        - 'monitoring-loki-ingester-zone-a-headless:3100'
-        - 'monitoring-loki-ingester-zone-b-headless:3100'
-        - 'monitoring-loki-ingester-zone-c-headless:3100'
+        - 'monitoring-loki-ingester:3100'
         - 'monitoring-loki-querier:3100'
         - 'monitoring-loki-query-frontend:3100'
         - 'monitoring-loki-compactor:3100'
@@ -91,3 +89,4 @@ extraScrapeConfigs: |
       - targets: ['monitoring-tempo-query-frontend:3200']
         labels:
           instance: 'tempo'
+          cluster: 'k8s'
