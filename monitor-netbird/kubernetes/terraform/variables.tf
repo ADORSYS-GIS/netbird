@@ -86,31 +86,31 @@ variable "nginx_ingress_version" {
 variable "loki_version" {
   description = "Version of Loki chart"
   type        = string
-  default     = "6.6.6" # Using a recent stable version or standard default
+  default     = "6.6.4"
 }
 
 variable "mimir_version" {
   description = "Version of Mimir chart"
   type        = string
-  default     = "5.4.1"
+  default     = "5.5.0"
 }
 
 variable "tempo_version" {
   description = "Version of Tempo chart"
   type        = string
-  default     = "1.10.3"
+  default     = "1.57.0"
 }
 
 variable "prometheus_version" {
   description = "Version of Prometheus chart"
   type        = string
-  default     = "25.21.0"
+  default     = "25.27.0"
 }
 
 variable "grafana_version" {
   description = "Version of Grafana chart"
   type        = string
-  default     = "8.3.5"
+  default     = "10.3.0"
 }
 
 variable "loki_schema_from_date" {
