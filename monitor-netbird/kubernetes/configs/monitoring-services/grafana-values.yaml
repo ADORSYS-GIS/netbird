@@ -1,75 +1,85 @@
-grafana:
-  serviceAccount:
-    create: false
-    name: ${k8s_service_account_name}
-    annotations:
-      iam.gke.io/gcp-service-account: ${gcp_service_account_email}
+serviceAccount:
+  create: false
+  name: automation-sa
+  annotations:
+    iam.gke.io/gcp-service-account: ${gcp_service_account_email} # Replace with your GCP service account email
 
-  adminUser: admin
-  adminPassword: ${grafana_admin_password}
 
-  persistence:
-    enabled: true
-    size: 1Gi
+# Explicitly disable testFramework to avoid nil pointer in Helm chart
+testFramework:
+  enabled: false
+  image: "bats/bats"
+  securityContext:
+    runAsUser: 1000
 
-  service:
-    type: ClusterIP
-    port: 80
-    targetPort: 3000
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-      external-dns.alpha.kubernetes.io/hostname: grafana.${monitoring_domain}
+adminUser: admin
+adminPassword: ${grafana_admin_password}
 
-  env:
-    GF_FEATURE_TOGGLES_ENABLE: publicDashboards
-    GF_LOG_LEVEL: info
-    GF_AUTH_ANONYMOUS_ENABLED: "false"
+persistence:
+  enabled: true
+  size: 1Gi
 
-  datasources:
-    datasources.yaml:
-      apiVersion: 1
-      datasources:
-        - name: Prometheus
-          type: prometheus
-          access: proxy
-          url: http://monitoring-stack-prometheus-server:80
-          isDefault: true
-          jsonData:
-            httpMethod: POST
-            timeInterval: 15s
+service:
+  type: ClusterIP # Keeping service type as ClusterIP, assuming ingress will handle external access
+  port: 80
+  targetPort: 3000
+  annotations: {} # Removing service annotations as they are moved to ingress
 
-        - name: Loki
-          type: loki
-          access: proxy
-          url: http://monitoring-stack-loki-gateway:80
-          jsonData:
-            maxLines: 1000
+ingress:
+  enabled: false
+  ingressClassName: nginx-monitoring
+  annotations:
+    cert-manager.io/issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/hostname: grafana.${monitoring_domain} # Replace with your Grafana domain name (e.g., grafana.yourdomain.com)
 
-        - name: Mimir
-          type: prometheus
-          access: proxy
-          url: http://monitoring-stack-mimir-nginx:80/prometheus
-          jsonData:
-            httpMethod: POST
-            timeInterval: 15s
+env:
+  GF_FEATURE_TOGGLES_ENABLE: publicDashboards
+  GF_LOG_LEVEL: info
+  GF_AUTH_ANONYMOUS_ENABLED: "false"
 
-        - name: Tempo
-          type: tempo
-          access: proxy
-          url: http://monitoring-stack-tempo-query-frontend:3200
-          jsonData:
-            httpMethod: GET
-            tracesToLogsV2: {}
-            datasourceUid: loki
-            spanStartTimeShift: '-1h'
-            spanEndTimeShift: '1h'
-            filterByTraceID: true
-            filterBySpanID: false
-          tracesToMetrics:
-            datasourceUid: prometheus
-          serviceMap:
-            datasourceUid: prometheus
-          nodeGraph:
-            enabled: true
-  testFramework:
-    enabled: false
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://monitoring-prometheus-server:80
+        isDefault: true
+        jsonData:
+          httpMethod: POST
+          timeInterval: 15s
+
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://monitoring-loki-gateway:80
+        jsonData:
+          maxLines: 1000
+
+      - name: Mimir
+        type: prometheus
+        access: proxy
+        url: http://monitoring-mimir-nginx:80/prometheus
+        jsonData:
+          httpMethod: POST
+          timeInterval: 15s
+
+      - name: Tempo
+        type: tempo
+        access: proxy
+        url: http://monitoring-tempo-query-frontend:3200
+        jsonData:
+          httpMethod: GET
+          tracesToLogsV2: {}
+          datasourceUid: loki
+          spanStartTimeShift: '-1h'
+          spanEndTimeShift: '1h'
+          filterByTraceID: true
+          filterBySpanID: false
+        tracesToMetrics:
+          datasourceUid: prometheus
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true

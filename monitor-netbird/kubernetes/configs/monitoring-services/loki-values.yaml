@@ -1,143 +1,293 @@
-loki:
-  deploymentMode: Distributed
-  
-  loki:
-    auth_enabled: false
+# Distributed deployment mode with microservices components
+# This uses the full distributed microservices architecture with individual components:
+# ingester, querier, distributor, compactor, query-frontend, etc.
+deploymentMode: Distributed
 
+loki:
+  auth_enabled: false
+
+  storage:
+    type: gcs
+    bucketNames:
+      chunks: ${loki_chunks_bucket}
+      ruler: ${loki_ruler_bucket}
+      admin: ${loki_chunks_bucket}
+    gcs:
+      chunkBufferSize: 0
+      requestTimeout: "0s"
+      enableHttp2: true
+  
+  commonConfig:
+    replication_factor: 1
+    path_prefix: /var/loki
+  
+  schemaConfig:
+    configs:
+      - from: "2025-12-01"
+        store: tsdb
+        object_store: gcs
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+  
+  limits_config:
+    retention_period: 720h
+    reject_old_samples: true
+    reject_old_samples_max_age: 168h
+    ingestion_rate_mb: 100
+    ingestion_burst_size_mb: 200
+    per_stream_rate_limit: 50MB
+    per_stream_rate_limit_burst: 100MB
+    max_entries_limit_per_query: 100000
+    max_streams_per_user: 0
+    allow_structured_metadata: true
+    volume_enabled: true
+  
+  pattern_ingester:
+    enabled: true
+  
+  ruler:
+    enable_api: true
     storage:
       type: gcs
-      bucketNames:
-        chunks: ${loki_chunks_bucket}
-        ruler: ${loki_ruler_bucket}
-        admin: ${loki_admin_bucket}
       gcs:
-        chunkBufferSize: 0
-        requestTimeout: "0s"
-        enableHttp2: true
-    
-    commonConfig:
-      replication_factor: 1
-      path_prefix: /var/loki
-    
-    schemaConfig:
-      configs:
-        - from: ${loki_schema_from_date}
-          store: tsdb
-          object_store: gcs
-          schema: v13
-          index:
-            prefix: loki_index_
-            period: 24h
-    
-    limits_config:
-      retention_period: 720h
-      reject_old_samples: true
-      reject_old_samples_max_age: 168h
-      ingestion_rate_mb: 100
-      ingestion_burst_size_mb: 200
-      per_stream_rate_limit: 50MB
-      per_stream_rate_limit_burst: 100MB
-      max_entries_limit_per_query: 100000
-      max_streams_per_user: 0
-      allow_structured_metadata: true
-      volume_enabled: true
-    
-    pattern_ingester:
-      enabled: true
-    
-    ruler:
-      enable_api: true
-      storage:
-        type: gcs
-        gcs:
-          bucket_name: ${loki_ruler_bucket}
-    
-    ingester:
-      chunk_encoding: snappy
-    
-    compactor:
-      working_directory: /var/loki/compactor 
-      compaction_interval: 10m
-      retention_enabled: true
-      retention_delete_delay: 2h
-      retention_delete_worker_count: 150
-      delete_request_store: gcs
-    
-    analytics:
-      reporting_enabled: false
+        bucket_name: ${loki_ruler_bucket}
   
-  serviceAccount:
-    create: false
-    name: ${k8s_service_account_name}
-    annotations:
-      iam.gke.io/gcp-service-account: ${gcp_service_account_email}
-  
-  singleBinary:
-    replicas: 0
-    persistence:
-      enabled: true             
-      size: 5Gi                
-      storageClass: standard-rwo
-    affinity: {}
-    
-  gateway:
-    enabled: true
-    replicas: 2
-    maxUnavailable: 1
-    service:
-      type: ClusterIP
-      port: 80
-      annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-prod
-        external-dns.alpha.kubernetes.io/hostname: loki.${monitoring_domain}
-    affinity: {}
-  
-  backend:
-    replicas: 0
-  read:
-    replicas: 0
-  write:
-    replicas: 0
   ingester:
-    replicas: 2
-    maxUnavailable: 1
-  querier:
-    replicas: 2
-    maxUnavailable: 1
-  queryFrontend:
-    replicas: 2
-    maxUnavailable: 1
-  queryScheduler:
-    replicas: 2
-    maxUnavailable: 1
-  distributor:
-    replicas: 2
-    maxUnavailable: 1
+    chunk_encoding: snappy
+  
   compactor:
-    replicas: 1
-  indexGateway:
-    replicas: 2
-    maxUnavailable: 1
-  bloomCompactor:
-    replicas: 0
-  bloomGateway:
-    replicas: 0
+    working_directory: /var/loki/compactor 
+    compaction_interval: 10m
+    retention_enabled: true
+    retention_delete_delay: 2h
+    retention_delete_worker_count: 150
+    delete_request_store: gcs
   
-  chunksCache:
-    enabled: true
-  resultsCache:
-    enabled: true
+  analytics:
+    reporting_enabled: false
+
+# Global resource limits for Loki components (optimized for resource constraints)
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+serviceAccount:
+  create: false
+  name: automation-sa
+  annotations:
+    iam.gke.io/gcp-service-account: ${gcp_service_account_email} # Replace with your GCP service account email
+
+singleBinary:
+  replicas: 0
+  persistence:
+    enabled: true             
+    size: 5Gi                
+    storageClass: standard-rwo
+  affinity: {}
   
-  minio:
+gateway:
+  enabled: true
+  replicas: 2
+  maxUnavailable: 1
+  affinity:
+    podAntiAffinity: null
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+            - linux
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+  ingress:
     enabled: false
-  
-  test:
+    ingressClassName: nginx-monitoring
+    annotations:
+      cert-manager.io/issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/hostname: loki.${monitoring_domain} # Replace with your Loki domain name (e.g., loki.yourdomain.com)
+
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+ingester:
+  replicas: 2
+  maxUnavailable: 1
+  zoneAwareReplication:
     enabled: false
-  
-  monitoring:
-    selfMonitoring:
-      enabled: false
-      grafanaAgent:
-        installOperator: false
-    lokiCanary:
-      enabled: false
+
+  affinity:
+    podAntiAffinity: null
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+            - linux
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+querier:
+  replicas: 2
+  maxUnavailable: 1
+  affinity:
+    podAntiAffinity: null
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+            - linux
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+queryFrontend:
+  replicas: 2
+  maxUnavailable: 1
+  affinity:
+    podAntiAffinity: null
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+            - linux
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+queryScheduler:
+  replicas: 2
+  maxUnavailable: 1
+  affinity:
+    podAntiAffinity: null
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+            - linux
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+distributor:
+  replicas: 2
+  maxUnavailable: 1
+  affinity:
+    podAntiAffinity: null
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+            - linux
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+compactor:
+  replicas: 1
+  affinity:
+    podAntiAffinity: null
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+            - linux
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+indexGateway:
+  replicas: 2
+  maxUnavailable: 1
+  affinity:
+    podAntiAffinity: null
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+            - linux
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+bloomCompactor:
+  replicas: 0
+bloomGateway:
+  replicas: 0
+
+chunksCache:
+  enabled: true
+resultsCache:
+  enabled: true
+
+minio:
+  enabled: false
+
+test:
+  enabled: false
+
+monitoring:
+  selfMonitoring:
+    enabled: false
+    grafanaAgent:
+      installOperator: false
+
+lokiCanary:
+  enabled: false
