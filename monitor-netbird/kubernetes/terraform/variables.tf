@@ -54,8 +54,14 @@ variable "monitoring_domain" {
 }
 
 variable "letsencrypt_email" {
-  description = "Email for Let's Encrypt notifications"
+  description = "Email address for Let's Encrypt certificate notifications"
   type        = string
+}
+
+variable "ingress_class_name" {
+  description = "Ingress class to use for all ingress resources (e.g., nginx, traefik, kong). Must match an existing IngressClass in the cluster."
+  type        = string
+  default     = "nginx"
 }
 
 variable "grafana_admin_password" {
@@ -122,4 +128,10 @@ variable "loki_schema_from_date" {
   description = "Date from which Loki schema is effective (YYYY-MM-DD)"
   type        = string
   default     = "2024-01-01"
+}
+
+variable "cert_issuer_name" {
+  description = "Name of the Cert-Manager Issuer to create/use"
+  type        = string
+  default     = "letsencrypt-prod"
 }
