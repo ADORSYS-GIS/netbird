@@ -1,6 +1,6 @@
 # Grafana Observability Stack Testing Documentation
 
-## Project: observe-472521 - GKE Deployment
+## Project: <PROJECT_ID> - GKE Deployment
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@
 ## 1. Overview
 
 ### 1.1 Purpose
-This documentation provides comprehensive testing procedures for the Grafana observability stack deployed on GKE cluster `observe-472521`. The testing ensures all components are functioning correctly.
+This documentation provides comprehensive testing procedures for the Grafana observability stack deployed on GKE cluster `<PROJECT_ID>`. The testing ensures all components are functioning correctly.
 
 ### 1.2 Stack Components
 - **Grafana**: Dashboard and visualization
@@ -328,12 +328,12 @@ docker run -d \
 gcloud auth login
 
 # Set project
-gcloud config set project observe-472521
+gcloud config set project <PROJECT_ID>
 
 # Get cluster credentials
 gcloud container clusters get-credentials <cluster-name> \
   --zone=<zone> \
-  --project=observe-472521
+  --project=<PROJECT_ID>
 
 # Verify access
 kubectl get nodes
