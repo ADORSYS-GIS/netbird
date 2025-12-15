@@ -1,0 +1,14 @@
+---
+- hosts: keycloak
+  become: yes
+  roles:
+    - role: keycloak
+      vars:
+        keycloak:
+          deploy_keycloak: true
+          external_keycloak: false
+          keycloak_host: "auth.example.com"
+          keycloak_admin_password: "SuperSecret!" # Use Ansible Vault for this in production
+          keycloak_valid_redirect_uris:
+            - "https://netbird.example.com/*"
+            - "http://localhost:53000"
