@@ -36,10 +36,46 @@ This documentation provides comprehensive testing procedures for the Grafana obs
 
 ### 2.1 Component Flow Diagram
 
-```
-External Sources → Load Balancer → Gateway → Distributor → Ingester → Storage
-                                      ↓
-                                   Querier → Query Frontend → Grafana
+```mermaid
+graph LR
+    %% Define Styles
+    classDef input fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef storage fill:#eee,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef component fill:#d4e1f5,stroke:#333,stroke-width:2px;
+    classDef grafana fill:#ff9900,stroke:#333,stroke-width:2px,color:white;
+
+    %% Nodes
+    Ext[External Sources]:::input
+    LB[Load Balancer]:::component
+    GW[Gateway]:::component
+    
+    %% Write Path Nodes
+    Dist[Distributor]:::component
+    Ing[Ingester]:::component
+    Store[(Storage)]:::storage
+
+    %% Read Path Nodes
+    Querier[Querier]:::component
+    QF[Query Frontend]:::component
+    Graf[Grafana]:::grafana
+
+    %% Flows
+    Ext --> LB
+    LB --> GW
+
+    %% Write Path (Top)
+    GW -->|Write / Push| Dist
+    Dist --> Ing
+    Ing --> Store
+
+    %% Read Path (Bottom - branching from Gateway)
+    GW -.->|Read / Pull| Querier
+    Querier --> QF
+    QF --> Graf
+
+    %% Internal Data Fetching (Implicit)
+    Querier -.->|Fetch Data| Ing
+    Querier -.->|Fetch Data| Store
 ```
 
 ### 2.2 Service Endpoints
@@ -59,59 +95,99 @@ External Sources → Load Balancer → Gateway → Distributor → Ingester → 
 ## 3. Prerequisites 
 
 ### 3.1 Required Tools Installation
+Ensure your system is updated and has basic utilities:
+code
+```sh
+sudo apt-get update
+sudo apt-get install -y curl wget unzip gnupg
+```
 
-```bash
-# Install kubectl
+1. Kubectl (Kubernetes CLI)
+Installs the latest stable release of the Kubernetes command-line tool.
+
+```sh
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+chmod +x kubectl 
+sudo mv kubectl /usr/local/bin/
+kubectl version --client
+```
 
-# Install helm
+2. Helm (Package Manager)
+Installs the official Helm script.
+
+```sh
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+```
 
-# Install jq
+3. JQ (JSON Processor)
+Useful for parsing JSON output in the terminal.
+
+```sh
 sudo apt-get install jq -y
+```
 
-# Install k6 (for load testing)
+4. k6 (Load Testing)
+Adds the official k6 repository and installs the tool.
+
+```sh
 sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
   --keyserver hkp://keyserver.ubuntu.com:80 \
   --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+
 echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | \
   sudo tee /etc/apt/sources.list.d/k6.list
-sudo apt-get update && sudo apt-get install k6
 
-# Install logcli (Loki CLI)
-# 1. Install unzip (required to extract the file)
-sudo apt-get update && sudo apt-get install -y unzip
+sudo apt-get update && sudo apt-get install k6 -y
+```
 
-# 2. Cleanup previous failed attempts
+5. LogCLI (Loki CLI)
+Installs version v3.0.0. Note: This requires unzip.
+
+```sh
+# 1. Clean up old versions
 rm -f logcli-linux-amd64.zip logcli-linux-amd64
 
-# 3. Download the specific version (v3.0.0)
+# 2. Download v3.0.0
 curl -O -L "https://github.com/grafana/loki/releases/download/v3.0.0/logcli-linux-amd64.zip"
 
-# 4. Unzip the file
+# 3. Unzip and Install
 unzip logcli-linux-amd64.zip
-
-# 5. Move it to the bin directory (Force overwrite if needed)
 sudo mv -f logcli-linux-amd64 /usr/local/bin/logcli
-
-# 6. Make it executable
 sudo chmod +x /usr/local/bin/logcli
 
-# 7. Verify
-logcli --version
+# 4. Clean up zip file
+rm logcli-linux-amd64.zip
 
-# Install promtool
+# 5. Verify
+logcli --version
+```
+6. Promtool (Prometheus CLI)
+Installs promtool from the Prometheus v2.45.0 release.
+
+```sh
 wget https://github.com/prometheus/prometheus/releases/download/v2.45.0/prometheus-2.45.0.linux-amd64.tar.gz
 tar -xzf prometheus-2.45.0.linux-amd64.tar.gz
+
+# Install binary
 sudo cp prometheus-2.45.0.linux-amd64/promtool /usr/local/bin/
 
-# Install alloy(ubuntu server)
-sudo apt-get update
-sudo apt-get install -y gpg curl wget
+# Cleanup
+rm -rf prometheus-2.45.0.linux-amd64 prometheus-2.45.0.linux-amd64.tar.gz
+promtool --version
+```
+
+7. Grafana Alloy (Collector)
+Installs the Grafana Alloy collector service on Ubuntu Server.
+
+```sh
+# Add GPG Key
 sudo mkdir -p /etc/apt/keyrings/
 wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
+
+# Add Repository
 echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+
+# Install and Start
 sudo apt-get update
 sudo apt-get install -y alloy
 sudo systemctl enable alloy
@@ -217,7 +293,7 @@ kubectl exec -n observablitiy <PVC_NAME> -- df -h
 
 <a id="component-testing"></a>
 
-## 5. Component Testing 
+## 5. Component Testing(still on cluster) 
 
 ### 5.1 Loki Testing (Log Aggregation)
 
@@ -376,6 +452,10 @@ curl -s "http://localhost:3100/metrics" | grep loki_distributor_lines_received_t
 # Kill port-forward when done
 kill $PF_PID
 ```
+
+The output is as follows:
+
+![img](./img/logcli.png)
 
 #### 5.1.4 Verify Loki Components
 
@@ -713,8 +793,31 @@ curl -s http://localhost:9090/api/v1/targets | \
 # Verify Prometheus configuration
 curl -s http://localhost:9090/api/v1/status/config | jq '.data.yaml' | grep -A 10 "job_name"
 
+# Check if Scrapers are Working (up metric)
+
+# Returns the list of all successful scrapes
+promtool query instant http://localhost:9090 'up == 1'
+
+# Check the count to ensure it matches your expectations (e.g., you expect at least 10 pods).
+
+promtool query instant http://localhost:9090 'count(up == 1)'
+
+# Check Data Ingestion (Rate). Verify that samples are actually being appended to the database over time.
+# Check the rate of samples appended in the last 5 minutes
+promtool query instant http://localhost:9090 'rate
+(prometheus_tsdb_head_samples_appended_total[5m])'
+
+# Check for Firing Alerts. See if the system is currently detecting any issues.
+promtool query instant http://localhost:9090 'ALERTS{alertstate="firing"}'
+
 pkill -f "port-forward.*9090"
 ```
+The Output is as follows:
+
+![img](./img/prom1.png)
+
+![img](./img/prom2.png)
+
 
 #### 5.4.2 Test Remote Write to Mimir
 
