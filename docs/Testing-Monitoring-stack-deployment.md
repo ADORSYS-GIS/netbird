@@ -95,41 +95,121 @@ graph LR
 ## 3. Prerequisites 
 
 ### 3.1 Required Tools Installation
-Ensure your system is updated and has basic utilities:
-code
-```sh
+
+#### 3.1.0 Detect Your OS
+
+```bash
+# Detect OS
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+  OS="linux"
+  if grep -qi ubuntu /etc/os-release; then
+    DISTRO="ubuntu"
+  elif grep -qi debian /etc/os-release; then
+    DISTRO="debian"
+  elif grep -qi centos /etc/os-release; then
+    DISTRO="centos"
+  fi
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  OS="macos"
+fi
+
+echo "Detected OS: $OS, Distro: $DISTRO"
+```
+
+#### 3.1.1 Install Base Utilities
+
+**Ubuntu/Debian:**
+```bash
 sudo apt-get update
 sudo apt-get install -y curl wget unzip gnupg
 ```
 
-1. Kubectl (Kubernetes CLI)
-Installs the latest stable release of the Kubernetes command-line tool.
+**CentOS/RHEL:**
+```bash
+sudo yum install -y curl wget unzip gnupg
+```
 
-```sh
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+**macOS:**
+```bash
+brew install curl wget unzip gnupg
+```
+
+#### 3.1.2 Kubectl (Kubernetes CLI)
+
+**Linux (amd64/arm64):**
+```bash
+# Detect architecture
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl"
 chmod +x kubectl 
 sudo mv kubectl /usr/local/bin/
 kubectl version --client
 ```
 
-2. Helm (Package Manager)
-Installs the official Helm script.
+**macOS:**
+```bash
+# Intel/Apple Silicon detection
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/arm64/arm64/')
 
-```sh
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/darwin/${ARCH}/kubectl"
+chmod +x kubectl 
+sudo mv kubectl /usr/local/bin/
+kubectl version --client
+```
+
+**or via Package Manager:**
+```bash
+# Ubuntu/Debian
+sudo apt-get install -y kubectl
+
+# macOS
+brew install kubectl
+
+# CentOS
+sudo yum install -y kubectl
+```
+
+#### 3.1.3 Helm (Package Manager)
+
+**All Platforms (Universal Script):**
+```bash
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 ```
 
-3. JQ (JSON Processor)
-Useful for parsing JSON output in the terminal.
+**or via Package Manager:**
+```bash
+# Ubuntu/Debian
+sudo apt-get install -y helm
 
-```sh
-sudo apt-get install jq -y
+# macOS
+brew install helm
+
+# CentOS
+sudo yum install -y helm
 ```
 
-4. k6 (Load Testing)
-Adds the official k6 repository and installs the tool.
+#### 3.1.4 JQ (JSON Processor)
 
-```sh
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install -y jq
+```
+
+**macOS:**
+```bash
+brew install jq
+```
+
+**CentOS/RHEL:**
+```bash
+sudo yum install -y jq
+```
+
+#### 3.1.5 k6 (Load Testing)
+
+**Ubuntu/Debian:**
+```bash
 sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
   --keyserver hkp://keyserver.ubuntu.com:80 \
   --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
@@ -137,62 +217,108 @@ sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.g
 echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | \
   sudo tee /etc/apt/sources.list.d/k6.list
 
-sudo apt-get update && sudo apt-get install k6 -y
+sudo apt-get update && sudo apt-get install -y k6
 ```
 
-5. LogCLI (Loki CLI)
-Installs version v3.0.0. Note: This requires unzip.
+**macOS:**
+```bash
+brew install k6
+```
 
-```sh
-# 1. Clean up old versions
-rm -f logcli-linux-amd64.zip logcli-linux-amd64
+**CentOS/RHEL:**
+```bash
+sudo yum install -y https://dl.k6.io/rpm/repo.rpm
+sudo yum install -y k6
+```
 
-# 2. Download v3.0.0
-curl -O -L "https://github.com/grafana/loki/releases/download/v3.0.0/logcli-linux-amd64.zip"
+#### 3.1.6 LogCLI (Loki CLI)
 
-# 3. Unzip and Install
-unzip logcli-linux-amd64.zip
-sudo mv -f logcli-linux-amd64 /usr/local/bin/logcli
+**Universal (All Platforms):**
+```bash
+# Detect OS and Architecture
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+
+# Clean up old versions
+rm -f logcli-${OS}-${ARCH}.zip logcli-${OS}-${ARCH}
+
+# Download v3.0.0
+curl -O -L "https://github.com/grafana/loki/releases/download/v3.0.0/logcli-${OS}-${ARCH}.zip"
+
+# Unzip and Install
+unzip logcli-${OS}-${ARCH}.zip
+sudo mv -f logcli-${OS}-${ARCH} /usr/local/bin/logcli
 sudo chmod +x /usr/local/bin/logcli
 
-# 4. Clean up zip file
-rm logcli-linux-amd64.zip
+# Clean up
+rm logcli-${OS}-${ARCH}.zip
 
-# 5. Verify
+# Verify
 logcli --version
 ```
-6. Promtool (Prometheus CLI)
-Installs promtool from the Prometheus v2.45.0 release.
 
-```sh
-wget https://github.com/prometheus/prometheus/releases/download/v2.45.0/prometheus-2.45.0.linux-amd64.tar.gz
-tar -xzf prometheus-2.45.0.linux-amd64.tar.gz
+#### 3.1.7 Promtool (Prometheus CLI)
+
+**Universal (All Platforms):**
+```bash
+# Detect OS and Architecture
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
+
+# Download and extract
+wget https://github.com/prometheus/prometheus/releases/download/v2.45.0/prometheus-2.45.0.${OS}-${ARCH}.tar.gz
+tar -xzf prometheus-2.45.0.${OS}-${ARCH}.tar.gz
 
 # Install binary
-sudo cp prometheus-2.45.0.linux-amd64/promtool /usr/local/bin/
+sudo cp prometheus-2.45.0.${OS}-${ARCH}/promtool /usr/local/bin/
 
 # Cleanup
-rm -rf prometheus-2.45.0.linux-amd64 prometheus-2.45.0.linux-amd64.tar.gz
+rm -rf prometheus-2.45.0.${OS}-${ARCH} prometheus-2.45.0.${OS}-${ARCH}.tar.gz
 promtool --version
 ```
 
-7. Grafana Alloy (Collector)
-Installs the Grafana Alloy collector service on Ubuntu Server.
+#### 3.1.8 Grafana Alloy (Collector)
 
-```sh
-# Add GPG Key
+**Ubuntu/Debian:**
+```bash
 sudo mkdir -p /etc/apt/keyrings/
 wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
 
-# Add Repository
 echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
 
-# Install and Start
 sudo apt-get update
 sudo apt-get install -y alloy
 sudo systemctl enable alloy
 sudo systemctl start alloy
 sudo systemctl status alloy
+```
+
+**macOS:**
+```bash
+brew tap grafana/grafana
+brew install grafana-alloy
+
+# Start service (requires Homebrew Services)
+brew services start grafana-alloy
+brew services info grafana-alloy
+```
+
+**CentOS/RHEL:**
+```bash
+sudo yum install -y https://rpm.grafana.com/grafana-alloy-latest.x86_64.rpm
+sudo systemctl enable alloy
+sudo systemctl start alloy
+sudo systemctl status alloy
+```
+
+**Docker (Any OS):**
+```bash
+docker run -d \
+  --name alloy \
+  --restart always \
+  -p 12345:12345 \
+  -v /path/to/config.alloy:/etc/alloy/config.alloy \
+  grafana/alloy:latest run --server.http.listen-
 ```
 
 ### 3.2 GKE Cluster Access
