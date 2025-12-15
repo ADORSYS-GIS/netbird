@@ -78,7 +78,7 @@ extraScrapeConfigs: |
         labels:
           instance: 'grafana'
           cluster: 'k8s'
-  
+
   - job_name: mimir-distributor
     static_configs:
       - targets: ['monitoring-mimir-distributor:8080']
