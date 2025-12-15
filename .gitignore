@@ -50,3 +50,6 @@ monitor-netbird/kubernetes/helm/monitoring-stack/charts/_loki/
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+.env
+.quodo
+.vivus
