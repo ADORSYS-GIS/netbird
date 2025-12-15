@@ -1,6 +1,6 @@
 serviceAccount:
   create: false
-  name: automation-sa
+  name: ${k8s_service_account_name}
   annotations:
     iam.gke.io/gcp-service-account: ${gcp_service_account_email} # Replace with your GCP service account email
 
@@ -27,9 +27,9 @@ service:
 
 ingress:
   enabled: false
-  ingressClassName: nginx-monitoring
+  ingressClassName: ${ingress_class_name}
   annotations:
-    cert-manager.io/issuer: letsencrypt-prod
+    cert-manager.io/issuer: ${cert_issuer_name}
     external-dns.alpha.kubernetes.io/hostname: grafana.${monitoring_domain} # Replace with your Grafana domain name (e.g., grafana.yourdomain.com)
 
 env:
