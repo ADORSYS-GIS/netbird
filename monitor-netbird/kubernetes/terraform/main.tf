@@ -53,7 +53,7 @@ locals {
     "tempo-traces",
   ]
 
-  bucket_prefix         = "${var.project_id}"
+  bucket_prefix         = var.project_id
   loki_schema_from_date = var.loki_schema_from_date
 }
 
@@ -147,8 +147,7 @@ resource "google_service_account_iam_member" "workload_identity_binding" {
   member             = "serviceAccount:${var.project_id}.svc.id.goog[${var.namespace}/${var.k8s_service_account_name}]"
 }
 
-# Cert-Manager ClusterIssuer
-# Cert-Manager Issuer (Namespaced for Automation)
+# Cert-Manager Issuer
 resource "kubernetes_manifest" "letsencrypt_issuer" {
   manifest = {
     apiVersion = "cert-manager.io/v1"
