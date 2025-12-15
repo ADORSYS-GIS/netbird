@@ -23,6 +23,7 @@
 .DS_Store
 Thumbs.db
 
+
 # Ignore editor/IDE files
 .vscode/
 .idea/
