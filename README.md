@@ -1,4 +1,4 @@
-# NetBird
+# NetBird Deployment
 
 NetBird is an open-source VPN solution that allows you to create secure private networks for your teams and infrastructure. It uses WireGuard® to create a secure overlay network, enabling direct, peer-to-peer connections between your devices, regardless of their physical location.
 
