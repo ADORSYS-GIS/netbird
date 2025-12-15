@@ -32,9 +32,14 @@ variable "k8s_service_account_name" {
 }
 
 variable "gcp_service_account_name" {
-  description = "GCP Service Account Name"
+  description = "GCP Service Account Name (6-30 chars, lowercase, start with letter, end with letter/number)"
   type        = string
   default     = "gke-observability-sa"
+
+  validation {
+    condition     = can(regex("^[a-z](?:[-a-z0-9]{4,28}[a-z0-9])$", var.gcp_service_account_name))
+    error_message = "GCP service account name must be 6-30 characters, start with a lowercase letter, contain only lowercase letters, numbers, and hyphens, and end with a lowercase letter or number."
+  }
 }
 
 variable "environment" {
