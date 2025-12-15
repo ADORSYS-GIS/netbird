@@ -1,17 +1,17 @@
 # NetBird with Caddy Deployment Automation
 
-This directory contains Ansible playbooks and roles to automate the deployment of NetBird with Caddy as a reverse proxy. Caddy handles SSL termination and routes traffic to the various NetBird services.
+This directory contains Ansible playbooks and roles to automate the deployment of NetBird with Caddy as a reverse proxy and keycloak as the IdP.. Caddy handles SSL termination and routes traffic to the various NetBird services.
 
 ## Prerequisite
 
 - [Docker](https://docs.docker.com/engine/install/)
 - [Docker Compose](https://docs.docker.com/engine/install/)
+- [Keycloak](https://www.keycloak.org/getting-started/getting-started-docker)
 - An Ubuntu 20.04+ or Debian 11+ server.
 - Ansible installed on your control machine.
 - SSH access to the target server with a user that has `sudo` privileges.
 - A registered domain name pointing to the public IP address of your server.
 - An email address for Caddy's ACME (Let's Encrypt) certificate registration.
-- And IdP ([Keycloak](https://docs.netbird.io/selfhosted/identity-providers/keycloak))
 
 ## Features
 
@@ -22,6 +22,7 @@ This directory contains Ansible playbooks and roles to automate the deployment o
 - **Templated Configuration**: All configuration files (`Caddyfile`, `docker-compose.yml`, `management.json`, `turnserver.conf`) are generated from Jinja2 templates, allowing for dynamic variable substitution.
 
 - **Keycloak Integration (Placeholders)**: Includes placeholders for Keycloak (OpenID Connect) configuration, allowing for easy integration with an external Identity Provider.
+To setup keycloak for netbird follow this link ([Keycloak](https://docs.netbird.io/selfhosted/identity-providers/keycloak))
 
 ## Directory Structure
 
@@ -67,7 +68,8 @@ all:
 - **`inventory/group_vars/all.yml`**:
 
 Update the following variables:
-        
+
+
 ```yaml
 ---
 # NetBird Domain Configuration
@@ -119,5 +121,3 @@ ansible-playbook -i inventory/hosts.yml playbook.yml --tags "netbird-caddy-deplo
 - **Caddy Certificate Issues**: Check Caddy logs for errors related to Let's Encrypt. Ensure your domain's DNS records are correctly pointing to your server's public IP.
 
 - **Docker Service Issues**: Use `docker-compose logs` to inspect the logs of individual NetBird services for errors.
-
-
