@@ -28,7 +28,7 @@ loki_version = "6.16.0"
 
 # Optional Components (set to true if you want Terraform to install these)
 install_cert_manager  = false
-install_nginx_ingress = true
+install_nginx_ingress = false
 
 # Loki Schema From Date
 loki_schema_from_date = "2025-12-13"
