@@ -3,6 +3,10 @@
 # ingester, querier, distributor, compactor, query-frontend, etc.
 deploymentMode: Distributed
 
+# Explicitly disable Loki Canary
+lokiCanary:
+  enabled: false
+
 loki:
   auth_enabled: false
 
@@ -72,14 +76,14 @@ loki:
 resources:
   requests:
     cpu: 100m
-    memory: 256Mi
-  limits:
-    cpu: 500m
     memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1.5Gi
 
 serviceAccount:
   create: false
-  name: automation-sa
+  name: ${k8s_service_account_name}
   annotations:
     iam.gke.io/gcp-service-account: ${gcp_service_account_email} # Replace with your GCP service account email
 
@@ -108,15 +112,15 @@ gateway:
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 300m
       memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1.5Gi
   ingress:
     enabled: false
-    ingressClassName: nginx-monitoring
+    ingressClassName: ${ingress_class_name}
     annotations:
-      cert-manager.io/issuer: letsencrypt-prod
+      cert-manager.io/issuer: ${cert_issuer_name}
       external-dns.alpha.kubernetes.io/hostname: loki.${monitoring_domain} # Replace with your Loki domain name (e.g., loki.yourdomain.com)
 
 backend:
@@ -146,8 +150,8 @@ ingester:
       cpu: 100m
       memory: 512Mi
     limits:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 1000m
+      memory: 1.5Gi
 querier:
   replicas: 2
   maxUnavailable: 1
@@ -166,8 +170,8 @@ querier:
       cpu: 100m
       memory: 512Mi
     limits:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 1000m
+      memory: 1.5Gi
 queryFrontend:
   replicas: 2
   maxUnavailable: 1
@@ -184,10 +188,10 @@ queryFrontend:
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 300m
       memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1.5Gi
 queryScheduler:
   replicas: 2
   maxUnavailable: 1
@@ -204,10 +208,10 @@ queryScheduler:
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 300m
       memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1.5Gi
 distributor:
   replicas: 2
   maxUnavailable: 1
@@ -226,8 +230,8 @@ distributor:
       cpu: 100m
       memory: 512Mi
     limits:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 1000m
+      memory: 1.5Gi
 compactor:
   replicas: 1
   affinity:
@@ -243,10 +247,10 @@ compactor:
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 300m
       memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1.5Gi
 indexGateway:
   replicas: 2
   maxUnavailable: 1
@@ -263,10 +267,10 @@ indexGateway:
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 300m
       memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1.5Gi
 bloomCompactor:
   replicas: 0
 bloomGateway:
@@ -288,6 +292,5 @@ monitoring:
     enabled: false
     grafanaAgent:
       installOperator: false
-
-lokiCanary:
-  enabled: false
+  lokiCanary:
+    enabled: false
