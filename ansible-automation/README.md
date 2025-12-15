@@ -11,6 +11,7 @@ This directory contains Ansible playbooks and roles to automate the deployment o
 - SSH access to the target server with a user that has `sudo` privileges.
 - A registered domain name pointing to the public IP address of your server.
 - An email address for Caddy's ACME (Let's Encrypt) certificate registration.
+- And IdP ([Keycloak](https://docs.netbird.io/selfhosted/identity-providers/keycloak))
 
 ## Features
 
@@ -50,7 +51,7 @@ cd netbird/ansible-automation
 
 2\. **Configure your deployment variables**:
 
-Edit the `inventory/hosts.yml` and `inventory/group_vars/all.yml` files to match your environment.
+Edit the `inventory/hosts.yml` and `inventory/group_vars/all.yml` files to match your environment and your keycloak credentails.
 
 - **`inventory/hosts.yml`**:
 
