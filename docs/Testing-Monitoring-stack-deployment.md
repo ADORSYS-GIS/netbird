@@ -35,6 +35,7 @@ This documentation provides comprehensive testing procedures for the Grafana obs
 ## 2. Architecture 
 
 ### 2.1 Component Flow Diagram
+
 ```mermaid
 graph LR
     %% Define Styles
@@ -94,20 +95,17 @@ graph LR
 
 ### 3.1 Required Tools Installation
 
-#### 3.1.2 Kubectl (Kubernetes CLI)
-**https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/**
-#### 3.1.3 Helm (Package Manager)
-**https://helm.sh/docs/intro/install/**
-#### 3.1.4 JQ (JSON Processor)
-**https://lindevs.com/install-jq-on-ubuntu**
-#### 3.1.6 LogCLI (Loki CLI)
-**https://grafana.com/docs/loki/latest/query/logcli/getting-started/**
-#### 3.1.7 Promtool (Prometheus CLI)
+#### 3.1.1 Kubectl (Kubernetes CLI)
+[click](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/) here to install
+#### 3.1.2 Helm (Package Manager)
+[click](https://helm.sh/docs/intro/install/) here to install
+#### 3.1.3 JQ (JSON Processor)
+[click](https://lindevs.com/install-jq-on-ubuntu) here to install
+#### 3.1.4 LogCLI (Loki CLI)
+[click](https://grafana.com/docs/loki/latest/query/logcli/getting-started/) to install
+#### 3.1.5 Grafana Alloy (Collector)
+[click](https://grafana.com/docs/alloy/latest/set-up/install/linux/) here to install
 
-**https://prometheus.io/docs/prometheus/latest/installation/**
-
-#### 3.1.8 Grafana Alloy (Collector)
-**https://grafana.com/docs/alloy/latest/set-up/install/linux/**
 ### 3.2 GKE Cluster Access
 
 ```bash
