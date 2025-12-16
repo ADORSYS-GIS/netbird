@@ -1,122 +1,167 @@
-mimir-distributed:
-  serviceAccount:
-    create: false
-    name: observability-sa
-    annotations:
-      iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL>
-  
-  mimir:
-    structuredConfig:
-      multitenancy_enabled: false
-      
-      # GCS Storage Configuration
-      common:
-        storage:
-          backend: gcs
-          gcs:
-            bucket_name: <MIMIR_BLOCKS_BUCKET_NAME>
-      
-      blocks_storage:
+serviceAccount:
+  create: false
+  name: ${k8s_service_account_name}
+  annotations:
+    iam.gke.io/gcp-service-account: ${gcp_service_account_email}
+
+mimir:
+  structuredConfig:
+    multitenancy_enabled: false
+
+    
+    # GCS Storage Configuration
+    common:
+      storage:
         backend: gcs
         gcs:
-          bucket_name: <MIMIR_BLOCKS_BUCKET_NAME>
-        tsdb:
-          dir: /data/mimir-data/tsdb
-          retention_period: 720h
-        bucket_store:
-          sync_dir: /data/mimir-data/tsdb-sync
-      
-      alertmanager_storage:
-        backend: gcs
-        gcs:
-          bucket_name: <MIMIR_RULER_BUCKET_NAME>
-      
-      ruler_storage:
-        backend: gcs
-        gcs:
-          bucket_name: <MIMIR_RULER_BUCKET_NAME>
-      
-      server:
-        log_level: info
-      
-      limits:
-        ingestion_rate: 80000
-        max_global_series_per_user: 0
-      
-      compactor:
-        data_dir: /data/mimir-data/compactor
-        compaction_interval: 30m
-      
-      ingester:
-        ring:
-          replication_factor: 1
-  
-  distributor:
-    replicas: 1
-  
-  ingester:
-    replicas: 1
-    persistentVolume:
-      enabled: true
-      size: 3Gi
-    zoneAwareReplication:
-      enabled: false
-  
-  querier:
-    replicas: 1
-  
-  query_frontend:
-    replicas: 1
-  
-  store_gateway:
-    replicas: 1
-    persistentVolume:
-      enabled: true
-      size: 3Gi
-    zoneAwareReplication:
-      enabled: false
-  
-  compactor:
-    replicas: 1
-    persistentVolume:
-      enabled: true
-      size: 3Gi
-  
-  ruler:
-    replicas: 0
-    enabled: false
-  
-  alertmanager:
-    replicas: 0
-    enabled: false
-  
-  query_scheduler:
-    replicas: 0
-    enabled: false
-  
-  overrides_exporter:
-    replicas: 1
-  
-  nginx:
-    replicas: 1
-    service:
-      type: ClusterIP
-      port: 80
-      annotations:
-        cert-manager.io/cluster-issuer: letsencrypt-prod
-        external-dns.alpha.kubernetes.io/hostname: mimir.<YOUR_MONITORING_DOMAIN>
-  
-  minio:
-    enabled: false
-  
-  memcached:
-    enabled: false
-  memcached-queries:
-    enabled: false
-  memcached-metadata:
-    enabled: false
-  memcached-results:
-    enabled: false
-  
-  rollout_operator:
+          bucket_name: ${mimir_blocks_bucket}
+    
+    blocks_storage:
+      backend: gcs
+      gcs:
+        bucket_name: ${mimir_blocks_bucket}
+      tsdb:
+        dir: /data/mimir-data/tsdb
+        retention_period: 720h
+      bucket_store:
+        sync_dir: /data/mimir-data/tsdb-sync
+    
+    alertmanager_storage:
+      backend: gcs
+      gcs:
+        bucket_name: ${mimir_ruler_bucket}
+    
+    ruler_storage:
+      backend: gcs
+      gcs:
+        bucket_name: ${mimir_ruler_bucket}
+    
+    server:
+      log_level: info
+    
+    limits:
+      ingestion_rate: 80000
+      max_global_series_per_user: 0
+    
+    compactor:
+      data_dir: /data/mimir-data/compactor
+      compaction_interval: 30m
+    
+    ingester:
+      ring:
+        replication_factor: 1
+
+distributor:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+ingester:
+  replicas: 1
+  persistentVolume:
     enabled: true
+    size: 50Gi
+    storageClass: standard-rwo
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 1
+      memory: 3Gi  # Limit must be >= request, optimized for resource constraints
+  zoneAwareReplication:
+    enabled: false
+
+querier:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+query_frontend:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+store_gateway:
+  replicas: 1
+  persistentVolume:
+    enabled: true
+    size: 50Gi
+    storageClass: standard-rwo
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 2Gi  # Limit must be >= request
+  zoneAwareReplication:
+    enabled: false
+
+compactor:
+  replicas: 1
+  persistentVolume:
+    enabled: true
+    size: 300Gi
+    storageClass: standard-rwo
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 1
+      memory: 3Gi  # Limit must be >= request, optimized for memory constraints
+
+ruler:
+  replicas: 0
+  enabled: false
+
+alertmanager:
+  replicas: 0
+  enabled: false
+
+query_scheduler:
+  replicas: 0
+  enabled: false
+
+overrides_exporter:
+  replicas: 1
+
+nginx:
+  replicas: 1
+  ingress:
+    enabled: false
+    ingressClassName: ${ingress_class_name}
+    annotations:
+      cert-manager.io/issuer: ${cert_issuer_name}
+      external-dns.alpha.kubernetes.io/hostname: mimir.${monitoring_domain}
+
+minio:
+  enabled: false
+
+memcached:
+  enabled: false
+memcached-queries:
+  enabled: false
+memcached-metadata:
+  enabled: false
+memcached-results:
+  enabled: false
+
+rollout_operator:
+  enabled: false

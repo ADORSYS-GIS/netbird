@@ -1,90 +1,109 @@
-tempo-distributed:
-  serviceAccount:
-    create: false
-    name: observability-sa
-    annotations:
-      iam.gke.io/gcp-service-account: <GCP_SERVICE_ACCOUNT_EMAIL>
+# Service Account
+serviceAccount:
+  create: false
+  name: ${k8s_service_account_name}
+  annotations:
+    iam.gke.io/gcp-service-account: ${gcp_service_account_email}
 
-  # Global Overrides
-  global_overrides:
-    per_tenant_override_config: /runtime-config/overrides.yaml
-    defaults:
-      metrics_generator:
-        processors: [service-graphs, span-metrics]
+# Global Overrides
+global_overrides:
+  per_tenant_override_config: /runtime-config/overrides.yaml
+  defaults:
+    metrics_generator:
+      processors: [service-graphs, span-metrics]
 
-  # Storage (GCS)
-  storage:
-    trace:
-      backend: gcs
-      gcs:
-        bucket_name: <GCS_BUCKET_NAME>
-        chunk_buffer_size: 10485760
-    wal:
-      path: /var/tempo/wal
+# Storage (GCS)
+storage:
+  trace:
+    backend: gcs
+    gcs:
+      bucket_name: ${tempo_traces_bucket}
+      chunk_buffer_size: 10485760
+  wal:
+    path: /var/tempo/wal
 
-  # Enable OTLP Receivers (This automatically exposes ports on Service)
-  traces:
-    otlp:
-      grpc:
-        enabled: true
-      http:
-        enabled: true
-    jaeger:
-      thriftCompact:
-        enabled: true
-      thriftHttp:
-        enabled: true
-    zipkin:
+# Enable OTLP Receivers (This automatically exposes ports on Service)
+traces:
+  otlp:
+    grpc:
       enabled: true
-
-  # Distributor
-  distributor:
-    replicas: 1
-    ring:
-      replication_factor: 1
-    config:
-      log_received_spans:
-        enabled: false
-
-  # Ingester
-  ingester:
-    replicas: 1
-    config:
-      replication_factor: 1
-      trace_idle_period: 10s
-      max_block_bytes: 1_000_000
-      max_block_duration: 5m
-
-  # Compactor
-  compactor:
-    replicas: 1
-    config:
-      compaction:
-        block_retention: 720h
-
-  # Querier
-  querier:
-    replicas: 1
-
-  # Query Frontend
-  queryFrontend:
-    replicas: 1
-    config:
-      search:
-        duration_slo: 5s
-        throughput_bytes_slo: 1.074e+09
-
-  # Gateway
-  gateway:
+    http:
+      enabled: true
+  jaeger:
+    thriftCompact:
+      enabled: true
+    thriftHttp:
+      enabled: true
+  zipkin:
     enabled: true
-    replicas: 1
-    ingress:
+
+# Distributor
+distributor:
+  replicas: 1
+  ring:
+    replication_factor: 1
+  config:
+    log_received_spans:
       enabled: false
-    service:
-      type: ClusterIP
 
-  memcached:
-    enabled: true
+# Ingester
+ingester:
+  replicas: 1
+  config:
+    replication_factor: 1
+    trace_idle_period: 10s
+    max_block_bytes: 1_000_000
+    max_block_duration: 5m
 
-  memcachedExporter:
+# Compactor
+compactor:
+  replicas: 1
+  config:
+    compaction:
+      block_retention: 720h
+
+# Querier
+querier:
+  replicas: 1
+
+# Query Frontend
+queryFrontend:
+  replicas: 1
+  config:
+    search:
+      duration_slo: 5s
+      throughput_bytes_slo: 1.074e+09
+
+# Gateway
+gateway:
+  enabled: true
+  replicas: 1
+  ingress:
     enabled: false
+    ingressClassName: "${ingress_class_name}"
+    annotations:
+    annotations:
+      cert-manager.io/issuer: "${cert_issuer_name}"
+      external-dns.alpha.kubernetes.io/hostname: tempo.${monitoring_domain}
+  grpcIngress:
+    enabled: false
+    ingressClassName: "${ingress_class_name}"
+    annotations:
+    annotations:
+      cert-manager.io/issuer: "${cert_issuer_name}"
+  service:
+    type: ClusterIP
+
+memcached:
+  enabled: true
+
+memcachedExporter:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1.5Gi  # Optimized for resource constraints
