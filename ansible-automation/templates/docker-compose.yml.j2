@@ -33,7 +33,7 @@ services:
   # This service provides the web-based user interface for managing NetBird.
   dashboard:
     <<: *default
-    image: netbirdio/dashboard:latest
+    image: netbirdio/dashboard:v2.3.0
     ports:
       - 8081:80 # Expose internal port 80 to host port 8081 (Caddy will proxy to internal 80).
     networks:
@@ -57,7 +57,7 @@ services:
   # The Signal service is crucial for establishing peer-to-peer connections between NetBird clients.
   signal:
     <<: *default
-    image: netbirdio/signal:latest
+    image: netbirdio/signal:v0.29.3
     networks:
       - netbird
     volumes:
@@ -69,7 +69,7 @@ services:
   # This service handles the core logic, user management, and network configuration for NetBird.
   management:
     <<: *default
-    image: netbirdio/management:latest
+    image: netbirdio/management:v0.29.3
     depends_on:
       - dashboard # Dependency on dashboard (though typically management starts first).
     networks:
@@ -96,7 +96,7 @@ services:
   # The Relay service facilitates peer-to-peer connections, especially for clients behind NAT.
   relay:
     <<: *default
-    image: netbirdio/relay:latest
+    image: netbirdio/relay:v0.29.3
     networks:
       - netbird
     environment:
@@ -111,7 +111,7 @@ services:
   # CoTURN assists in NAT traversal for peer-to-peer connections, allowing clients to discover their public IP.
   coturn:
     <<: *default
-    image: coturn/coturn:latest
+    image: coturn/coturn:4.6.2-alpine
     volumes:
       - ./turnserver.conf:/etc/turnserver.conf:ro # Mount the turnserver.conf configuration file.
     network_mode: host # CoTURN requires host network mode for proper NAT traversal.

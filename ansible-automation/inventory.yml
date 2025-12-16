@@ -8,6 +8,7 @@ all:
         netbird-primary:
           ansible_host: YOUR_SERVER_IP
           ansible_user: YOUR_USERNAME
+          ansible_ssh_private_key_file: /path/to/your/ssh/key # [NEW] Path to your private SSH key
       vars:
         # General NetBird Configuration
         netbird_domain: "your-domain.com"
@@ -19,7 +20,7 @@ all:
         netbird_auth_authority: "https://your.keycloak.domain/realms/your-realm"
         
         # Secrets - IMPORTANT: Replace with strong, randomly generated secrets
-        # For production, use Ansible Vault to encrypt these
+        # For production, consider using Ansible Vault
         netbird_management_secret: "YOUR_MANAGEMENT_SECRET"
         netbird_relay_secret: "YOUR_RELAY_SECRET"
         netbird_turn_secret: "YOUR_TURN_SECRET"

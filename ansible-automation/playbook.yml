@@ -6,10 +6,27 @@
 - name: Deploy NetBird with Caddy Reverse Proxy
   hosts: netbird_servers
   become: true
-  
+  gather_facts: true
+
   tasks:
+    # Pre-flight Checklist
+    - name: Pre-flight | Check if Docker is installed and running
+      ansible.builtin.shell: docker info
+      register: docker_check
+      changed_when: false
+      failed_when: docker_check.rc != 0
+      ignore_errors: false
+
+    - name: Pre-flight | Validate required variables
+      ansible.builtin.assert:
+        that:
+          - netbird_domain is defined
+          - netbird_management_secret is defined
+          - netbird_relay_secret is defined
+          - netbird_turn_secret is defined
+        fail_msg: "One or more required variables are missing. Please check your inventory."
+
     # Task: Create the main deployment directory for NetBird.
-    # This directory will host all the generated configuration files and Docker Compose setup.
     - name: Create NetBird deployment directory
       ansible.builtin.file:
         path: /opt/netbird
@@ -17,45 +34,45 @@
         mode: '0755'
 
     # Task: Generate the Caddyfile from its Jinja2 template.
-    # The Caddyfile configures the Caddy reverse proxy for NetBird services.
     - name: Generate Caddyfile
       ansible.builtin.template:
         src: templates/Caddyfile.j2
         dest: /opt/netbird/Caddyfile
         mode: '0644'
+      tags: config
 
     # Task: Generate the docker-compose.yml file from its Jinja2 template.
-    # This file defines all the Docker services required for NetBird and Caddy.
     - name: Generate docker-compose.yml
       ansible.builtin.template:
         src: templates/docker-compose.yml.j2
         dest: /opt/netbird/docker-compose.yml
         mode: '0644'
+      tags: config
 
     # Task: Generate the management.json file from its Jinja2 template.
-    # This file contains the core configuration for the NetBird management service.
     - name: Generate management.json
       ansible.builtin.template:
         src: templates/management.json.j2
         dest: /opt/netbird/management.json
         mode: '0644'
+      tags: config
 
     # Task: Generate the turnserver.conf file from its Jinja2 template.
-    # This file configures the CoTURN STUN/TURN server.
     - name: Generate turnserver.conf
       ansible.builtin.template:
         src: templates/turnserver.conf.j2
         dest: /opt/netbird/turnserver.conf
         mode: '0644'
+      tags: config
 
     # Task: Start NetBird services using Docker Compose.
-    # This task brings up all the defined services, including Caddy, Dashboard, Management, Signal, Relay, and CoTURN.
     - name: Start NetBird services with Docker Compose
-      community.docker.docker_compose:
+      community.docker.docker_compose_v2:
         project_src: /opt/netbird
         state: present
+        pull: always
+        remove_orphans: true
       environment:
-        # Pass environment variables to the Docker Compose services.
         NETBIRD_DOMAIN: "{{ netbird_domain }}"
         NETBIRD_CADDY_EMAIL: "{{ netbird_caddy_email }}"
         NETBIRD_AUTH_AUDIENCE: "{{ netbird_auth_audience }}"
