@@ -35,14 +35,13 @@ This documentation provides comprehensive testing procedures for the Grafana obs
 ## 2. Architecture 
 
 ### 2.1 Component Flow Diagram
-
 ```mermaid
 graph LR
     %% Define Styles
-    classDef input fill:#f9f,stroke:#333,stroke-width:2px;
-    classDef storage fill:#eee,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5;
-    classDef component fill:#d4e1f5,stroke:#333,stroke-width:2px;
-    classDef grafana fill:#ff9900,stroke:#333,stroke-width:2px,color:white;
+    classDef input fill:#000,stroke:#333,stroke-width:2px,color:#fff;
+    classDef storage fill:#000,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5,color:#fff;
+    classDef component fill:#000,stroke:#333,stroke-width:2px,color:#fff;
+    classDef grafana fill:#000,stroke:#333,stroke-width:2px,color:#fff;
 
     %% Nodes
     Ext[External Sources]:::input
@@ -77,16 +76,15 @@ graph LR
     Querier -.->|Fetch Data| Ing
     Querier -.->|Fetch Data| Store
 ```
-
 ### 2.2 Service Endpoints
 
 | Component | Internal Service | Port | Type |
 |-----------|-----------------|------|------|
-| Grafana | monitoring-stack-grafana | 80 | ClusterIP |
-| Loki Gateway | monitoring-stack-loki-gateway | 80 | ClusterIP |
-| Mimir NGINX | monitoring-stack-mimir-nginx | 80 | ClusterIP |
-| Tempo Gateway | monitoring-stack-tempo-gateway | 80 | ClusterIP |
-| Prometheus | monitoring-stack-prometheus-server | 80 | ClusterIP |
+| Grafana | monitoring-grafana | 80 | ClusterIP |
+| Loki Gateway | monitoring-loki-gateway | 80 | ClusterIP |
+| Mimir NGINX | monitoring-mimir-nginx | 80 | ClusterIP |
+| Tempo Gateway | monitoring-tempo-gateway | 3200 | ClusterIP |
+| Prometheus | monitoring-prometheus-server | 80 | ClusterIP |
 
 ---
 
@@ -96,231 +94,20 @@ graph LR
 
 ### 3.1 Required Tools Installation
 
-#### 3.1.0 Detect Your OS
-
-```bash
-# Detect OS
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-  OS="linux"
-  if grep -qi ubuntu /etc/os-release; then
-    DISTRO="ubuntu"
-  elif grep -qi debian /etc/os-release; then
-    DISTRO="debian"
-  elif grep -qi centos /etc/os-release; then
-    DISTRO="centos"
-  fi
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-  OS="macos"
-fi
-
-echo "Detected OS: $OS, Distro: $DISTRO"
-```
-
-#### 3.1.1 Install Base Utilities
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get update
-sudo apt-get install -y curl wget unzip gnupg
-```
-
-**CentOS/RHEL:**
-```bash
-sudo yum install -y curl wget unzip gnupg
-```
-
-**macOS:**
-```bash
-brew install curl wget unzip gnupg
-```
-
 #### 3.1.2 Kubectl (Kubernetes CLI)
-
-**Linux (amd64/arm64):**
-```bash
-# Detect architecture
-ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/${ARCH}/kubectl"
-chmod +x kubectl 
-sudo mv kubectl /usr/local/bin/
-kubectl version --client
-```
-
-**macOS:**
-```bash
-# Intel/Apple Silicon detection
-ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/arm64/arm64/')
-
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/darwin/${ARCH}/kubectl"
-chmod +x kubectl 
-sudo mv kubectl /usr/local/bin/
-kubectl version --client
-```
-
-**or via Package Manager:**
-```bash
-# Ubuntu/Debian
-sudo apt-get install -y kubectl
-
-# macOS
-brew install kubectl
-
-# CentOS
-sudo yum install -y kubectl
-```
-
+**https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/**
 #### 3.1.3 Helm (Package Manager)
-
-**All Platforms (Universal Script):**
-```bash
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-```
-
-**or via Package Manager:**
-```bash
-# Ubuntu/Debian
-sudo apt-get install -y helm
-
-# macOS
-brew install helm
-
-# CentOS
-sudo yum install -y helm
-```
-
+**https://helm.sh/docs/intro/install/**
 #### 3.1.4 JQ (JSON Processor)
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install -y jq
-```
-
-**macOS:**
-```bash
-brew install jq
-```
-
-**CentOS/RHEL:**
-```bash
-sudo yum install -y jq
-```
-
-#### 3.1.5 k6 (Load Testing)
-
-**Ubuntu/Debian:**
-```bash
-sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
-  --keyserver hkp://keyserver.ubuntu.com:80 \
-  --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
-
-echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | \
-  sudo tee /etc/apt/sources.list.d/k6.list
-
-sudo apt-get update && sudo apt-get install -y k6
-```
-
-**macOS:**
-```bash
-brew install k6
-```
-
-**CentOS/RHEL:**
-```bash
-sudo yum install -y https://dl.k6.io/rpm/repo.rpm
-sudo yum install -y k6
-```
-
+**https://lindevs.com/install-jq-on-ubuntu**
 #### 3.1.6 LogCLI (Loki CLI)
-
-**Universal (All Platforms):**
-```bash
-# Detect OS and Architecture
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-
-# Clean up old versions
-rm -f logcli-${OS}-${ARCH}.zip logcli-${OS}-${ARCH}
-
-# Download v3.0.0
-curl -O -L "https://github.com/grafana/loki/releases/download/v3.0.0/logcli-${OS}-${ARCH}.zip"
-
-# Unzip and Install
-unzip logcli-${OS}-${ARCH}.zip
-sudo mv -f logcli-${OS}-${ARCH} /usr/local/bin/logcli
-sudo chmod +x /usr/local/bin/logcli
-
-# Clean up
-rm logcli-${OS}-${ARCH}.zip
-
-# Verify
-logcli --version
-```
-
+**https://grafana.com/docs/loki/latest/query/logcli/getting-started/**
 #### 3.1.7 Promtool (Prometheus CLI)
 
-**Universal (All Platforms):**
-```bash
-# Detect OS and Architecture
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
-ARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
-
-# Download and extract
-wget https://github.com/prometheus/prometheus/releases/download/v2.45.0/prometheus-2.45.0.${OS}-${ARCH}.tar.gz
-tar -xzf prometheus-2.45.0.${OS}-${ARCH}.tar.gz
-
-# Install binary
-sudo cp prometheus-2.45.0.${OS}-${ARCH}/promtool /usr/local/bin/
-
-# Cleanup
-rm -rf prometheus-2.45.0.${OS}-${ARCH} prometheus-2.45.0.${OS}-${ARCH}.tar.gz
-promtool --version
-```
+**https://prometheus.io/docs/prometheus/latest/installation/**
 
 #### 3.1.8 Grafana Alloy (Collector)
-
-**Ubuntu/Debian:**
-```bash
-sudo mkdir -p /etc/apt/keyrings/
-wget -q -O - https://apt.grafana.com/gpg.key | gpg --dearmor | sudo tee /etc/apt/keyrings/grafana.gpg > /dev/null
-
-echo "deb [signed-by=/etc/apt/keyrings/grafana.gpg] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
-
-sudo apt-get update
-sudo apt-get install -y alloy
-sudo systemctl enable alloy
-sudo systemctl start alloy
-sudo systemctl status alloy
-```
-
-**macOS:**
-```bash
-brew tap grafana/grafana
-brew install grafana-alloy
-
-# Start service (requires Homebrew Services)
-brew services start grafana-alloy
-brew services info grafana-alloy
-```
-
-**CentOS/RHEL:**
-```bash
-sudo yum install -y https://rpm.grafana.com/grafana-alloy-latest.x86_64.rpm
-sudo systemctl enable alloy
-sudo systemctl start alloy
-sudo systemctl status alloy
-```
-
-**Docker (Any OS):**
-```bash
-docker run -d \
-  --name alloy \
-  --restart always \
-  -p 12345:12345 \
-  -v /path/to/config.alloy:/etc/alloy/config.alloy \
-  grafana/alloy:latest run --server.http.listen-
-```
-
+**https://grafana.com/docs/alloy/latest/set-up/install/linux/**
 ### 3.2 GKE Cluster Access
 
 ```bash
@@ -346,7 +133,7 @@ kubectl get pods -n <NAMESPACE>
 ```bash
 # Get Grafana admin password
 export GRAFANA_PASSWORD=$(kubectl get secret -n <NAMESPACE> \
-  monitoring-stack-grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
+  monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode)
 echo "Grafana Password: $GRAFANA_PASSWORD"
 
 # Store for later use
@@ -416,28 +203,20 @@ kubectl get pvc -n <NAMESPACE> -o wide | grep -v Bound || echo "All PVCs are Bou
 kubectl exec -n observablitiy <PVC_NAME> -- df -h
 
 ```
+---
 
 <a id="component-testing"></a>
 
 ## 5. Component Testing(still on cluster) 
 
-### 5.1 Loki Testing (Log Aggregation)
 
-#### 5.1.1 Create Test Namespace
+### 5.1 Deploy Test Generators
+Create all-generators.yaml file 
 
 ```bash
-# Create namespace for test applications
-kubectl create namespace test-apps
-
-# Label for monitoring
-kubectl label namespace test-apps monitoring=enabled
-```
-
-#### 5.1.2 Deploy Multi-Level Log Generator
-
-Create file `log-generator.yaml`:
-
-```yaml
+# =========================================================
+# LOG GENERATORS
+# =========================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -496,6 +275,8 @@ kind: Deployment
 metadata:
   name: error-simulator
   namespace: test-apps
+  labels:
+    app: error-simulator
 spec:
   replicas: 2
   selector:
@@ -514,7 +295,6 @@ spec:
           - -c
           - |
             while true; do
-              # Simulate various error scenarios
               echo "ERROR: Out of memory exception in thread main"
               sleep 5
               echo "FATAL: Unable to connect to database: connection refused"
@@ -524,92 +304,14 @@ spec:
               echo "CRITICAL: Disk usage exceeded 95% on /data"
               sleep 6
             done
-```
-
-Deploy and verify:
-
-```bash
-# Deploy log generators
-kubectl apply -f log-generator.yaml
-
-# Wait for pods to be ready
-kubectl wait --for=condition=ready pod -l app=log-generator \
-  -n test-apps --timeout=120s
-
-# Verify logs are being generated
-kubectl logs -n test-apps -l app=log-generator -c json-logs --tail=10
-kubectl logs -n test-apps -l app=log-generator -c structured-logs --tail=10
-kubectl logs -n test-apps -l app=error-simulator --tail=10
-```
-
-#### 5.1.3 Test Loki Ingestion
-
-```bash
-# Port-forward to Loki gateway
-kubectl port-forward -n <NAMESPACE> svc/monitoring-stack-loki-gateway 3100:80 &
-PF_PID=$!
-
-# Wait for port-forward to establish
-sleep 3
-
-# Set Loki address for logcli
-export LOKI_ADDR=http://localhost:3100
-
-# Query all logs from test-apps
-logcli query '{namespace="test-apps"}' --limit=50 --since=5m
-
-# Query error logs only
-logcli query '{namespace="test-apps"} |~ "(?i)error|fatal|critical"' \
-  --limit=20 --since=5m
-
-# Query with label filtering
-logcli query '{namespace="test-apps",app="error-simulator"}' \
-  --limit=10 --since=5m
-
-# Query with JSON parsing
-logcli query '{namespace="test-apps",container="json-logs"} | json' \
-  --limit=10 --since=5m
-# Test label values endpoint
-curl -G -s "http://localhost:3100/loki/api/v1/label/namespace/values" | jq
-
-# Verify ingestion rate
-curl -s "http://localhost:3100/metrics" | grep loki_distributor_lines_received_total
-
-# Kill port-forward when done
-kill $PF_PID
-```
-
-The output is as follows:
-
-![img](./img/logcli.png)
-
-#### 5.1.4 Verify Loki Components
-
-```bash
-# Check distributor is receiving logs
-kubectl logs -n <NAMESPACE> -l app.kubernetes.io/component=distributor \
-  --tail=50 | grep -i "pushed"
-
-# Check ingester is flushing chunks
-kubectl logs -n <NAMESPACE> monitoring-stack-loki-ingester-zone-a-0 \
-  --tail=50 | grep -i "flushed"
-
-# Check querier is serving queries
-kubectl logs -n <NAMESPACE> -l app.kubernetes.io/component=querier \
-  --tail=50 | grep -i "query"
-
-# Verify canaries are working
-kubectl logs -n <NAMESPACE> -l app.kubernetes.io/component=canary \
-  --tail=20
-```
-
-### 5.2 Mimir Testing (Metrics Storage)
-
-#### 5.2.1 Deploy Metrics Generator
-
-Create file `metrics-generator.yaml`:
-
-```yaml
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+---
+# =========================================================
+# METRICS GENERATORS
+# =========================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -673,8 +375,11 @@ metadata:
   namespace: test-apps
   labels:
     app: metrics-generator
-    release: monitoring-stack
+    release: monitoring
 spec:
+  namespaceSelector:
+    matchNames:
+    - test-apps
   selector:
     matchLabels:
       app: metrics-generator
@@ -682,96 +387,10 @@ spec:
   - port: metrics
     interval: 30s
     path: /metrics
-```
-
-Deploy and generate traffic:
-
-```bash
-# Deploy metrics generator
-kubectl apply -f metrics-generator.yaml
-
-# Wait for pods
-kubectl wait --for=condition=ready pod -l app=metrics-generator \
-  -n test-apps --timeout=120s
-
-# Verify metrics endpoint
-kubectl port-forward -n test-apps svc/metrics-generator 8080:8080 &
-sleep 2
-curl http://localhost:8080/metrics | head -20
-pkill -f "port-forward.*8080"
-
-# Generate traffic to create metrics
-kubectl run -n test-apps load-generator --image=curlimages/curl \
-  --restart=Never -- /bin/sh -c \
-  "while true; do curl -s http://metrics-generator:8080 > /dev/null; sleep 0.5; done" &
-
-# Monitor the load
-watch -n 2 'kubectl top pods -n test-apps -l app=metrics-generator'
-```
-
-#### 5.2.2 Test Mimir Ingestion
-
-```bash
-# Port-forward to Mimir
-kubectl port-forward -n <NAMESPACE> svc/monitoring-stack-mimir-nginx 8080:80 &
-sleep 3
-
-# Query Mimir for test-apps metrics
-curl -G http://localhost:8080/prometheus/api/v1/query \
-  --data-urlencode 'query=up{namespace="test-apps"}' | jq
-
-# Query HTTP request rate
-curl -G http://localhost:8080/prometheus/api/v1/query \
-  --data-urlencode 'query=rate(http_requests_total{namespace="test-apps"}[5m])' | jq
-
-# Count active series
-curl -G http://localhost:8080/prometheus/api/v1/query \
-  --data-urlencode 'query=count(up{namespace="test-apps"})' | \
-  jq '.data.result[0].value[1]'
-
-# List all metrics from test app
-curl -G http://localhost:8080/prometheus/api/v1/label/__name__/values | \
-  jq '.data[]' | grep -i example
-
-# Query range data
-curl -G http://localhost:8080/prometheus/api/v1/query_range \
-  --data-urlencode 'query=rate(http_requests_total{namespace="test-apps"}[1m])' \
-  --data-urlencode 'start='$(date -d '10 minutes ago' +%s) \
-  --data-urlencode 'end='$(date +%s) \
-  --data-urlencode 'step=60' | jq '.data.result[0].values | length'
-
-pkill -f "port-forward.*8080"
-```
-
-#### 5.2.3 Verify Mimir Components
-
-```bash
-# Check distributor metrics
-kubectl logs -n <NAMESPACE> \
-  -l app.kubernetes.io/component=distributor,app.kubernetes.io/name=mimir \
-  --tail=50 | grep -i "sample"
-
-# Check ingester status
-kubectl logs -n <NAMESPACE> monitoring-stack-mimir-ingester-0 \
-  --tail=50 | grep -i "series"
-
-# Check querier logs
-kubectl logs -n <NAMESPACE> \
-  -l app.kubernetes.io/component=querier,app.kubernetes.io/name=mimir \
-  --tail=50
-
-# Verify compactor is working
-kubectl logs -n <NAMESPACE> monitoring-stack-mimir-compactor-0 \
-  --tail=50 | grep -i "compact"
-```
-
-### 5.3 Tempo Testing (Distributed Tracing)
-
-#### 5.3.1 Deploy Trace Generator
-
-Create file `trace-generator.yaml`:
-
-```yaml
+---
+# =========================================================
+# TRACE GENERATORS
+# =========================================================
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -790,30 +409,30 @@ spec:
         app: trace-generator
     spec:
       containers:
-      - name: synthetic-load
-        image: omnition/synthetic-load-generator:1.0.25
-        env:
-        - name: JAEGER_COLLECTOR_URL
-          value: "http://monitoring-stack-tempo-distributor.<NAMESPACE>.svc.cluster.local:14268/api/traces"
-        - name: JAEGER_SERVICE_NAME
-          value: "synthetic-load-test"
-        - name: JAEGER_SAMPLER_TYPE
-          value: "const"
-        - name: JAEGER_SAMPLER_PARAM
-          value: "1"
+      - name: telemetrygen
+        image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:latest
+        args:
+          - traces
+          - --otlp-endpoint=otel-collector.test-apps.svc.cluster.local:4317
+          - --otlp-insecure
+          - --rate=1
+          - --duration=1h
+          - --workers=1
         resources:
           requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
             memory: "128Mi"
             cpu: "100m"
-          limits:
-            memory: "256Mi"
-            cpu: "200m"
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: microservice-simulator
   namespace: test-apps
+  labels:
+    app: microservice-sim
 spec:
   replicas: 2
   selector:
@@ -826,144 +445,503 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: grafana/xk6-client-tracing:v0.0.2
-        env:
-        - name: ENDPOINT
-          value: "monitoring-stack-tempo-distributor.<NAMESPACE>.svc.cluster.local:4317"
-        - name: SERVICE_NAME
-          value: "frontend-service"
-        - name: OTEL_EXPORTER_OTLP_INSECURE
-          value: "true"
+        image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:latest
+        args:
+          - traces
+          - --otlp-endpoint=monitoring-tempo-distributor.<NAMESPACE>.svc.cluster.local:4317
+          - --otlp-insecure
+          - --rate=1
+          - --duration=1h
+          - --service=frontend-service
         resources:
           requests:
             memory: "64Mi"
             cpu: "50m"
+---
+# =========================================================
+# ALLOY COLLECTOR (for Log scraping to Loki)
+# =========================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: test-apps
+data:
+  config.alloy: |
+    logging {
+      level  = "info"
+      format = "json"
+    }
+
+    discovery.kubernetes "pods" {
+      role = "pod"
+    }
+
+    discovery.relabel "pod_logs" {
+      targets = discovery.kubernetes.pods.targets
+      rule {
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label  = "namespace"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label  = "pod"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_label_app"]
+        target_label  = "app"
+      }
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label  = "container"
+      }
+    }
+
+    loki.source.kubernetes "pod_logs" {
+      targets    = discovery.relabel.pod_logs.output
+      forward_to = [loki.write.default.receiver]
+    }
+
+    loki.write "default" {
+      endpoint {
+        url = "http://monitoring-loki-gateway.<NAMESPACE>.svc.cluster.local/loki/api/v1/push"
+      }
+    }
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: alloy-collector
+  namespace: test-apps
+spec:
+  selector:
+    matchLabels:
+      app: alloy-collector
+  template:
+    metadata:
+      labels:
+        app: alloy-collector
+    spec:
+      serviceAccountName: alloy-collector
+      containers:
+      - name: alloy
+        image: grafana/alloy:latest
+        args:
+          - run
+          - /etc/alloy/config.alloy
+          - --server.http.listen-addr=0.0.0.0:12345
+        volumeMounts:
+        - name: config
+          mountPath: /etc/alloy
+        - name: varlog
+          mountPath: /var/log
+          readOnly: true
+        ports:
+        - containerPort: 12345
+          name: http
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+      volumes:
+      - name: config
+        configMap:
+          name: alloy-config
+      - name: varlog
+        hostPath:
+          path: /var/log
+          type: Directory
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy-collector
+  namespace: test-apps
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: alloy-collector
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - pods
+  - events
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - services
+  - endpoints
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: alloy-collector
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: alloy-collector
+subjects:
+- kind: ServiceAccount
+  name: alloy-collector
+  namespace: test-apps
+---
+# =========================================================
+# TEMPO OTLP RECEIVER (for Traces)
+# =========================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: test-apps
+data:
+  otel-collector-config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+    exporters:
+      otlp:
+        endpoint: monitoring-tempo-distributor.<NAMESPACE>.svc.cluster.local:4317
+        tls:
+          insecure: true
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          exporters: [otlp]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: test-apps
+  labels:
+    app: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      containers:
+      - name: otel-collector
+        image: otel/opentelemetry-collector-contrib:latest
+        args:
+          - "--config=/etc/otel-collector-config.yaml"
+        volumeMounts:
+        - name: otel-collector-config
+          mountPath: /etc/otel-collector-config.yaml
+          subPath: otel-collector-config.yaml
+        ports:
+        - containerPort: 4317
+          name: otlp-grpc
+        - containerPort: 4318
+          name: otlp-http
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+      volumes:
+      - name: otel-collector-config
+        configMap:
+          name: otel-collector-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: test-apps
+spec:
+  selector:
+    app: otel-collector
+  ports:
+  - port: 4317
+    targetPort: 4317
+    name: otlp-grpc
+  - port: 4318
+    targetPort: 4318
+    name: otlp-http
 ```
 
-Deploy and verify:
-
 ```bash
-# Deploy trace generators
-kubectl apply -f trace-generator.yaml
+# Install some CRDs
+helm repo update
+helm install prometheus prometheus-community/kube-prometheus
+kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd-full/monitoring.coreos.com_alertmanagerconfigs.yaml --force-conflicts
 
-# Wait for pods
-kubectl wait --for=condition=ready pod -l app=trace-generator \
-  -n test-apps --timeout=120s
+# Create test-apps namespace
+kubectl create namespace test-apps
+# Apply all generators
+kubectl apply -f all-generators.yaml
 
-# Check if traces are being generated
-kubectl logs -n test-apps -l app=trace-generator --tail=50
+# Verify pods are running
+kubectl get pods -n test-apps -w
+kubectl wait --for=condition=ready pod -l app=log-generator -n test-apps --timeout=120s
 ```
 
-#### 5.3.2 Test Tempo Ingestion
+#### 5.1.1 Verify Logs Are Being Generated(Loki testing)
 
 ```bash
-# Port-forward to Tempo gateway
-kubectl port-forward -n <NAMESPACE> svc/monitoring-stack-tempo-gateway 3200:80 &
+# Check log-generator pods
+kubectl logs -n test-apps -l app=log-generator -c json-logs --tail=20
+kubectl logs -n test-apps -l app=log-generator -c structured-logs --tail=20
+kubectl logs -n test-apps -l app=error-simulator --tail=20
+```
+
+#### 5.1.2 Query Logs via LogCLI
+
+```bash
+# Port-forward to Loki
+kubectl port-forward -n <NAMESPACE> svc/monitoring-loki-gateway 3100:80 &
+PF_PID=$!
 sleep 3
 
-# Search for traces
-curl -s "http://localhost:3200/api/search?tags=service.name=synthetic-load-test&limit=10" | jq
+# Export Loki address
+export LOKI_ADDR=http://localhost:3100
 
-# Search with time range
-START_TIME=$(date -u -d '10 minutes ago' +%s)
-END_TIME=$(date -u +%s)
-curl -s "http://localhost:3200/api/search?tags=service.name=synthetic-load-test&start=${START_TIME}&end=${END_TIME}" | jq '.traces | length'
+# Test 1: Query all logs from test-apps namespace
+logcli query '{namespace="test-apps"}' --limit=50 --since=5m
 
-# Get a specific trace (replace with actual ID from search)
-TRACE_ID=$(curl -s "http://localhost:3200/api/search?limit=1" | jq -r '.traces[0].traceID')
-if [ ! -z "$TRACE_ID" ]; then
-  curl -s "http://localhost:3200/api/traces/${TRACE_ID}" | jq '.batches[0].scopeSpans[0].spans | length'
-fi
+# Test 2: Query JSON logs only
+logcli query '{app="log-generator", container="json-logs"}' --limit=20
 
-# Check Tempo metrics
-curl -s http://localhost:3200/metrics | grep tempo_distributor_spans_received_total
+# Test 3: Query structured logs
+logcli query '{app="log-generator", container="structured-logs"}' --limit=20
 
-pkill -f "port-forward.*3200"
+# Test 4: Query error logs
+logcli query '{namespace="test-apps"} |~ "(?i)error|fatal|critical"' --limit=30 --since=5m
+
+# Test 5: Query by pod name
+logcli query '{pod=~"log-generator.*"}' --limit=20
+
+# Test 6: Query with label matching
+logcli query '{app="error-simulator"}' --limit=15
+
+# Cleanup
+kill $PF_PID
 ```
 
-#### 5.3.3 Verify Tempo Components
+![img](img/logcli.png)
+
+---
+
+### 5.2 Mimir Testing (Metrics Storage)
+
+#### 5.2.1 Verify Metrics Generator is Running
 
 ```bash
-# Check distributor
-kubectl logs -n <NAMESPACE> \
-  -l app.kubernetes.io/component=distributor,app.kubernetes.io/name=tempo \
-  --tail=50 | grep -i "span"
+# Check metrics-generator pods
+kubectl get pods -n test-apps -l app=metrics-generator
 
-# Check ingester
-kubectl logs -n <NAMESPACE> monitoring-stack-tempo-ingester-0 \
-  --tail=50 | grep -i "trace"
+# Check if ServiceMonitor was created
+kubectl get servicemonitor -n test-apps
+kubectl describe servicemonitor metrics-generator-monitor -n test-apps
 
-# Check querier
-kubectl logs -n <NAMESPACE> \
-  -l app.kubernetes.io/component=querier,app.kubernetes.io/name=tempo \
-  --tail=50
-
-# Monitor ingestion rate
-kubectl exec -n <NAMESPACE> -c tempo \
-  monitoring-stack-tempo-distributor-5bdcb468bd-bl8pj -- \
-  wget -qO- http://localhost:3200/metrics | grep tempo_distributor_spans_received_total
+# Verify endpoints are registered
+kubectl get endpoints -n test-apps metrics-generator
 ```
 
-### 5.4 Prometheus Testing
-
-#### 5.4.1 Verify Scraping Configuration
+#### 5.2.2 Query Metrics via PromQL (Prometheus API)
 
 ```bash
 # Port-forward to Prometheus
-kubectl port-forward -n <NAMESPACE> svc/monitoring-stack-prometheus-server 9090:80 &
+kubectl port-forward -n <NAMESPACE> svc/monitoring-prometheus-server 9090:80 &
 sleep 3
 
-# Check targets via API
-curl -s http://localhost:9090/api/v1/targets | \
-  jq '.data.activeTargets[] | select(.labels.namespace=="test-apps") | {job: .labels.job, health: .health}'
-# Verify Prometheus configuration
-curl -s http://localhost:9090/api/v1/status/config | jq '.data.yaml' | grep -A 10 "job_name"
+# Test 1: Check if metrics are being scraped
+curl -s "http://localhost:9090/api/v1/query?query=prometheus_example_app_up" | jq .
 
-# Check if Scrapers are Working (up metric)
+# Test 2: List all metrics from metrics-generator
+curl -s "http://localhost:9090/api/v1/label/__name__/values" | jq . | grep prometheus_example
 
-# Returns the list of all successful scrapes
-promtool query instant http://localhost:9090 'up == 1'
+# Test 3: Query specific metrics
+curl -s "http://localhost:9090/api/v1/query?query=prometheus_example_app_requests_total" | jq .
 
-# Check the count to ensure it matches your expectations (e.g., you expect at least 10 pods).
+# Test 4: Query rate of requests
+curl -s "http://localhost:9090/api/v1/query?query=rate(prometheus_example_app_requests_total%5B5m%5D)" | jq .
 
-promtool query instant http://localhost:9090 'count(up == 1)'
-
-# Check Data Ingestion (Rate). Verify that samples are actually being appended to the database over time.
-# Check the rate of samples appended in the last 5 minutes
-promtool query instant http://localhost:9090 'rate
-(prometheus_tsdb_head_samples_appended_total[5m])'
-
-# Check for Firing Alerts. See if the system is currently detecting any issues.
-promtool query instant http://localhost:9090 'ALERTS{alertstate="firing"}'
-
-pkill -f "port-forward.*9090"
+# Test 5: Check metrics count over time
+curl -s "http://localhost:9090/api/v1/query_range?query=prometheus_example_app_up&start=$(date -d '30 minutes ago' +%s)&end=$(date +%s)&step=300" | jq .
 ```
-The Output is as follows:
+![img](img/mimir1.png)
 
-![img](./img/prom1.png)
-
-![img](./img/prom2.png)
+![img](img/mimir2.png)
 
 
-#### 5.4.2 Test Remote Write to Mimir
+#### 5.2.3 Check Metrics in Mimir Backend
 
 ```bash
-# Check Prometheus remote write config
-kubectl get configmap -n <NAMESPACE> monitoring-stack-prometheus-server \
-  -o yaml | grep -A 20 "remote_write"
+# Port-forward to Mimir NGINX gateway
+kubectl port-forward -n <NAMESPACE> svc/monitoring-mimir-nginx 8081:80 &
+sleep 3
 
-# Check Prometheus logs for remote write
-kubectl logs -n <NAMESPACE> \
-  -l app.kubernetes.io/name=prometheus \
-  --tail=100 | grep -i "remote_write"
+# Test 1: Query metrics from Mimir directly
+curl -s "http://localhost:8081/prometheus/api/v1/query?query=prometheus_example_app_up" | jq .
 
-# Verify data is reaching Mimir
-kubectl port-forward -n <NAMESPACE> svc/monitoring-stack-mimir-nginx 8080:80 &
-sleep 2
-curl -G http://localhost:8080/prometheus/api/v1/query \
-  --data-urlencode 'query=up{job=~".*test-apps.*"}' | jq '.data.result | length'
-pkill -f "port-forward.*8080"
+# Test 2: List label names
+curl -s "http://localhost:8081/prometheus/api/v1/labels" | jq .
+
+# Test 3: Check ingestion metrics
+curl -s "http://localhost:8081/prometheus/api/v1/query?query=cortex_ingester_ingested_samples_total" | jq .
 ```
+
+![img](img/mimir.png)
+
+---
+
+### 5.3 Tempo Testing (Distributed Tracing)
+
+#### 5.3.1 Verify Trace Generators Are Running
+
+```bash
+# Check trace generators
+kubectl get pods -n test-apps -l app=trace-generator
+kubectl get pods -n test-apps -l app=microservice-sim
+
+# Check OTEL collector
+kubectl get pods -n test-apps -l app=otel-collector
+
+# Verify OTEL collector service
+kubectl get svc -n test-apps otel-collector
+```
+
+#### 5.3.2 Check Trace Generator Logs
+
+```bash
+# Check synthetic-load-generator logs
+kubectl logs -n test-apps -l app=trace-generator -c synthetic-load --tail=30
+
+# Check microservice-simulator logs
+kubectl logs -n test-apps -l app=microservice-sim -c frontend --tail=30
+
+# Check OTEL collector for trace ingestion
+kubectl logs -n test-apps -l app=otel-collector --tail=50
+```
+
+#### 5.3.3 Query Traces via Tempo
+
+```bash
+# Port-forward to Tempo
+kubectl port-forward -n <NAMESPACE> svc/monitoring-tempo-gateway 3200:80 &
+sleep 3
+
+# Test 1: Check if Tempo is receiving traces
+curl -s "http://localhost:3200/api/search" | jq .
+
+# Test 2: Query traces for synthetic-load-test service
+curl -s "http://localhost:3200/api/search?service=synthetic-load-test" | jq .
+
+# Test 3: Query traces for frontend-service
+curl -s "http://localhost:3200/api/search?service=frontend-service" | jq .
+
+# Test 4: Query by trace duration (find slow traces)
+curl -s "http://localhost:3200/api/search?minDuration=100ms" | jq .
+
+# Test 5: Get specific trace details
+TRACE_ID=$(curl -s "http://localhost:3200/api/search?service=synthetic-load-test&limit=1" | jq -r '.traces[0].traceID')
+curl -v "http://localhost:3200/api/search?service=synthetic-load-test&limit=1"
+```
+---
+
+![img](img/tempo1.png)
+
+![img](img/tempo2.png)
+
+
+### 5.4 End-to-End Integration Testing
+
+#### 5.4.1 Validate Data Flow (Logs → Loki → Grafana)
+
+```bash
+# Step 1: Generate logs
+kubectl logs -n test-apps -l app=log-generator -c structured-logs --tail=5
+
+# Step 2: Verify logs in Loki via LogCLI
+export LOKI_ADDR=http://localhost:3100
+logcli query '{app="log-generator"}' --limit=5
+
+```
+
+#### 5.4.2 Validate Data Flow (Metrics → Prometheus → Mimir → Grafana)
+
+```bash
+# Step 1: Check metrics are being generated
+kubectl port-forward -n test-apps svc/metrics-generator 8082:8080 &
+sleep 3
+curl -s "http://localhost:8082/metrics" | head -20
+
+# Step 2: Verify Prometheus scrapes them
+ kubectl port-forward -n lgtm svc/monitoring-prometheus-kube-state-metrics 9091:8080 &
+ sleep 3
+curl -s "http://localhost:9091/api/v1/targets" | jq '.data.activeTargets[] | select(.labels.job=="test-apps/metrics-generator")'
+
+# Step 3: Query from Mimir
+kubectl port-forward -n lgtm svc/monitoring-mimir-query-frontend 8083:8080 &
+sleep 3
+curl -s "http://localhost:8083/prometheus/api/v1/query?query=http_requests_total" | jq .
+
+```
+
+![img](img/mimirb2.png)
+
+#### 5.4.3 Validate Data Flow (Traces → OTEL → Tempo → Grafana)
+
+```bash
+# Step 1: Verify OTEL collector is receiving traces
+kubectl logs -n test-apps -l app=otel-collector | grep -i "span\|trace"
+
+# Step 2: Query Tempo for traces
+curl -s "http://localhost:3200/api/search?service=synthetic-load-test&limit=1" | jq '.traces[0] | {traceID, spanSet}'
+
+```
+---
+
+#### 5.5 Validate No Errors in Collectors
+
+```bash
+# Check Alloy logs for errors
+kubectl logs -n test-apps -l app=alloy-collector | grep -i "error\|warning" | tail -20
+
+# Check OTEL collector logs for errors
+kubectl logs -n test-apps -l app=otel-collector | grep -i "error" | tail -20
+
+# Check for pod restarts (should be 0)
+kubectl get pods -n test-apps -o wide | grep -v "0/1.*0"
+```
+---
+
+### 5.6 Cleanup After Testing
+
+```bash
+# Delete test namespace
+kubectl delete namespace test-apps
+
+# Kill port-forwards
+pkill -f "kubectl port-forward"
+
+# Verify cleanup
+kubectl get namespace | grep test-apps  # Should return nothing
+```
+
 ---
 
 <a id="remote-testing"></a>
