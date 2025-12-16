@@ -35,6 +35,7 @@
             versions h2c
         }
     }
+ 
 
     # Reverse proxy for NetBird Signal gRPC service.
     # Uses HTTP/2 cleartext (h2c) for internal communication.
@@ -96,4 +97,11 @@
         header_up X-Forwarded-For {remote_ip}
         header_up X-Forwarded-Proto {scheme}
     }
+}
+
+
+keycloak.{{ netbird_domain }} {
+    reverse_proxy /* {
+        to keycloak:8080
+}
 }

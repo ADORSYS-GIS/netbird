@@ -1,4 +1,5 @@
 .ansible-env
+ansible_automation/.ansible/
 *.tfstate
 
 # Ignore environment / secret variable files
