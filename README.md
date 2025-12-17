@@ -1,72 +1,187 @@
-# NetBird Infrastructure and Monitoring
+# NetBird Infrastructure and Observability
 
-This repository contains automation and configuration for deploying supporting
-infrastructure around self‑hosted NetBird, including identity (Keycloak) and a
-Grafana‑based monitoring stack.
+Production-grade infrastructure automation and observability stack for NetBird deployments.
 
----
+## Overview
 
-## 1. Keycloak deployment (Ansible)
+This repository provides comprehensive deployment solutions for NetBird and its supporting infrastructure:
 
-Ansible automation is provided for deploying Keycloak as an identity provider.
+1. **NetBird Deployment**: Complete NetBird setup with Caddy reverse proxy
+2. **Observability Stack**: Production-grade monitoring with Prometheus, Loki, Mimir, Tempo, and Grafana
 
-### Quick start
+The observability stack is deployment-agnostic and can monitor any infrastructure, not just NetBird.
 
-1. Update inventory: `deploy/inventory.ini`
-2. Configure variables: `deploy/group_vars/keycloak.yml`
-3. Run: `ansible-playbook -i deploy/inventory.ini deploy/deploy_keycloak.yml`
+## Getting Started with NetBird
 
-### Layout
+### NetBird with Caddy Reverse Proxy
 
+Deploy a complete, production-ready NetBird instance with Caddy handling automatic HTTPS and reverse proxy functionality.
+
+**What you'll deploy:**
+- NetBird Management, Signal, and Relay servers
+- Caddy reverse proxy with automatic TLS
+- Keycloak for identity management
+- SQlite database
+
+See [NetBird Caddy Deployment Guide](docs/Caddy-Deployment.md) for complete setup instructions.
+
+## Observability Stack
+
+A production-grade monitoring solution that can be deployed alongside NetBird or used independently to monitor any infrastructure.
+
+**Stack components:**
+- **Prometheus**: Metrics collection and alerting (7-day retention)
+- **Loki**: Log aggregation (30-day retention)
+- **Mimir**: Scalable long-term metrics storage (30-day retention)
+- **Tempo**: Distributed tracing (30-day retention)
+- **Grafana**: Unified visualization dashboard
+
+### Deployment Routes
+
+Choose the deployment method that matches your infrastructure:
+
+#### Route 1: Docker Compose
+
+Single-host deployment ideal for development, testing, and small production environments.
+
+**Includes:**
+- Complete observability stack
+- Optional NetBird test deployment for verification
+- Host and container metrics collection
+- Log aggregation from Docker and systemd
+- NetBird events monitoring (when deployed with NetBird)
+
+**Follow this guide:**
+[Docker Compose Monitoring Guide](docs/Monitoring-NetBird-Observability-Docker-Compose.md)
+
+This is a complete, self-contained route from start to finish.
+
+#### Route 2: Kubernetes
+
+Production cluster deployment with horizontal scalability and GCS backend storage.
+
+**Includes:**
+- Complete observability stack on Kubernetes
+- GCS backend for Loki, Mimir, and Tempo
+- TLS ingress with cert-manager
+- Workload Identity for keyless GCS authentication
+- Production-grade high availability configuration
+
+**Follow the guide:**
+
+[**Kubernetes Observability Guide**](docs/Kubernetes-Observability.md)
+   - Automates infrastructure provisioning (GCS, IAM) via Terraform.
+   - Deploys the full stack (Loki, Mimir, Tempo, Prometheus, Grafana).
+   - Configures ingress and authentication.
+
+## Architecture
+
+### Docker Compose Deployment
+```mermaid
+graph TB
+    subgraph "Observability Stack"
+        G[Grafana :3000]
+        P[Prometheus :9090]
+        L[Loki :3100]
+        M[Mimir :8080]
+        T[Tempo :3200]
+    end
+    
+    subgraph "Collectors"
+        A[Grafana Alloy]
+        NE[node-exporter]
+        CM[container-metrics]
+        NBE[netbird-events-exporter]
+    end
+    
+    subgraph "Optional: NetBird"
+        NB[NetBird Stack]
+    end
+    
+    G --> P
+    G --> L
+    G --> M
+    G --> T
+    
+    A -->|logs| L
+    NE -->|host metrics| P
+    CM -->|container metrics| P
+    NBE -->|events| L
+    NBE -.->|reads from| NB
 ```
-├── deploy/
-│   ├── roles/keycloak/         # Keycloak Ansible role
-│   ├── group_vars/             # Variable configuration
-│   ├── inventory.ini           # Target hosts
-│   └── deploy_keycloak.yml     # Main playbook
-└── docs/                       # Documentation
+
+### Kubernetes Deployment
+```mermaid
+graph TB
+    subgraph "Ingress Layer"
+        I[Ingress Controller + TLS]
+    end
+    
+    subgraph "Observability Stack"
+        G[Grafana]
+        P[Prometheus]
+        L[Loki]
+        M[Mimir]
+        T[Tempo]
+    end
+    
+    subgraph "GCS Storage"
+        GCS1[loki-chunks bucket]
+        GCS2[loki-ruler bucket]
+        GCS3[mimir-blocks bucket]
+        GCS4[tempo-traces bucket]
+    end
+    
+    I --> G
+    I --> P
+    I --> L
+    I --> M
+    I --> T
+    
+    L -->|Workload Identity| GCS1
+    L -->|Workload Identity| GCS2
+    M -->|Workload Identity| GCS3
+    T -->|Workload Identity| GCS4
 ```
 
-### Key features
+## Component Documentation
 
-- Automated Keycloak deployment with PostgreSQL
-- Realm and client configuration
-- Reverse‑proxy‑ready design
-- External Keycloak support
-- Secure credential management
+### Monitoring Stack Components
+- [NetBird Events Exporter](monitor-netbird/exporter/README.md) - Custom exporter for NetBird activity monitoring
 
-See [docs/keycloak-role.md](docs/keycloak-role.md) for detailed Keycloak
-instructions.
+### External Resources
+- [NetBird Documentation](https://docs.netbird.io/)
+- [Prometheus Documentation](https://prometheus.io/docs/)
+- [Grafana Documentation](https://grafana.com/docs/)
+- [Loki Documentation](https://grafana.com/docs/loki/latest/)
+- [Mimir Documentation](https://grafana.com/docs/mimir/latest/)
+- [Tempo Documentation](https://grafana.com/docs/tempo/latest/)
 
----
 
-## 2. NetBird monitoring stack (Prometheus, Loki, Grafana)
+### Default Retention Periods
 
-The `monitor-netbird/` directory provides a production‑style observability stack
-for a self‑hosted NetBird control plane. It includes:
+| Component  | Retention | Configuration File |
+|------------|-----------|-------------------|
+| Prometheus | 7 days    | prometheus-values.yaml |
+| Loki       | 30 days   | loki-values.yaml |
+| Mimir      | 30 days   | mimir-values.yaml |
+| Tempo      | 30 days   | tempo-values.yaml |
 
-- Prometheus for metrics
-- Loki for logs
-- Grafana for dashboards
-- Grafana Alloy for log collection
-- Host and container metrics exporters
-- A NetBird events exporter that forwards management events to Loki
+Adjust these values based on your data retention requirements and available storage.
 
-High‑level operator documentation, including how to bring up a test NetBird
-deployment and attach the monitoring stack, is available at:
+## License
 
-- [docs/Monitoring-NetBird-Observability.md](docs/Monitoring-NetBird-Observability.md)
+Component licenses:
+- NetBird: BSD 3-Clause
+- Keycloak: Apache 2.0
+- Prometheus: Apache 2.0
+- Loki, Mimir, Tempo, Grafana: AGPL-3.0
+- Caddy: Apache 2.0
 
-The NetBird events exporter used by the monitoring stack has its own short
-overview:
+## Support and Contributions
 
-- [monitor-netbird/exporter/README.md](monitor-netbird/exporter/README.md)
+- **Documentation**: Complete guides available in [docs/](docs/)
+- **Issues**: Use GitHub issue tracker for bug reports and feature requests
+- **NetBird Community**: [docs.netbird.io](https://docs.netbird.io/)
 
----
-
-## 3. Additional documentation
-
-All documentation lives under the `docs/` tree. Start with:
-
-- [docs/keycloak-role.md](docs/keycloak-role.md)
-- [docs/Monitoring-NetBird-Observability.md](docs/Monitoring-NetBird-Observability.md)
+For questions specific to deployment or configuration, refer to the relevant deployment guide above.
