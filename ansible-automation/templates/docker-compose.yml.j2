@@ -95,9 +95,9 @@ services:
     environment:
       - NETBIRD_STORE_ENGINE_POSTGRES_DSN= # Placeholder for PostgreSQL DSN.
       - NETBIRD_STORE_ENGINE_MYSQL_DSN= # Placeholder for MySQL DSN.
-      - NETBIRD_IDP_MGMT_CLIENT_ID=netbird-management
-      - NETBIRD_IDP_MGMT_CLIENT_SECRET=RFkt8i1oZR3FaoI3BFC3YCEqWuOsQJQD
-      - NETBIRD_IDP_MGMT_EXTRA_ADMIN_ENDPOINT=https://keycloak.18.198.59.109.sslip.io/admin/realms/netbird-realm
+      - NETBIRD_IDP_MGMT_CLIENT_ID={{ netbird_idp_mgmt_client_id }}
+      - NETBIRD_IDP_MGMT_CLIENT_SECRET={{ netbird_management_secret }}
+      - NETBIRD_IDP_MGMT_EXTRA_ADMIN_ENDPOINT=https://{{ keycloak_domain }}/admin/realms/{{ netbird_realm }}
   # NetBird Relay service.
   # The Relay service facilitates peer-to-peer connections, especially for clients behind NAT.
   relay:
