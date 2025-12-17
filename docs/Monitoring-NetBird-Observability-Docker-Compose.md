@@ -1,4 +1,4 @@
-# NetBird Monitoring and Observability
+# Observability Stack with Docker Compose
 
 This document describes how to spin up a **test NetBird deployment** and attach the **`monitor-netbird` observability stack** to it.
 
@@ -17,15 +17,9 @@ The instructions below assume you are in the root of this repository.
 
 - A Linux host with Docker and Docker Compose v2 installed.
 - Permission to run `docker compose`.
-- The NetBird stack started from this repository **without overriding** the
-  Compose project name. By default, Docker Compose will use the directory name
-  (`netbird`), which creates a network called `netbird_netbird` and a volume
-  called `netbird_netbird_management`. The monitoring stack is wired to those
-  names.
+- The NetBird stack started from this repository. Ensure the Docker Compose project name is consistent if you've customized it, as the monitoring stack relies on these names for network and volume connectivity.
 
-If you deliberately run NetBird with a different project name, update the
-external network and volume names in `monitor-netbird/docker-compose.yaml`
-accordingly before starting the monitoring stack.
+If you deliberately run NetBird with a different project name, update the external network and volume names in `monitor-netbird/docker-compose.yaml` accordingly before starting the monitoring stack. Refer to the [Docker Compose documentation](https://docs.docker.com/reference/compose-file/networks/) for more details on network configuration.
 
 ---
 
@@ -41,7 +35,7 @@ Before running the script, set the following environment variables in your shell
 
 ```bash
 export NETBIRD_DISABLE_LETSENCRYPT=true
-export NETBIRD_DOMAIN="<HOST_IP_OR_DOMAIN>"
+export NETBIRD_DOMAIN="<YOUR_NETBIRD_DOMAIN_OR_IP>" # Replace with your host IP or domain
 ```
 
 Notes:
@@ -68,10 +62,10 @@ If you are using **HTTP over an IP address or an otherwise insecure origin**, mo
 
 For a *test-only* environment you can relax this behavior in your browser. For example, in **Brave**:
 
-1. Open `brave://flags/#unsafely-treat-insecure-origin-as-secure`.
-2. Enable the flag.
-3. Add your dashboard URL to the list, for example:
-   - `http://<HOST_IP_OR_DOMAIN>`
+1. Open your browser's flags page (e.g., `chrome://flags` for Chrome-based browsers).
+2. Search for "Insecure origins treated as secure" or similar.
+3. Enable the flag and add your dashboard URL to the list, for example:
+   - `http://<YOUR_NETBIRD_DOMAIN_OR_IP>`
 
 Use this only in non-production environments. For production, you should configure proper TLS certificates and avoid weakening browser security.
 
@@ -171,14 +165,14 @@ By default, Grafana listens on port **3000** on the host where Docker is running
 Open your browser and go to:
 
 ```text
-http://<HOST_IP_OR_DOMAIN>:3000/
+http://<YOUR_HOST_IP_OR_DOMAIN>:3000/
 ```
 
 Replace `<HOST_IP_OR_DOMAIN>` with the same host you used for `NETBIRD_DOMAIN` when starting NetBird. If you are using HTTP and an IP address, the same browser considerations about insecure origins apply here as for the NetBird dashboard.
 
 ### 4.1 Login
 
-Grafana runs with its default admin credentials unless you have overridden them via environment variables. Change the admin password after first login in any environment that is accessible to others.
+Grafana runs with its default admin credentials (`admin`/`admin`) unless you have overridden them via environment variables. **Change the admin password immediately after first login**, especially in any environment accessible to others. Refer to the [Grafana Security documentation](https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/) for best practices.
 
 ### 4.2 Configure Prometheus data source
 
@@ -223,6 +217,25 @@ Example Loki data source configuration:
 ---
 
 ## 5. What gets scraped and collected
+
+### 5.1 Accessing the Prometheus UI
+
+Prometheus exposes its built-in web UI on port **9090** of the host where Docker is running.
+
+Open your browser and go to:
+
+```text
+http://<YOUR_HOST_IP_OR_DOMAIN>:9090/
+```
+
+Replace `<YOUR_HOST_IP_OR_DOMAIN>` with the same host/IP you used for the rest of the stack.
+From there you can:
+
+* View **Status → Targets** to confirm all metric endpoints are `UP`.
+* Explore time-series data with **Graph** or **PromQL** queries.
+* Inspect service metadata and scrape configurations.
+
+Just like Grafana, Prometheus is intended for internal access only. Set up proper network controls and TLS if exposing it beyond a local or lab environment.
 
 With this setup:
 
@@ -348,22 +361,16 @@ though the query works in Explore.
 
 ## 7. Production considerations
 
-This repository is geared towards **test and lab deployments**, but the components and patterns are production-grade. For production use, you should additionally consider:
+This repository provides a baseline for **test and lab deployments**, but the components and patterns are production-grade. For production use, you should additionally consider:
 
-- Using real DNS names instead of raw IPs.
-- Enabling TLS (for NetBird, Grafana, Prometheus, Loki) and disabling the insecure-origin browser flags.
-- Changing default credentials and integrating with your identity provider.
-- Enabling retention policies and backups for Prometheus and Loki.
-- Restricting access to the Docker socket that Alloy uses for log collection.
+- Using real DNS names instead of raw IPs for all services.
+- Enabling TLS (for NetBird, Grafana, Prometheus, Loki) and disabling any insecure-origin browser flags.
+- Changing all default credentials and integrating with your organization's identity provider.
+- Enabling robust retention policies and implementing regular backup strategies for Prometheus and Loki data.
+- Restricting access to the Docker socket that Grafana Alloy uses for log collection to enhance security.
+- Implementing network policies to control traffic flow between services.
+- Regularly updating all components to their latest stable versions.
 
 ---
 
-## 8. Next steps
-
-From here you can:
-
-- Build custom Grafana dashboards for NetBird usage, host health, and container performance.
-- Add alerting rules in Prometheus and route them via Alertmanager.
-- Extend the `netbird-events-exporter` or Alloy configuration to capture additional signals relevant to your environment.
-
-The `monitor-netbird` stack is intended to be a clean, understandable baseline you can confidently adapt to your own infrastructure.
+The `monitor-netbird` stack is intended to be a clean, understandable baseline you can confidently adapt to your own infrastructure. For Kubernetes deployments, refer to [Monitoring-NetBird-Observability-Kubernetes.md](Monitoring-NetBird-Observability-Kubernetes.md).

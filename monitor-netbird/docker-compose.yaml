@@ -211,27 +211,15 @@ services:
   # NETBIRD EVENTS EXPORTER - Rust Version
   # =============================================================================
   netbird-events-exporter:
-    build:
-      context: ./exporter
-      dockerfile: Dockerfile
-    image: netbird-events-exporter:latest
-    container_name: netbird-events-exporter
-    restart: unless-stopped
-    volumes:
-      - netbird_management_data:/netbird-data:ro
+    image: ghcr.io/onelrian/signal:latest
     environment:
+      - NETBIRD_API_TOKEN=${NETBIRD_PAT}
       - LOKI_URL=http://loki:3100
-      - EVENTS_DB_PATH=/netbird-data/events.db
-      - CHECK_INTERVAL=10
-      - BATCH_SIZE=100
+      - CHECK_INTERVAL=30
       - RUST_LOG=info
-    networks:
-      - monitoring
     depends_on:
       loki:
         condition: service_healthy
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+
+    networks:
+      - monitoring

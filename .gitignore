@@ -33,3 +33,19 @@ target/
 
 # Ignore sensitive or local-only directories
 machinekey/
+
+# Ignore Helm chart packages
+*.tgz
+
+# Ignore Helm lock files
+Chart.lock
+monitor-netbird/kubernetes/helm/monitoring-stack/charts/_loki/
+
+# Ignore Terraform state and binaries
+**/.terraform/*
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+.env
+.quodo
+.vivus
