@@ -7,8 +7,7 @@ Production-grade infrastructure automation and observability stack for NetBird d
 This repository provides comprehensive deployment solutions for NetBird and its supporting infrastructure:
 
 1. **NetBird Deployment**: Complete NetBird setup with Caddy reverse proxy
-2. **Identity Management**: Automated Keycloak deployment with Ansible
-3. **Observability Stack**: Production-grade monitoring with Prometheus, Loki, Mimir, Tempo, and Grafana
+2. **Observability Stack**: Production-grade monitoring with Prometheus, Loki, Mimir, Tempo, and Grafana
 
 The observability stack is deployment-agnostic and can monitor any infrastructure, not just NetBird.
 
@@ -25,19 +24,6 @@ Deploy a complete, production-ready NetBird instance with Caddy handling automat
 - SQlite database
 
 See [NetBird Caddy Deployment Guide](docs/Caddy-Deployment.md) for complete setup instructions.
-
-## Identity Provider Alternative
-
-### Keycloak with Ansible
-
-For environments requiring Keycloak , deploy Keycloak with PostgreSQL backend using automated Ansible playbooks.
-
-**What you'll deploy:**
-- Keycloak identity provider
-- PostgreSQL database
-- Reverse proxy integration
-
-See [Keycloak Deployment Guide](docs/keycloak-role.md) for complete setup instructions.
 
 ## Observability Stack
 

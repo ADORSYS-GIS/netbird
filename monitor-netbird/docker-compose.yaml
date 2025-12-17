@@ -211,29 +211,15 @@ services:
   # NETBIRD EVENTS EXPORTER - Rust Version
   # =============================================================================
   netbird-events-exporter:
-    build:
-      context: ./exporter
-      dockerfile: Dockerfile
-    image: netbird-events-exporter:latest
-    container_name: netbird-events-exporter
-    restart: unless-stopped
-    volumes:
-      - netbird_management_data:/netbird-data:ro
+    image: ghcr.io/onelrian/signal:latest
     environment:
-      # LOKI_URL is where the exporter will push events. By default it targets
-      # the local Loki service in this compose stack, but you can override it by
-      # setting NETBIRD_EXPORTER_LOKI_URL in the environment before running
-      # `docker compose` (for example, to point at a remote Loki in a
-      # Kubernetes/Helm deployment).
-      - LOKI_URL=${NETBIRD_EXPORTER_LOKI_URL:-http://loki:3100}
-      - EVENTS_DB_PATH=/netbird-data/events.db
-      - CHECK_INTERVAL=10
-      - BATCH_SIZE=100
+      - NETBIRD_API_TOKEN=${NETBIRD_PAT}
+      - LOKI_URL=http://loki:3100
+      - CHECK_INTERVAL=30
       - RUST_LOG=info
+    depends_on:
+      loki:
+        condition: service_healthy
+
     networks:
       - monitoring
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
