@@ -95,16 +95,11 @@ graph LR
 
 ### 3.1 Required Tools Installation
 
-#### 3.1.1 Kubectl (Kubernetes CLI)
-[click](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/) here to install
-#### 3.1.2 Helm (Package Manager)
-[click](https://helm.sh/docs/intro/install/) here to install
-#### 3.1.3 JQ (JSON Processor)
-[click](https://lindevs.com/install-jq-on-ubuntu) here to install
-#### 3.1.4 LogCLI (Loki CLI)
-[click](https://grafana.com/docs/loki/latest/query/logcli/getting-started/) to install
-#### 3.1.5 Grafana Alloy (Collector)
-[click](https://grafana.com/docs/alloy/latest/set-up/install/linux/) here to install
+- [Kubectl (Kubernetes CLI)](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
+- [Helm (Package Manager)](https://helm.sh/docs/intro/install/)
+- [JQ (JSON Processor)](https://lindevs.com/install-jq-on-ubuntu)
+- [LogCLI (Loki CLI)](https://grafana.com/docs/loki/latest/query/logcli/getting-started/)
+- [Grafana Alloy (Collector)](https://grafana.com/docs/alloy/latest/set-up/install/linux/)
 
 ### 3.2 GKE Cluster Access
 
