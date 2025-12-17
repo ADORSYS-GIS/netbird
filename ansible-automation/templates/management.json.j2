@@ -46,19 +46,11 @@
     "Engine": "sqlite"
   },
 
-#  "HttpConfig": {
- #   "AuthAudience": "{{ netbird_auth_audience }}",
-  #  "AuthIssuer": "{{ netbird_auth_authority }}",
-   # "AuthKeysLocation": "{{ netbird_auth_authority }}/protocol/openid-connect/certs",
-#    "OIDCConfigEndpoint": "{{ netbird_auth_authority }}/.well-known/openid-configuration",
- #   "IdpSignKeyRefreshEnabled": false
- # },
-
   "HttpConfig": {
     "AuthAudience": "{{ netbird_auth_audience }}",
     "AuthIssuer": "{{ netbird_auth_authority }}",
-    "AuthKeysLocation": "http://keycloak:8080/realms/netbird-realm/protocol/openid-connect/certs",
-    "OIDCConfigEndpoint": "http://keycloak:8080/realms/netbird-realm/.well-known/openid-configuration",
+    "AuthKeysLocation": "http://{{ idp_service_name }}:{{ keycloak_port }}/realms/netbird-realm/protocol/openid-connect/certs",
+    "OIDCConfigEndpoint": "http://{{ idp_service_name }}:{{ keycloak_port }}/realms/netbird-realm/.well-known/openid-configuration",
     "IdpSignKeyRefreshEnabled": false
   
 }
