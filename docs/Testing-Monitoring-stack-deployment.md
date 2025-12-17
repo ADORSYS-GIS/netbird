@@ -1016,7 +1016,7 @@ loki.source.docker "ship_logs" {
 
 loki.write "gke_loki" {
   endpoint {
-    url = "https://<LOKI_ENDPOINT>/loki/api/v1/push"
+    url = "https://<LOKI_DOMAIN_NAME>/loki/api/v1/push"
     basic_auth { username = "admin" password = "admin" }
     headers = { "X-Scope-OrgID" = "netbird-prod" }
   }
@@ -1057,7 +1057,7 @@ prometheus.scrape "scrape_host" {
 
 prometheus.remote_write "gke_mimir" {
   endpoint {
-    url = "https://<MIMIR_ENDPOINT>/api/v1/push"
+    url = "https://<MIMIR_DOMAIN_NAME>/api/v1/push"
     basic_auth { username = "admin" password = "admin" }
     headers = { "X-Scope-OrgID" = "netbird-prod" }
   }
@@ -1079,7 +1079,7 @@ otelcol.receiver.otlp "default" {
 // Send traces to GKE
 otelcol.exporter.otlp "gke_tempo" {
   client {
-    endpoint = "<TEMPO_ENDPOINT>:443"
+    endpoint = "<TEMPO_DOMAIN_NAME>:443"
     
     // Auth (reuse the basic_auth block defined below if needed, or inline it)
     auth = otelcol.auth.basic.creds.handler
@@ -1120,7 +1120,8 @@ To test Tempo (Distributed Tracing) using your existing containerized Netbird ap
 Beyla uses eBPF technology to "watch" your Netbird containers from the kernel level. It automatically generates traces for every HTTP request and SQL query without you changing any Netbird code.
 
 # Start beyla
-```docker run -d \
+```bash
+docker run -d \
   --name beyla-tracer \
   --privileged \
   --pid=host \
