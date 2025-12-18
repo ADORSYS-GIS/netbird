@@ -1,0 +1,58 @@
+{
+
+  "Stuns": [
+    {
+      "Proto": "udp",
+      "URI": "stun:{{ netbird_domain }}:3478",
+      "Username": "",
+      "Password": ""
+    }
+  ],
+
+  "TURNConfig": {
+    "TimeBasedCredentials": false,
+    "CredentialsTTL": "12h0m0s",
+    "Secret": "{{ netbird_turn_secret }}",
+    "Turns": [
+      {
+        "Proto": "udp",
+        "URI": "turn:{{ netbird_domain }}:3478",
+        "Username": "self",
+        "Password": "{{ netbird_turn_password }}"
+      }
+    ]
+  },
+
+  "Relay": {
+    "Addresses": [
+      "rels://{{ netbird_domain }}/relay"
+    ],
+    "CredentialsTTL": "24h0m0s",
+    "Secret": "{{ netbird_relay_secret }}"
+  },
+
+  "Signal": {
+    "Proto": "https",
+    "URI": "{{ netbird_domain }}:443",
+    "Username": "",
+    "Password": ""
+  },
+
+  "Datadir": "/var/lib/netbird/",
+
+  "DataStoreEncryptionKey": "{{ netbird_datastore_encryption_key }}",
+  
+  "StoreConfig": {
+    "Engine": "sqlite"
+  },
+
+  "HttpConfig": {
+    "AuthAudience": "{{ netbird_auth_audience }}",
+    "AuthIssuer": "{{ netbird_auth_authority }}",
+    "AuthKeysLocation": "http://{{ idp_service_name }}:{{ keycloak_port }}/realms/netbird-realm/protocol/openid-connect/certs",
+    "OIDCConfigEndpoint": "http://{{ idp_service_name }}:{{ keycloak_port }}/realms/netbird-realm/.well-known/openid-configuration",
+    "IdpSignKeyRefreshEnabled": false
+  
+}
+
+}

@@ -1,3 +1,7 @@
+.ansible-env
+ansible_automation/.ansible/
+*.tfstate
+
 # Ignore environment / secret variable files
 .env
 *.env
@@ -20,6 +24,7 @@
 .DS_Store
 Thumbs.db
 
+
 # Ignore editor/IDE files
 .vscode/
 .idea/
@@ -30,7 +35,6 @@ Thumbs.db
 build/
 dist/
 target/
-
 # Ignore sensitive or local-only directories
 machinekey/
 

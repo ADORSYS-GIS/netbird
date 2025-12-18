@@ -24,7 +24,7 @@ graph TD
     User([User / External Traffic]) -->|HTTPS| LB[GCP LoadBalancer]
     LB -->|Routing| Ingress[Ingress Controller]
     
-    subgraph "GKE Cluster (Namespace: lgtm)"
+    subgraph "GKE Cluster (Namespace: observability)"
         Ingress -->|Host: grafana.*| Grafana[Grafana UI]
         Ingress -->|Host: loki.*| Loki[Loki Gateway]
         Ingress -->|Host: mimir.*| Mimir[Mimir Gateway]
@@ -106,10 +106,10 @@ This module is agnostic to the Ingress Controller and Certificate Issuer. By def
 
 ### Service Status
 
-Verify that all pods are running successfully in the `lgtm` namespace.
-
+Verify that all pods are running successfully in the `<NAMESPACE>` (default: `observability`) namespace.
+ 
 ```bash
-kubectl get pods -n lgtm
+kubectl get pods -n <NAMESPACE>
 ```
 
 ![Kubectl Get Pods](img/kubectl-get-pods.png)

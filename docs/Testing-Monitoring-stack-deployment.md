@@ -184,7 +184,7 @@ kubectl run -n <NAMESPACE> test-tempo --image=curlimages/curl -it --rm --restart
   curl -v --max-time 5 "http://<TEMPO_GATAWAY_SERVICE_NAME>/ready"
 ```
 
-### 4.4 Storage Health
+### 4.3 Storage Health
 
 ```bash
 # Check PVC status
@@ -193,7 +193,7 @@ kubectl get pvc -n <NAMESPACE>
 # Verify all are Bound
 kubectl get pvc -n <NAMESPACE> -o wide | grep -v Bound || echo "All PVCs are Bound"
 # Check disk usage on ingesters
-kubectl exec -n observablitiy <PVC_NAME> -- df -h
+kubectl exec -n <NAMESPACE> <PVC_NAME> -- df -h
 
 ```
 ---
