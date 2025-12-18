@@ -684,7 +684,7 @@ kubectl apply --server-side -f https://raw.githubusercontent.com/prometheus-oper
 # Create test-apps namespace
 kubectl create namespace test-apps
 # Apply all generators
-kubectl apply -f all-generators.yaml
+kubectl apply -f all-generators.yaml -n test-apps
 
 # Verify pods are running
 kubectl get pods -n test-apps -w
