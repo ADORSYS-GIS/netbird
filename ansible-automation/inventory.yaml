@@ -38,4 +38,4 @@ all:
         netbird_datastore_encryption_key: "<YOUR_KEY>"
         
         # Public IP for TURN server
-        netbird_external_ip: "<YOUR_NETBIRD_EXTERNAL_IP"
+        netbird_external_ip: "<YOUR_NETBIRD_EXTERNAL_IP>"

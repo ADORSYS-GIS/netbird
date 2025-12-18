@@ -11,19 +11,17 @@ This repository provides comprehensive deployment solutions for NetBird and its 
 
 The observability stack is deployment-agnostic and can monitor any infrastructure, not just NetBird.
 
-## Getting Started with NetBird
-
-### NetBird with Caddy Reverse Proxy
-
-Deploy a complete, production-ready NetBird instance with Caddy handling automatic HTTPS and reverse proxy functionality.
-
-**What you'll deploy:**
-- NetBird Management, Signal, and Relay servers
-- Caddy reverse proxy with automatic TLS
-- Keycloak for identity management
-- SQlite database
-
-See [NetBird Caddy Deployment Guide](docs/Caddy-Deployment.md) for complete setup instructions.
+## NetBird Deployment Options
+ 
+ You have two options for deploying the NetBird infrastructure:
+ 
+ ### Option 1: Automated Deployment (Recommended)
+ Use Ansible to automatically provision NetBird with Caddy, Keycloak, and all required configurations.
+ - **Guide**: [Ansible Deployment Guide](ansible-automation/README.md)
+ 
+ ### Option 2: Manual Deployment
+ Manually deploy NetBird with Caddy reverse proxy on a single host.
+ - **Guide**: [Manual Caddy Deployment Guide](docs/Caddy-Deployment.md)
 
 ## Observability Stack
 
@@ -55,6 +53,18 @@ Single-host deployment ideal for development, testing, and small production envi
 [Docker Compose Monitoring Guide](docs/Monitoring-NetBird-Observability-Docker-Compose.md)
 
 This is a complete, self-contained route from start to finish.
+
+> [!WARNING]
+> **Network Isolation & Project Names**
+> The monitoring stack connects to the `netbird_netbird` network by default. If you launched NetBird with a custom project name (e.g., `COMPOSE_PROJECT_NAME=myvpn`), the network name will be different (e.g., `myvpn_netbird`).
+> 
+> You **MUST** update `monitor-netbird/docker-compose.yaml` to match your actual network name:
+> ```yaml
+> networks:
+>   netbird:
+>     external: true
+>     name: myvpn_netbird  # Update this line
+> ```
 
 #### Route 2: Kubernetes
 
@@ -147,7 +157,7 @@ graph TB
 ## Component Documentation
 
 ### Monitoring Stack Components
-- [NetBird Events Exporter](monitor-netbird/exporter/README.md) - Custom exporter for NetBird activity monitoring
+- [NetBird Events Exporter](https://github.com/onelrian/signal) - Custom exporter for NetBird activity monitoring
 
 ### External Resources
 - [NetBird Documentation](https://docs.netbird.io/)
@@ -223,20 +233,20 @@ graph TB
 
 **Pods not starting**
 ```bash
-kubectl describe pod -n observability <pod-name>
-kubectl logs -n observability <pod-name>
+kubectl describe pod -n <NAMESPACE> <pod-name>
+kubectl logs -n <NAMESPACE> <pod-name>
 ```
 
 **Data source connection failures**
-1. Verify pods are running: `kubectl get pods -n observability`
-2. Check service endpoints: `kubectl get svc -n observability`
+1. Verify pods are running: `kubectl get pods -n <NAMESPACE>`
+2. Check service endpoints: `kubectl get svc -n <NAMESPACE>`
 3. Test internal connectivity from a debug pod
 
 **Storage issues**
 ```bash
 kubectl get pv
-kubectl get pvc -n observability
-kubectl describe pvc -n observability <pvc-name>
+kubectl get pvc -n <NAMESPACE>
+kubectl describe pvc -n <NAMESPACE> <pvc-name>
 ```
 
 See component-specific documentation for detailed troubleshooting.
@@ -251,6 +261,28 @@ See component-specific documentation for detailed troubleshooting.
 | Tempo      | 30 days   | tempo-values.yaml |
 
 Adjust these values based on your data retention requirements and available storage.
+
+## Teardown
+
+To cleanly remove the stack and avoid incurring costs for GCS buckets:
+
+### 1. Destroy Infrastructure
+```bash
+cd monitor-netbird/kubernetes/terraform
+terraform destroy
+```
+
+### 2. Manual Bucket Cleanup
+Terraform will not delete GCS buckets containing data (to prevent accidental data loss). You must remove them manually if you are sure:
+
+```bash
+# WARNING: This deletes all your monitoring data!
+gcloud storage rm --recursive gs://<YOUR_PROJECT_ID>-loki-chunks
+gcloud storage rm --recursive gs://<YOUR_PROJECT_ID>-loki-ruler
+gcloud storage rm --recursive gs://<YOUR_PROJECT_ID>-mimir-blocks
+gcloud storage rm --recursive gs://<YOUR_PROJECT_ID>-mimir-ruler
+gcloud storage rm --recursive gs://<YOUR_PROJECT_ID>-tempo-traces
+```
 
 ## License
 

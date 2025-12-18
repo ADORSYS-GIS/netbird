@@ -11,8 +11,8 @@ prometheus-pushgateway:
 serviceAccount:
   create: false  # Use existing service account created by Terraform
   name: ${k8s_service_account_name}
-annotations:
-  iam.gke.io/gcp-service-account: ${gcp_service_account_email} 
+  annotations:
+    iam.gke.io/gcp-service-account: ${gcp_service_account_email} 
 
 server:
   persistentVolume:
@@ -76,7 +76,7 @@ extraScrapeConfigs: |
         labels:
           instance: 'grafana'
           cluster: 'k8s'
-  
+
   - job_name: mimir-distributor
     static_configs:
       - targets: ['monitoring-mimir-distributor:8080']
