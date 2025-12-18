@@ -82,13 +82,11 @@ gateway:
     enabled: false
     ingressClassName: "${ingress_class_name}"
     annotations:
-    annotations:
       cert-manager.io/issuer: "${cert_issuer_name}"
       external-dns.alpha.kubernetes.io/hostname: tempo.${monitoring_domain}
   grpcIngress:
     enabled: false
     ingressClassName: "${ingress_class_name}"
-    annotations:
     annotations:
       cert-manager.io/issuer: "${cert_issuer_name}"
   service:

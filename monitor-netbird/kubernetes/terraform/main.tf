@@ -14,6 +14,12 @@ terraform {
       version = "~> 2.12"
     }
   }
+
+  # Production Best Practice: Store state remotely
+  # backend "gcs" {
+  #   bucket  = "YOUR_TF_STATE_BUCKET"
+  #   prefix  = "terraform/state"
+  # }
 }
 
 provider "google" {
