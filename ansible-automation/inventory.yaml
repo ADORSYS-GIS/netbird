@@ -1,0 +1,41 @@
+---
+# Ansible inventory with inline variables for NetBird deployment
+
+all:
+  children:
+    netbird_servers:
+      hosts:
+        netbird-primary:
+          ansible_host: <YOUR_DOMAIN>
+          ansible_user: ubuntu
+          ansible_connection: ssh         
+          ansible_ssh_private_key_file: /path/to/your/ssh/key # [NEW] Path to your private SSH key
+      vars:
+        # General NetBird Configuration
+        netbird_domain: "<YOUR_DOMAIN>"
+        netbird_caddy_email: "<YOUR_EMAIL>"
+        
+        
+        # Identity Provider (Keycloak) Configuration
+        netbird_realm: "<YOUR NETBIRD REALM>" # eg netbird-realm
+        keycloak_domain: "<YOUR_KEYCLOAK_DOMAIN>"
+        netbird_auth_audience: "<YOUR_NETBIRD_CLIENT_ID>"
+        netbird_auth_client_id: "<YOUR_NETBIRD_CLIENT_ID>"
+        idp_service_name: "<Your IdP Service Name>" # eg keycloak or the service that keycloak is running on
+        keycloak_port: "<KEYCLOAK_PORT>" # eg 8080
+        netbird_idp_mgmt_client_id: "<Your idp management client id>"   # eg NETBIRD_IDP_MGMT_CLIENT_ID "netbird-management"
+        #netbird_auth_authority: "https://your.keycloak.domain/realms/your-realm"
+        netbird_auth_authority: "https://<YOUR_KEYCLOAK_DOMAIN>/realms/<YOUR_NETBIRD_REALM>"
+        
+        
+        
+        # Secrets - IMPORTANT: Replace with strong, randomly generated secrets
+        # For production, consider using Ansible Vault
+        netbird_management_secret: "<YOUR_SECRET>"
+        netbird_relay_secret: "<YOUR_SECRET>"
+        netbird_turn_secret: "<YOUR_SECRET>"
+        netbird_turn_password: "<YOUR_SECRET>"
+        netbird_datastore_encryption_key: "<YOUR_KEY>"
+        
+        # Public IP for TURN server
+        netbird_external_ip: "<YOUR_NETBIRD_EXTERNAL_IP>"

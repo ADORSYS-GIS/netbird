@@ -11,19 +11,17 @@ This repository provides comprehensive deployment solutions for NetBird and its 
 
 The observability stack is deployment-agnostic and can monitor any infrastructure, not just NetBird.
 
-## Getting Started with NetBird
-
-### NetBird with Caddy Reverse Proxy
-
-Deploy a complete, production-ready NetBird instance with Caddy handling automatic HTTPS and reverse proxy functionality.
-
-**What you'll deploy:**
-- NetBird Management, Signal, and Relay servers
-- Caddy reverse proxy with automatic TLS
-- Keycloak for identity management
-- SQlite database
-
-See [NetBird Caddy Deployment Guide](docs/Caddy-Deployment.md) for complete setup instructions.
+## NetBird Deployment Options
+ 
+ You have two options for deploying the NetBird infrastructure:
+ 
+ ### Option 1: Automated Deployment (Recommended)
+ Use Ansible to automatically provision NetBird with Caddy, Keycloak, and all required configurations.
+ - **Guide**: [Ansible Deployment Guide](ansible-automation/README.md)
+ 
+ ### Option 2: Manual Deployment
+ Manually deploy NetBird with Caddy reverse proxy on a single host.
+ - **Guide**: [Manual Caddy Deployment Guide](docs/Caddy-Deployment.md)
 
 ## Observability Stack
 
@@ -55,6 +53,18 @@ Single-host deployment ideal for development, testing, and small production envi
 [Docker Compose Monitoring Guide](docs/Monitoring-NetBird-Observability-Docker-Compose.md)
 
 This is a complete, self-contained route from start to finish.
+
+> [!WARNING]
+> **Network Isolation & Project Names**
+> The monitoring stack connects to the `netbird_netbird` network by default. If you launched NetBird with a custom project name (e.g., `COMPOSE_PROJECT_NAME=myvpn`), the network name will be different (e.g., `myvpn_netbird`).
+> 
+> You **MUST** update `monitor-netbird/docker-compose.yaml` to match your actual network name:
+> ```yaml
+> networks:
+>   netbird:
+>     external: true
+>     name: myvpn_netbird  # Update this line
+> ```
 
 #### Route 2: Kubernetes
 
@@ -147,18 +157,101 @@ graph TB
 ## Component Documentation
 
 ### Monitoring Stack Components
-- [NetBird Events Exporter](monitor-netbird/exporter/README.md) - Custom exporter for NetBird activity monitoring
+- [NetBird Events Exporter](https://github.com/onelrian/signal) - Custom exporter for NetBird activity monitoring
 
 ### External Resources
 - [NetBird Documentation](https://docs.netbird.io/)
 - [Prometheus Documentation](https://prometheus.io/docs/)
 - [Grafana Documentation](https://grafana.com/docs/)
-- [Loki Documentation](https://grafana.com/docs/loki/latest/)
-- [Mimir Documentation](https://grafana.com/docs/mimir/latest/)
-- [Tempo Documentation](https://grafana.com/docs/tempo/latest/)
 
+## Architecture Overview
 
-### Default Retention Periods
+### Docker Compose Stack
+```
+┌─────────────────────────────────────────┐
+│         Grafana (Port 3000)             │
+│              Dashboards                 │
+└────────────┬────────────────────────────┘
+             │
+    ┌────────┴────────┬──────────┬─────────┐
+    │                 │          │         │
+┌───▼────┐     ┌─────▼─────┐ ┌──▼───┐ ┌───▼────┐
+│Prometh-│     │   Loki    │ │Mimir │ │ Tempo  │
+│ eus    │     │           │ │      │ │        │
+└────────┘     └───────────┘ └──────┘ └────────┘
+```
+
+### Kubernetes Stack
+```
+┌──────────────────────────────────────────┐
+│   Ingress (TLS via cert-manager)         │
+└────────────┬─────────────────────────────┘
+             │
+    ┌────────┴────────┬──────────┬─────────┐
+    │                 │          │         │
+┌───▼────┐     ┌─────▼─────┐ ┌──▼───┐  ┌───▼────┐
+│Grafana │     │Prometheus │ │Loki  │  │ Mimir  │
+│        │     │           │ │      │  │        │
+└────────┘     └───────────┘ └──┬───┘  └───┬────┘
+                                │          │
+                           ┌────▼──────────▼─────┐
+                           │  GCS Buckets        │
+                           │  (Object Storage)   │
+                           └─────────────────────┘
+```
+
+## Production Considerations
+
+### Security
+- Change default Grafana credentials immediately
+- Enable TLS for all external endpoints
+- Configure RBAC for Kubernetes deployments
+- Use secrets management for sensitive data
+- Implement network policies between namespaces
+
+### High Availability
+- Run multiple replicas for stateless components
+- Distribute pods across availability zones
+- Configure pod disruption budgets
+- Use external load balancers in production
+
+### Storage
+- Use production-grade storage classes
+- Configure appropriate retention policies
+- Implement backup and restore procedures
+- Monitor disk usage and set alerts
+
+### Monitoring
+- Set up alerting for component failures
+- Monitor ingestion rates and storage growth
+- Configure dead man's switch alerts
+- Track resource usage of monitoring pods
+
+## Troubleshooting
+
+### Common Issues
+
+**Pods not starting**
+```bash
+kubectl describe pod -n <NAMESPACE> <pod-name>
+kubectl logs -n <NAMESPACE> <pod-name>
+```
+
+**Data source connection failures**
+1. Verify pods are running: `kubectl get pods -n <NAMESPACE>`
+2. Check service endpoints: `kubectl get svc -n <NAMESPACE>`
+3. Test internal connectivity from a debug pod
+
+**Storage issues**
+```bash
+kubectl get pv
+kubectl get pvc -n <NAMESPACE>
+kubectl describe pvc -n <NAMESPACE> <pvc-name>
+```
+
+See component-specific documentation for detailed troubleshooting.
+
+## Default Retention Periods
 
 | Component  | Retention | Configuration File |
 |------------|-----------|-------------------|
@@ -168,6 +261,28 @@ graph TB
 | Tempo      | 30 days   | tempo-values.yaml |
 
 Adjust these values based on your data retention requirements and available storage.
+
+## Teardown
+
+To cleanly remove the stack and avoid incurring costs for GCS buckets:
+
+### 1. Destroy Infrastructure
+```bash
+cd monitor-netbird/kubernetes/terraform
+terraform destroy
+```
+
+### 2. Manual Bucket Cleanup
+Terraform will not delete GCS buckets containing data (to prevent accidental data loss). You must remove them manually if you are sure:
+
+```bash
+# WARNING: This deletes all your monitoring data!
+gcloud storage rm --recursive gs://<YOUR_PROJECT_ID>-loki-chunks
+gcloud storage rm --recursive gs://<YOUR_PROJECT_ID>-loki-ruler
+gcloud storage rm --recursive gs://<YOUR_PROJECT_ID>-mimir-blocks
+gcloud storage rm --recursive gs://<YOUR_PROJECT_ID>-mimir-ruler
+gcloud storage rm --recursive gs://<YOUR_PROJECT_ID>-tempo-traces
+```
 
 ## License
 
@@ -180,8 +295,7 @@ Component licenses:
 
 ## Support and Contributions
 
-- **Documentation**: Complete guides available in [docs/](docs/)
-- **Issues**: Use GitHub issue tracker for bug reports and feature requests
-- **NetBird Community**: [docs.netbird.io](https://docs.netbird.io/)
-
-For questions specific to deployment or configuration, refer to the relevant deployment guide above.
+- Documentation: [docs/](docs/)
+- Issues: GitHub issue tracker
+- NetBird: [Official documentation](https://docs.netbird.io/)
+- Component docs: See respective official documentation
