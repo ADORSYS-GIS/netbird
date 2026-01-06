@@ -1,0 +1,93 @@
+# 1. High Availability (Redis & Components)
+# -----------------------------------------
+redis-ha:
+  enabled: true
+  exporter:
+    enabled: true
+
+controller:
+  replicas: 1
+  resources:
+    limits:
+      memory: "2Gi"
+      cpu: "1"
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+
+repoServer:
+  replicas: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+  resources:
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+
+server:
+  replicas: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+  
+  # 2. Ingress & Cert-Manager Integration
+  # -------------------------------------
+  ingress:
+    enabled: true
+    ingressClassName: argocd-nginx # Points to the controller we created in Phase 1
+    hostname: "argocd.observe.camer.digital" # CHANGE THIS
+    annotations:
+      # Standard Nginx tuning
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+      
+      # Cert-Manager Configuration
+      cert-manager.io/cluster-issuer: "letsencrypt-prod" # CHANGE THIS to your Issuer name
+      # If you were using a ClusterIssuer, you would use:
+      # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      
+    tls:
+      - secretName: argocd-tls-cert
+        hosts:
+          - "argocd.observe.camer.digital" # CHANGE THIS
+
+  # 3. Multi-Tenancy & RBAC
+  # -----------------------
+  # This section sets up the foundation for multi-tenancy.
+  # We disable the admin user eventually and rely on SSO, 
+  # but for now, we define policies.
+configs:
+  params:
+    server.insecure: true # We terminate TLS at NGINX, so Argo itself runs insecurely internally
+  
+  # Define RBAC roles for your tenants here or in a separate ConfigMap
+  rbac:
+    policy.csv: |
+      # Example: Grant 'dev-team' access only to 'dev-project'
+      # p, role:dev-team, applications, *, dev-project/*, allow
+      # g, dev-user@yourcompany.com, role:dev-team
+      
+      # Default policy
+      g, admin, role:admin
+      g, ArgoCDAdmins, role:admin
+  
+  cm:
+    url: https://argocd.observe.camer.digital
+    oidc.config: |
+      name: Keycloak
+      issuer: https://keycloak.18.198.59.109.sslip.io/realms/argocd
+      clientID: argocd
+      clientSecret: lGH4qCY4mtEVaweAAHzktyrXTwRLHdWC # Used by the Server for Web Login
+      requestedScopes: ["openid", "profile", "email", "groups"]
+      enablePKCEAuthentication: true
+      # PKCE is handled automatically by the ArgoCD CLI 
+      # when it talks to this OIDC provider.
+
+# 4. GitOps Engine Tuning
+# -----------------------
+# Important for production to handle many applications
+applicationSet:
+  replicas: 2
