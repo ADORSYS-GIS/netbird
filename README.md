@@ -6,24 +6,19 @@ Production-grade infrastructure automation for NetBird deployments.
 
 This repository provides comprehensive deployment solutions for NetBird with Caddy setup as reverse proxy.
 
-## NetBird Deployment
+## Deployment Options
 
-You have two options for deploying the NetBird infrastructure.
-
-### Option 1: Automated Deployment (Recommended)
+### 1. Automated Deployment (Recommended)
 
 Use Ansible to automatically provision NetBird with Caddy, Keycloak, and all required configurations.
 
 - **Guide**: [Ansible Deployment Guide](ansible-automation/README.md)
 
-### Option 2: Manual Deployment
+### 2. Manual Deployment
 
  Manually deploy NetBird with Caddy reverse proxy on a single host.
--**Guide**: [Manual Caddy Deployment Guide](docs/Caddy-Deployment.md)
 
-Component licenses:
--NetBird: BSD 3-Clause
--Caddy: Apache 2.0
+- **Guide**: [Manual Caddy Deployment Guide](docs/Caddy-Deployment.md)
 
 ## Support and Contributions
 
