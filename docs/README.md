@@ -14,3 +14,6 @@ This directory contains detailed documentation for determining the architecture 
 
 - [**Ansible Deployment**](../infrastructure/ansible/README.md)
   Instructions for using the provided Ansible playbooks to automate the deployment of NetBird, Caddy, and Keycloak.
+
+- [**Quickstart with Zitadel**](../infrastructure/scripts/README.md)
+  A script-based approach to bootstrapping a full monitoring and testing environment with an integrated Zitadel Identity Provider.
