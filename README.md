@@ -12,17 +12,16 @@ This repository provides comprehensive deployment solutions for NetBird with Cad
 
 Use Ansible to automatically provision NetBird with Caddy, Keycloak, and all required configurations.
 
-- **Guide**: [Ansible Deployment Guide](ansible-automation/README.md)
+- **Guide**: [Ansible Deployment Guide](infrastructure/ansible/README.md)
 
 ### 2. Manual Deployment
 
- Manually deploy NetBird with Caddy reverse proxy on a single host.
+Manually deploy NetBird with Caddy reverse proxy on a single host.
 
-- **Guide**: [Manual Caddy Deployment Guide](docs/Caddy-Deployment.md)
+- **Guide**: [Manual Caddy Deployment Guide](docs/caddy-deployment.md)
 
 ## Support and Contributions
 
 - Documentation: [docs/](docs/)
 - Issues: GitHub issue tracker
 - NetBird: [Official documentation](https://docs.netbird.io/)
-- Component docs: See respective official documentation
