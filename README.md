@@ -14,7 +14,13 @@ Use Ansible to automatically provision NetBird with Caddy, Keycloak, and all req
 
 - **Guide**: [Ansible Deployment Guide](infrastructure/ansible/README.md)
 
-### 2. Manual Deployment
+### 2. Quickstart (Test/Dev)
+
+Quickly bootstrap a full stack including Zitadel IdP using the setup script.
+
+- **Guide**: [Quickstart with Zitadel](infrastructure/scripts/README.md)
+
+### 3. Manual Deployment
 
 Manually deploy NetBird with Caddy reverse proxy on a single host.
 
