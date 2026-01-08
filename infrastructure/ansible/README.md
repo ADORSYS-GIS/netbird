@@ -23,7 +23,7 @@ This directory contains an Ansible playbook to automate the deployment of NetBir
 ## Directory Structure
 
 ```
-ansible-automation/
+infrastructure/ansible/
 ├── inventory.yml     # Host definitions and all variables in one file
 ├── playbook.yml      # Main Ansible playbook with deployment tasks
 ├── templates/        # Jinja2 templates for configuration files
@@ -40,18 +40,19 @@ ansible-automation/
 
 ```bash
 git clone https://github.com/netbirdio/netbird.git
-cd netbird/ansible-automation
+cd netbird/infrastructure/ansible
 ```
 
 ### 2. Setup Keycloak
 
-Before deploying NetBird, configure your Keycloak instance:
-- Follow the [NetBird Keycloak setup guide](https://docs.netbird.io/selfhosted/identity-providers/keycloak)
-- Create a realm and client for NetBird
-- Note down the following values:
-  - Client ID
-  - Audience
-  - Authority URL (realm endpoint)
+Before deploying NetBird, a configured Keycloak instance is required:
+
+1. Follow the [NetBird Keycloak setup guide](https://docs.netbird.io/selfhosted/identity-providers/keycloak).
+2. Ensure the client is configured with the correct redirect URIs for your NetBird domain.
+3. Record the following values for the Ansible inventory:
+   - **Client ID**
+   - **Audience** (typically the same as Client ID)
+   - **Authority URL** (e.g., `https://idp.example.com/realms/myrealm`)
 
 ### 3. Configure your deployment
 

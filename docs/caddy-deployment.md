@@ -8,12 +8,12 @@ This guide extends the [official NetBird Advanced Self-Hosting Guide](https://do
 
 ### Why This Guide?
 
-The NetBird setup script (`configure.sh`) generates configurations optimized for direct service exposure with Let's Encrypt. When using Caddy as a reverse proxy, critical modifications are required:
+The NetBird setup script (`configure.sh`) generates configurations optimized for direct service exposure with Let's Encrypt. When using Caddy as a reverse proxy, critical modifications are required to the generated files:
 
-- **Port Configuration**: Services must run on internal ports only
-- **Endpoint URLs**: Must point to Caddy, not direct service ports
-- **Network Architecture**: All services must join a shared Docker network
-- **Protocol Handling**: Proper gRPC (h2c) and WebSocket configuration
+- **Port Configuration**: Services must be configured to list on internal ports, avoiding conflicts with Caddy.
+- **Endpoint URLs**: Configuration must point to Caddy's public endpoints, not direct service ports.
+- **Network Architecture**: All services must operate within a shared Docker network for internal communication.
+- **Protocol Handling**: Specific configurations are needed for gRPC (h2c) and WebSocket support through the proxy.
 
 ---
 
@@ -116,7 +116,9 @@ graph TB
 
 **Complete Steps 1-5 from the [NetBird Advanced Guide](https://docs.netbird.io/selfhosted/selfhosted-guide) before proceeding:**
 
-### Step 1: Get NetBird Code
+### Step 1: Clone the NetBird Repository
+
+Clone the official NetBird repository to obtain the necessary infrastructure files.
 
 ```bash
 cd ~
@@ -571,13 +573,16 @@ docker compose logs -f
 2. All services start and connect
 3. No critical errors in logs
 
+
 ### Monitor Certificate Issuance
 
+Monitor the Caddy logs to ensure the SSL certificate is successfully acquired.
+
 ```bash
-# Watch Caddy logs
+# View Caddy logs
 docker compose logs -f netbird-caddy
 
-# Look for:
+# Look for the confirmation message:
 # "certificate obtained successfully"
 ```
 
@@ -607,12 +612,12 @@ curl -I https://your-domain.com
 
 ### 1. Dashboard Access
 
-1- Navigate to <https://your-domain.com>
-2- You will be redirected to your Identity Provider (IdP) login page
-3- Authenticate on the IdP
-4- After successful authentication, you are redirected back to <https://your-domain.com>
-5- The NetBird dashboard UI loads with valid SSL
-6- You can view peers and interact with the dashboard
+1. Navigate to `https://your-domain.com`.
+2. Ensure you are redirected to your Identity Provider (IdP) login page.
+3. Authenticate with the IdP.
+4. Verify that you are redirected back to the NetBird dashboard at `https://your-domain.com`.
+5. Confirm that the dashboard loads correctly and uses a valid SSL certificate.
+6. Verify that the UI displays the peer list and allows interaction.
 
 **If login fails**:
 
