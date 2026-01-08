@@ -10,7 +10,7 @@ This guide extends the [official NetBird Advanced Self-Hosting Guide](https://do
 
 The NetBird setup script (`configure.sh`) generates configurations optimized for direct service exposure with Let's Encrypt. When using Caddy as a reverse proxy, critical modifications are required to the generated files:
 
-- **Port Configuration**: Services must be configured to list on internal ports, avoiding conflicts with Caddy.
+- **Port Configuration**: Services must be configured to listen on internal ports, avoiding conflicts with Caddy.
 - **Endpoint URLs**: Configuration must point to Caddy's public endpoints, not direct service ports.
 - **Network Architecture**: All services must operate within a shared Docker network for internal communication.
 - **Protocol Handling**: Specific configurations are needed for gRPC (h2c) and WebSocket support through the proxy.
