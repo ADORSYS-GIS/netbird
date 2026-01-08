@@ -1,6 +1,6 @@
 # NetBird with Caddy Deployment Automation
 
-This directory contains an Ansible playbook to automate the deployment of NetBird with Caddy as a reverse proxy and Keycloak as the IdP. Caddy handles SSL termination and routes traffic to the various NetBird services.
+This directory contains an Ansible playbook to automate the deployment of NetBird with Caddy as a reverse proxy, configured to use Keycloak as the IdP. Caddy handles SSL termination and routes traffic to the various NetBird services.
 
 ## Prerequisites
 
@@ -24,7 +24,7 @@ This directory contains an Ansible playbook to automate the deployment of NetBir
 
 ```
 infrastructure/ansible/
-├── inventory.yml     # Host definitions and all variables in one file
+├── inventory.yaml    # Host definitions and all variables in one file
 ├── playbook.yml      # Main Ansible playbook with deployment tasks
 ├── templates/        # Jinja2 templates for configuration files
 │   ├── Caddyfile.j2
@@ -56,7 +56,7 @@ Before deploying NetBird, a configured Keycloak instance is required:
 
 ### 3. Configure your deployment
 
-Edit `inventory.yml` with your server details and Keycloak configuration:
+Edit `inventory.yaml` with your server details and Keycloak configuration:
 
 ```yaml
 all:
@@ -90,7 +90,7 @@ all:
 ### 4. Run the deployment
 
 ```bash
-ansible-playbook -i inventory.yml playbook.yml --ask-become-pass
+ansible-playbook -i inventory.yaml playbook.yml --ask-become-pass
 ```
 
 The `--ask-become-pass` flag will prompt you for your `sudo` password on the target server.
