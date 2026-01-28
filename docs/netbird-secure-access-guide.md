@@ -1,16 +1,11 @@
 # Secure Application Access with NetBird DNS Zones
 
-This guide explains how to securely access your applications over NetBird while keeping them invisible to the public internet using DNS Zones and Distribution Groups.
+NetBird DNS Zones let you assign custom domains (e.g., app.mycompany.local) to your app’s public IP that only resolve for users on your NetBird network, keeping your application secure and invisible to the public internet. In this guide, you’ll learn how to configure DNS Zones with Distribution Groups for safe, private app access.
 
-## Introduction
 
-NetBird's **DNS Zones** feature allows you to create custom domain names (e.g., `app.mycompany.local`) that resolve to your application's public IP address, but **only for users connected to your NetBird network**.
+## Why Use NetBird DNS Zones Instead of Public DNS?
 
-## Key Benefits
-
-### Why Use NetBird DNS Zones Instead of Public DNS?
-
-| Feature | NetBird DNS Zones | Traditional DNS Provider |
+| Aspects | NetBird DNS Zones | Traditional DNS Provider |
 |---------|-------------------|--------------------------|
 | **Cost** | Free (included with NetBird) | $10-50/year per domain |
 | **Privacy** | Only visible to your network | Publicly visible |
@@ -52,9 +47,16 @@ Before starting, ensure you have:
 
 Now you'll create a custom domain and point it to your application's public IP.
 
-1.  Navigate to **DNS** > **DNS Zones**.
-2.  Click **Add Zone**.
-3.  **Zone Settings**:
+### Navigating to DNS Zones
+
+In your NetBird Dashboard, navigate to **DNS** > **DNS Zones** from the left sidebar:
+
+![NetBird DNS Zones Navigation](img/netbird-dns-zones-navigation.png)
+
+### Creating a DNS Zone
+
+1.  Click **Add Zone**.
+2.  **Zone Settings**:
     -   **Domain**: Enter your desired private domain (e.g., `mycompany.local`, `internal.dev`, or `apps.corp`)
     -   **Description**: e.g., "Private DNS for internal applications"
     -   **Distribution Groups**: Select which groups should be able to resolve this domain.
