@@ -85,7 +85,7 @@ jobs:
           ssh-private-key: ${{ secrets.ANSIBLE_SSH_KEY }}
 
       - name: Configure Keycloak for NetBird
-        if: secrets.KEYCLOAK_URL != '' && secrets.KEYCLOAK_ADMIN_PASSWORD != ''
+        if: ${{ secrets.KEYCLOAK_URL != '' && secrets.KEYCLOAK_ADMIN_PASSWORD != '' }}
         env:
           KEYCLOAK_URL: ${{ secrets.KEYCLOAK_URL }}
           KEYCLOAK_ADMIN_USER: ${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}
