@@ -105,7 +105,7 @@ jobs:
           OUTPUT_FORMAT: json
         run: |
           chmod +x infrastructure/scripts/keycloak-setup.sh
-          infrastructure/scripts/keycloak-setup.sh > keycloak-output.json 2>&1
+          infrastructure/scripts/keycloak-setup.sh > keycloak-output.json
           
           echo "Keycloak configuration completed"
           cat keycloak-output.json
