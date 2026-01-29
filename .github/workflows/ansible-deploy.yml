@@ -1,0 +1,202 @@
+name: Ansible Deployment
+
+# This workflow automates the deployment of NetBird using Ansible.
+# It supports two deployment targets: Remote SSH and AWS SSM.
+#
+# REQUIRED GITHUB SECRETS:
+# (See documentation in the repository for a full list of NetBird specific secrets)
+#
+# FOR 'aws_ssm': AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_INSTANCE_ID
+# FOR 'ssh_remote': ANSIBLE_SSH_KEY, ANSIBLE_HOST, ANSIBLE_USER
+# ANSIBLE_VAULT_PASSWORD: Password to decrypt Ansible Vault encrypted files (optional if using Keycloak automation)
+# 
+# KEYCLOAK AUTOMATION (optional - if not provided, uses vault values):
+# KEYCLOAK_URL: URL of existing Keycloak instance (e.g., https://keycloak.example.com)
+# KEYCLOAK_ADMIN_USER: Keycloak admin username (default: admin)
+# KEYCLOAK_ADMIN_PASSWORD: Keycloak admin password
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/ansible/**'
+  workflow_dispatch:
+    inputs:
+      deployment_target:
+        description: 'Where to deploy NetBird'
+        required: true
+        default: 'ssh_remote'
+        type: choice
+        options:
+          - ssh_remote
+          - aws_ssm
+      target_host:
+        description: 'Target Host (for ssh_remote)'
+        required: false
+      target_user:
+        description: 'SSH User (for ssh_remote)'
+        required: false
+        default: 'ubuntu'
+
+jobs:
+  deploy:
+    name: Deploy NetBird
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_TARGET: ${{ github.event.inputs.deployment_target || 'ssh_remote' }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Ansible and Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible botocore boto3
+
+      - name: Install Ansible Collections
+        run: |
+          ansible-galaxy collection install community.docker
+          ansible-galaxy collection install community.aws
+
+      - name: Configure AWS Credentials
+        if: env.DEPLOY_TARGET == 'aws_ssm'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install AWS Session Manager Plugin
+        if: env.DEPLOY_TARGET == 'aws_ssm'
+        run: |
+          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+          sudo dpkg -i session-manager-plugin.deb
+
+      - name: Setup SSH
+        if: env.DEPLOY_TARGET == 'ssh_remote'
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.ANSIBLE_SSH_KEY }}
+
+      - name: Setup Ansible Vault Password
+        if: secrets.ANSIBLE_VAULT_PASSWORD != ''
+        run: |
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > infrastructure/ansible/.vault_pass
+          chmod 600 infrastructure/ansible/.vault_pass
+
+      - name: Configure Keycloak for NetBird
+        if: secrets.KEYCLOAK_URL != '' && secrets.KEYCLOAK_ADMIN_PASSWORD != ''
+        env:
+          KEYCLOAK_URL: ${{ secrets.KEYCLOAK_URL }}
+          KEYCLOAK_ADMIN_USER: ${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}
+          KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+          NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
+          NETBIRD_REALM: ${{ secrets.NETBIRD_REALM || 'netbird' }}
+          OUTPUT_FORMAT: json
+        run: |
+          chmod +x infrastructure/scripts/keycloak-setup.sh
+          infrastructure/scripts/keycloak-setup.sh > keycloak-output.json 2>&1
+          
+          echo "Keycloak configuration completed"
+          cat keycloak-output.json
+
+      - name: Load Keycloak Configuration
+        id: keycloak_config
+        run: |
+          if [ -f keycloak-output.json ]; then
+            echo "Using Keycloak automation output"
+            echo "KEYCLOAK_AUTOMATED=true" >> $GITHUB_ENV
+            
+            # Extract values from JSON
+            echo "KC_CLIENT_ID=$(jq -r '.netbird_client_id' keycloak-output.json)" >> $GITHUB_ENV
+            echo "KC_MGMT_CLIENT_ID=$(jq -r '.netbird_idp_mgmt_client_id' keycloak-output.json)" >> $GITHUB_ENV
+            echo "KC_MGMT_CLIENT_SECRET=$(jq -r '.netbird_idp_mgmt_client_secret' keycloak-output.json)" >> $GITHUB_ENV
+            echo "KC_MANAGEMENT_SECRET=$(jq -r '.netbird_management_secret' keycloak-output.json)" >> $GITHUB_ENV
+            echo "KC_RELAY_SECRET=$(jq -r '.netbird_relay_secret' keycloak-output.json)" >> $GITHUB_ENV
+            echo "KC_TURN_SECRET=$(jq -r '.netbird_turn_secret' keycloak-output.json)" >> $GITHUB_ENV
+            echo "KC_TURN_PASSWORD=$(jq -r '.netbird_turn_password' keycloak-output.json)" >> $GITHUB_ENV
+            echo "KC_DATASTORE_KEY=$(jq -r '.netbird_datastore_encryption_key' keycloak-output.json)" >> $GITHUB_ENV
+            echo "KC_REALM=$(jq -r '.netbird_realm' keycloak-output.json)" >> $GITHUB_ENV
+            echo "KC_DOMAIN=$(jq -r '.keycloak_domain' keycloak-output.json)" >> $GITHUB_ENV
+            echo "KC_AUTHORITY=$(jq -r '.netbird_auth_authority' keycloak-output.json)" >> $GITHUB_ENV
+          else
+            echo "Using GitHub Secrets / Ansible Vault"
+            echo "KEYCLOAK_AUTOMATED=false" >> $GITHUB_ENV
+          fi
+
+      - name: Run Ansible Playbook
+        env:
+          # Targets
+          TARGET_HOST: ${{ github.event.inputs.target_host || secrets.ANSIBLE_HOST }}
+          TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER }}
+          AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
+          # NetBird Vars
+          NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
+          NETBIRD_CADDY_EMAIL: ${{ secrets.NETBIRD_CADDY_EMAIL }}
+          NETBIRD_EXTERNAL_IP: ${{ secrets.NETBIRD_EXTERNAL_IP }}
+          IDP_SERVICE_NAME: ${{ secrets.IDP_SERVICE_NAME || 'keycloak' }}
+          KEYCLOAK_PORT: ${{ secrets.KEYCLOAK_PORT || '8080' }}
+        run: |
+          echo "[netbird_servers]" > inventory_gh.ini
+          
+          if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
+            echo "netbird-primary ansible_host=$AWS_INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
+          else
+            echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
+          fi
+          
+          # Build ansible-playbook command
+          PLAYBOOK_CMD="ansible-playbook -i inventory_gh.ini infrastructure/ansible/playbook.yaml"
+          
+          # Add vault password file if it exists
+          if [ -f infrastructure/ansible/.vault_pass ]; then
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --vault-password-file infrastructure/ansible/.vault_pass"
+          fi
+          
+          # Add base extra-vars
+          PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_domain=$NETBIRD_DOMAIN\""
+          PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_caddy_email=$NETBIRD_CADDY_EMAIL\""
+          PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_external_ip=$NETBIRD_EXTERNAL_IP\""
+          PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"idp_service_name=$IDP_SERVICE_NAME\""
+          PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_port=$KEYCLOAK_PORT\""
+          
+          # Add Keycloak-specific vars based on source
+          if [ "$KEYCLOAK_AUTOMATED" = "true" ]; then
+            echo "Using Keycloak automation values"
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_client_id=$KC_CLIENT_ID\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_audience=$KC_CLIENT_ID\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_idp_mgmt_client_id=$KC_MGMT_CLIENT_ID\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_idp_mgmt_client_secret=$KC_MGMT_CLIENT_SECRET\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_management_secret=$KC_MANAGEMENT_SECRET\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_relay_secret=$KC_RELAY_SECRET\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_turn_secret=$KC_TURN_SECRET\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_turn_password=$KC_TURN_PASSWORD\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_datastore_encryption_key=$KC_DATASTORE_KEY\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_realm=$KC_REALM\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_domain=$KC_DOMAIN\""
+            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_authority=$KC_AUTHORITY\""
+          else
+            echo "Using GitHub Secrets / Ansible Vault values"
+            # Only add if secrets are provided
+            [ -n "${{ secrets.NETBIRD_AUTH_AUDIENCE }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_audience=${{ secrets.NETBIRD_AUTH_AUDIENCE }}\""
+            [ -n "${{ secrets.NETBIRD_AUTH_CLIENT_ID }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_client_id=${{ secrets.NETBIRD_AUTH_CLIENT_ID }}\""
+            [ -n "${{ secrets.NETBIRD_AUTH_AUTHORITY }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_authority=${{ secrets.NETBIRD_AUTH_AUTHORITY }}\""
+            [ -n "${{ secrets.NETBIRD_MANAGEMENT_SECRET }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_management_secret=${{ secrets.NETBIRD_MANAGEMENT_SECRET }}\""
+            [ -n "${{ secrets.NETBIRD_RELAY_SECRET }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_relay_secret=${{ secrets.NETBIRD_RELAY_SECRET }}\""
+            [ -n "${{ secrets.NETBIRD_TURN_SECRET }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_turn_secret=${{ secrets.NETBIRD_TURN_SECRET }}\""
+            [ -n "${{ secrets.NETBIRD_TURN_PASSWORD }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_turn_password=${{ secrets.NETBIRD_TURN_PASSWORD }}\""
+            [ -n "${{ secrets.NETBIRD_DATASTORE_ENCRYPTION_KEY }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_datastore_encryption_key=${{ secrets.NETBIRD_DATASTORE_ENCRYPTION_KEY }}\""
+            [ -n "${{ secrets.NETBIRD_IDP_MGMT_CLIENT_ID }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_idp_mgmt_client_id=${{ secrets.NETBIRD_IDP_MGMT_CLIENT_ID }}\""
+            [ -n "${{ secrets.KEYCLOAK_DOMAIN }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_domain=${{ secrets.KEYCLOAK_DOMAIN }}\""
+            [ -n "${{ secrets.NETBIRD_REALM }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_realm=${{ secrets.NETBIRD_REALM }}\""
+          fi
+          
+          # Execute the command
+          eval $PLAYBOOK_CMD

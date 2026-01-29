@@ -1,0 +1,33 @@
+---
+# NetBird Domain and Email
+netbird_domain: "<YOUR_DOMAIN>"
+netbird_caddy_email: "<YOUR_EMAIL>"
+netbird_external_ip: "<YOUR_NETBIRD_EXTERNAL_IP>"
+
+# Keycloak Configuration for Auto-Setup
+keycloak_domain: "<YOUR_KEYCLOAK_DOMAIN>"
+keycloak_port: "8080"
+keycloak_admin_user: "admin"
+keycloak_admin_password: "{{ vault_keycloak_admin_password }}"
+keycloak_auth_url: "https://{{ keycloak_domain }}"
+
+# NetBird Realm and IdP Settings
+netbird_realm: "netbird"
+idp_service_name: "keycloak"
+
+# Keycloak Auto-Setup Flag (set to false to skip Keycloak configuration)
+keycloak_auto_setup: true
+
+# OAuth Client Configuration (auto-filled by keycloak-setup.sh)
+netbird_auth_client_id: "{{ vault_netbird_auth_client_id | default('netbird-client') }}"
+netbird_auth_audience: "{{ vault_netbird_auth_client_id | default('netbird-client') }}"
+netbird_auth_authority: "https://{{ keycloak_domain }}/realms/{{ netbird_realm }}"
+netbird_idp_mgmt_client_id: "{{ vault_netbird_idp_mgmt_client_id | default('netbird-management') }}"
+netbird_idp_mgmt_client_secret: "{{ vault_netbird_idp_mgmt_client_secret }}"
+
+# NetBird Service Secrets (should come from vault)
+netbird_management_secret: "{{ vault_netbird_management_secret }}"
+netbird_relay_secret: "{{ vault_netbird_relay_secret }}"
+netbird_turn_secret: "{{ vault_netbird_turn_secret }}"
+netbird_turn_password: "{{ vault_netbird_turn_password }}"
+netbird_datastore_encryption_key: "{{ vault_netbird_datastore_encryption_key }}"

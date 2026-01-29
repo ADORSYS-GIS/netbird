@@ -24,7 +24,142 @@
           - netbird_management_secret is defined
           - netbird_relay_secret is defined
           - netbird_turn_secret is defined
-        fail_msg: "One or more required variables are missing. Please check your inventory."
+          - netbird_turn_password is defined
+          - netbird_datastore_encryption_key is defined
+          - keycloak_admin_user is defined
+          - keycloak_admin_password is defined
+          - keycloak_domain is defined
+        fail_msg: "One or more required variables are missing. Please check your vars.yml and vault.yml."
+
+    # Keycloak Configuration
+    - name: Configure Keycloak realm and OAuth clients via API
+      block:
+        - name: Keycloak | Get admin token
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url }}/realms/master/protocol/openid-connect/token"
+            method: POST
+            body_format: form-urlencoded
+            body:
+              username: "{{ keycloak_admin_user }}"
+              password: "{{ keycloak_admin_password }}"
+              grant_type: password
+              client_id: admin-cli
+          register: keycloak_admin_token_response
+          no_log: true
+
+        - name: Keycloak | Set admin token fact
+          ansible.builtin.set_fact:
+            keycloak_admin_token: "{{ keycloak_admin_token_response.json.access_token }}"
+
+        - name: Keycloak | Check if realm exists
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ keycloak_admin_token }}"
+          register: keycloak_realm_check
+          failed_when: false
+          changed_when: false
+
+        - name: Keycloak | Create realm if it does not exist
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url }}/admin/realms"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ keycloak_admin_token }}"
+            body_format: json
+            body:
+              realm: "{{ netbird_realm }}"
+              enabled: true
+              displayName: "NetBird"
+            status_code: [201, 409] # 201 Created, 409 Conflict (already exists)
+          when: keycloak_realm_check.status == 404
+
+        - name: Keycloak | Check if netbird-client exists
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients?clientId=netbird-client"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ keycloak_admin_token }}"
+          register: keycloak_netbird_client_check
+
+        - name: Keycloak | Create netbird-client if it does not exist
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ keycloak_admin_token }}"
+            body_format: json
+            body:
+              clientId: "netbird-client"
+              name: "NetBird Web Client"
+              publicClient: true
+              standardFlowEnabled: true
+              redirectUris:
+                - "https://{{ netbird_domain }}/*"
+                - "http://localhost:53000/*"
+              webOrigins:
+                - "https://{{ netbird_domain }}"
+                - "http://localhost:53000"
+            status_code: [201, 409]
+          when: keycloak_netbird_client_check.json | length == 0
+
+        - name: Keycloak | Check if netbird-management client exists
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients?clientId=netbird-management"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ keycloak_admin_token }}"
+          register: keycloak_mgmt_client_check
+
+        - name: Keycloak | Create netbird-management client if it does not exist
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients"
+            method: POST
+            headers:
+              Authorization: "Bearer {{ keycloak_admin_token }}"
+            body_format: json
+            body:
+              clientId: "netbird-management"
+              name: "NetBird Management Service"
+              serviceAccountsEnabled: true
+              publicClient: false
+            status_code: [201, 409]
+          when: keycloak_mgmt_client_check.json | length == 0
+
+        - name: Keycloak | Get netbird-management client UUID
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients?clientId=netbird-management"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ keycloak_admin_token }}"
+          register: keycloak_mgmt_client_info
+          retries: 5
+          delay: 2
+          until: "keycloak_mgmt_client_info.json | length > 0"
+
+        - name: Keycloak | Set management client UUID fact
+          ansible.builtin.set_fact:
+            keycloak_mgmt_client_uuid: "{{ keycloak_mgmt_client_info.json[0].id }}"
+
+        - name: Keycloak | Get netbird-management client secret
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients/{{ keycloak_mgmt_client_uuid }}/client-secret"
+            method: GET
+            headers:
+              Authorization: "Bearer {{ keycloak_admin_token }}"
+          register: keycloak_mgmt_client_secret
+          no_log: true
+
+        - name: Set up vault variables from Keycloak
+          ansible.builtin.set_fact:
+            netbird_auth_client_id: "netbird-client"
+            netbird_idp_mgmt_client_id: "netbird-management"
+            netbird_idp_mgmt_client_secret: "{{ keycloak_mgmt_client_secret.json.value }}"
+            netbird_auth_authority: "{{ keycloak_auth_url }}/realms/{{ netbird_realm }}"
+            netbird_auth_audience: "netbird-client"
+      when: keycloak_auto_setup | default(true)
+
 
     # Task: Create the main deployment directory for NetBird.
     - name: Create NetBird deployment directory
@@ -78,7 +213,12 @@
         NETBIRD_AUTH_AUDIENCE: "{{ netbird_auth_audience }}"
         NETBIRD_AUTH_CLIENT_ID: "{{ netbird_auth_client_id }}"
         NETBIRD_AUTH_AUTHORITY: "{{ netbird_auth_authority }}"
+        NETBIRD_IDP_MGMT_CLIENT_ID: "{{ netbird_idp_mgmt_client_id }}"
+        NETBIRD_IDP_MGMT_CLIENT_SECRET: "{{ netbird_idp_mgmt_client_secret }}"
+        NETBIRD_MANAGEMENT_SECRET: "{{ netbird_management_secret }}"
         NETBIRD_RELAY_SECRET: "{{ netbird_relay_secret }}"
         NETBIRD_TURN_SECRET: "{{ netbird_turn_secret }}"
         NETBIRD_TURN_PASSWORD: "{{ netbird_turn_password }}"
         NETBIRD_DATASTORE_ENCRYPTION_KEY: "{{ netbird_datastore_encryption_key }}"
+        KEYCLOAK_DOMAIN: "{{ keycloak_domain }}"
+        NETBIRD_REALM: "{{ netbird_realm }}"

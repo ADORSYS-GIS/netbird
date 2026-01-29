@@ -1,13 +1,16 @@
-# NetBird Quickstart Script
+# NetBird IDP Setup Scripts
 
-This script bootstraps a complete testing environment including NetBird services (Management, Signal, Relay, Dashboard), a Zitadel Identity Provider, and PostgreSQL.
+This directory contains scripts to configure Identity Providers for NetBird.
 
-**Prerequisites**: Docker, Docker Compose, `jq`, `curl`.
+## Scripts
 
-## Usage
+### 1. `zitadel-setup.sh` - Complete Zitadel Bootstrap
 
-Execute the script to provision the stack. For local testing, disable Let's Encrypt and bind to your IP address.
+Bootstraps a complete testing environment including NetBird services, Zitadel IDP, and PostgreSQL.
 
+**Prerequisites**: Docker, Docker Compose, `jq`, `curl`
+
+**Usage:**
 ```bash
 # Local/Testing Environment
 export NETBIRD_DISABLE_LETSENCRYPT=true
@@ -17,17 +20,52 @@ chmod +x infrastructure/scripts/zitadel-setup.sh
 ./infrastructure/scripts/zitadel-setup.sh
 ```
 
-## Access
+**Access:**
+- Dashboard: `http://<NETBIRD_DOMAIN>`
+- Credentials output to console
 
-- **Dashboard**: `http://<NETBIRD_DOMAIN>`
-- **Credentials**: Admin username and password are output to the console upon completion.
+**Troubleshooting "Insecure Origin":**
+For local HTTP testing, some browsers block authentication. Workaround:
+1. Open `chrome://flags`
+2. Search for "Insecure origins treated as secure"
+3. Add your URL (e.g., `http://192.168.1.100`)
+4. Relaunch browser
 
-### Troubleshooting "Insecure Origin"
+---
 
-If you are running this locally with `NETBIRD_DISABLE_LETSENCRYPT=true` (HTTP), some browsers (like Chrome/Brave) may block the authentication flow because the OIDC origin is insecure.
+### 2. `keycloak-setup.sh` - Configure Existing Keycloak
 
-**Workaround (Test Only):**
-1.  Open `chrome://flags` in your browser.
-2.  Search for "Insecure origins treated as secure".
-3.  Enable it and add your URL (e.g., `http://192.168.1.100`) to the list.
-4.  Relaunch the browser.
+Configures an existing Keycloak instance for NetBird integration. Creates realm, clients, and generates secrets.
+
+**Prerequisites**: `curl`, `jq`
+
+**Usage:**
+```bash
+# Manual Configuration
+KEYCLOAK_URL=https://keycloak.example.com \
+KEYCLOAK_ADMIN_PASSWORD=your-admin-password \
+NETBIRD_DOMAIN=netbird.example.com \
+NETBIRD_REALM=netbird \
+./infrastructure/scripts/keycloak-setup.sh
+```
+
+**What it does:**
+1. Authenticates to Keycloak admin API
+2. Creates NetBird realm
+3. Configures `netbird-client` (public OAuth client for web/dashboard)
+4. Configures `netbird-management` (service account for management API)
+5. Generates random secrets for NetBird services
+6. Outputs configuration for Ansible vault
+
+**Output:**
+- Client IDs and secrets
+- Generated NetBird service secrets
+- Ready-to-use Ansible vault configuration
+
+**CI/CD Usage:**
+The script supports JSON output for automation:
+```bash
+OUTPUT_FORMAT=json ./infrastructure/scripts/keycloak-setup.sh
+```
+
+This is automatically used by GitHub Actions workflow when Keycloak secrets are provided.

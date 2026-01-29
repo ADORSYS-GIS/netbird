@@ -53,3 +53,7 @@ monitor-netbird/kubernetes/helm/monitoring-stack/charts/_loki/
 .env
 .quodo
 .vivus
+
+.vault_pass
+**/vault_pass
+**/.vault_pass

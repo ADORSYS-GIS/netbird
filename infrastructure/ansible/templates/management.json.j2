@@ -49,8 +49,8 @@
   "HttpConfig": {
     "AuthAudience": "{{ netbird_auth_audience }}",
     "AuthIssuer": "{{ netbird_auth_authority }}",
-    "AuthKeysLocation": "http://{{ idp_service_name }}:{{ keycloak_port }}/realms/netbird-realm/protocol/openid-connect/certs",
-    "OIDCConfigEndpoint": "http://{{ idp_service_name }}:{{ keycloak_port }}/realms/netbird-realm/.well-known/openid-configuration",
+    "AuthKeysLocation": "{{ netbird_auth_authority }}/protocol/openid-connect/certs",
+    "OIDCConfigEndpoint": "{{ netbird_auth_authority }}/.well-known/openid-configuration",
     "IdpSignKeyRefreshEnabled": false
   
 }
