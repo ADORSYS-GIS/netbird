@@ -29,7 +29,7 @@
           - keycloak_admin_user is defined
           - keycloak_admin_password is defined
           - keycloak_domain is defined
-        fail_msg: "One or more required variables are missing. Please check your vars.yml and vault.yml."
+        fail_msg: "One or more required variables are missing. Please check your vars.yml."
 
     # Keycloak Configuration
     - name: Configure Keycloak realm and OAuth clients via API
@@ -151,7 +151,7 @@
           register: keycloak_mgmt_client_secret
           no_log: true
 
-        - name: Set up vault variables from Keycloak
+        - name: Set up Keycloak facts
           ansible.builtin.set_fact:
             netbird_auth_client_id: "netbird-client"
             netbird_idp_mgmt_client_id: "netbird-management"

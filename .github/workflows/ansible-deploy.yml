@@ -8,9 +8,8 @@ name: Ansible Deployment
 #
 # FOR 'aws_ssm': AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_INSTANCE_ID
 # FOR 'ssh_remote': ANSIBLE_SSH_KEY, ANSIBLE_HOST, ANSIBLE_USER
-# ANSIBLE_VAULT_PASSWORD: Password to decrypt Ansible Vault encrypted files (optional if using Keycloak automation)
 # 
-# KEYCLOAK AUTOMATION (optional - if not provided, uses vault values):
+# KEYCLOAK AUTOMATION:
 # KEYCLOAK_URL: URL of existing Keycloak instance (e.g., https://keycloak.example.com)
 # KEYCLOAK_ADMIN_USER: Keycloak admin username (default: admin)
 # KEYCLOAK_ADMIN_PASSWORD: Keycloak admin password
@@ -56,13 +55,11 @@ jobs:
           python-version: '3.x'
 
       - name: Install Ansible and Dependencies
-        run: |
-          python -m pip install --upgrade pip
+        run: |\n          python -m pip install --upgrade pip
           pip install ansible botocore boto3
 
       - name: Install Ansible Collections
-        run: |
-          ansible-galaxy collection install community.docker
+        run: |\n          ansible-galaxy collection install community.docker
           ansible-galaxy collection install community.aws
 
       - name: Configure AWS Credentials
@@ -75,8 +72,7 @@ jobs:
 
       - name: Install AWS Session Manager Plugin
         if: env.DEPLOY_TARGET == 'aws_ssm'
-        run: |
-          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+        run: |\n          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
           sudo dpkg -i session-manager-plugin.deb
 
       - name: Setup SSH
@@ -84,12 +80,6 @@ jobs:
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.ANSIBLE_SSH_KEY }}
-
-      - name: Setup Ansible Vault Password
-        if: secrets.ANSIBLE_VAULT_PASSWORD != ''
-        run: |
-          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > infrastructure/ansible/.vault_pass
-          chmod 600 infrastructure/ansible/.vault_pass
 
       - name: Configure Keycloak for NetBird
         if: secrets.KEYCLOAK_URL != '' && secrets.KEYCLOAK_ADMIN_PASSWORD != ''
@@ -100,8 +90,7 @@ jobs:
           NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
           NETBIRD_REALM: ${{ secrets.NETBIRD_REALM || 'netbird' }}
           OUTPUT_FORMAT: json
-        run: |
-          chmod +x infrastructure/scripts/keycloak-setup.sh
+        run: |\n          chmod +x infrastructure/scripts/keycloak-setup.sh
           infrastructure/scripts/keycloak-setup.sh > keycloak-output.json 2>&1
           
           echo "Keycloak configuration completed"
@@ -109,8 +98,7 @@ jobs:
 
       - name: Load Keycloak Configuration
         id: keycloak_config
-        run: |
-          if [ -f keycloak-output.json ]; then
+        run: |\n          if [ -f keycloak-output.json ]; then
             echo "Using Keycloak automation output"
             echo "KEYCLOAK_AUTOMATED=true" >> $GITHUB_ENV
             
@@ -127,7 +115,7 @@ jobs:
             echo "KC_DOMAIN=$(jq -r '.keycloak_domain' keycloak-output.json)" >> $GITHUB_ENV
             echo "KC_AUTHORITY=$(jq -r '.netbird_auth_authority' keycloak-output.json)" >> $GITHUB_ENV
           else
-            echo "Using GitHub Secrets / Ansible Vault"
+            echo "Using GitHub Secrets"
             echo "KEYCLOAK_AUTOMATED=false" >> $GITHUB_ENV
           fi
 
@@ -143,8 +131,7 @@ jobs:
           NETBIRD_EXTERNAL_IP: ${{ secrets.NETBIRD_EXTERNAL_IP }}
           IDP_SERVICE_NAME: ${{ secrets.IDP_SERVICE_NAME || 'keycloak' }}
           KEYCLOAK_PORT: ${{ secrets.KEYCLOAK_PORT || '8080' }}
-        run: |
-          echo "[netbird_servers]" > inventory_gh.ini
+        run: |\n          echo "[netbird_servers]" > inventory_gh.ini
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
             echo "netbird-primary ansible_host=$AWS_INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
@@ -154,11 +141,6 @@ jobs:
           
           # Build ansible-playbook command
           PLAYBOOK_CMD="ansible-playbook -i inventory_gh.ini infrastructure/ansible/playbook.yaml"
-          
-          # Add vault password file if it exists
-          if [ -f infrastructure/ansible/.vault_pass ]; then
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --vault-password-file infrastructure/ansible/.vault_pass"
-          fi
           
           # Add base extra-vars
           PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_domain=$NETBIRD_DOMAIN\""
@@ -183,7 +165,7 @@ jobs:
             PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_domain=$KC_DOMAIN\""
             PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_authority=$KC_AUTHORITY\""
           else
-            echo "Using GitHub Secrets / Ansible Vault values"
+            echo "Using GitHub Secrets"
             # Only add if secrets are provided
             [ -n "${{ secrets.NETBIRD_AUTH_AUDIENCE }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_audience=${{ secrets.NETBIRD_AUTH_AUDIENCE }}\""
             [ -n "${{ secrets.NETBIRD_AUTH_CLIENT_ID }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_client_id=${{ secrets.NETBIRD_AUTH_CLIENT_ID }}\""
