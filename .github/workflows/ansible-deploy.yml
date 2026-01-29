@@ -18,8 +18,16 @@ on:
   push:
     branches:
       - main
+      - feature/ansible-netbird-deployment-pipeline
     paths:
       - 'infrastructure/ansible/**'
+      - '.github/workflows/ansible-deploy.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/ansible/**'
+      - '.github/workflows/ansible-deploy.yml'
   workflow_dispatch:
     inputs:
       deployment_target:
