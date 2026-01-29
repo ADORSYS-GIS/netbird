@@ -55,12 +55,12 @@ NETBIRD_REALM=netbird \
 3. Configures `netbird-client` (public OAuth client for web/dashboard)
 4. Configures `netbird-management` (service account for management API)
 5. Generates random secrets for NetBird services
-6. Outputs configuration for Ansible vault
+6. Outputs configuration for Ansible `vars.yml`
 
 **Output:**
 - Client IDs and secrets
 - Generated NetBird service secrets
-- Ready-to-use Ansible vault configuration
+- Ready-to-use Ansible configuration
 
 **CI/CD Usage:**
 The script supports JSON output for automation:
@@ -69,3 +69,6 @@ OUTPUT_FORMAT=json ./infrastructure/scripts/keycloak-setup.sh
 ```
 
 This is automatically used by GitHub Actions workflow when Keycloak secrets are provided.
+
+
+---

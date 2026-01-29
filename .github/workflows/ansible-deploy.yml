@@ -55,11 +55,13 @@ jobs:
           python-version: '3.x'
 
       - name: Install Ansible and Dependencies
-        run: |\n          python -m pip install --upgrade pip
+        run: |
+          python -m pip install --upgrade pip
           pip install ansible botocore boto3
 
       - name: Install Ansible Collections
-        run: |\n          ansible-galaxy collection install community.docker
+        run: |
+          ansible-galaxy collection install community.docker
           ansible-galaxy collection install community.aws
 
       - name: Configure AWS Credentials
@@ -72,7 +74,8 @@ jobs:
 
       - name: Install AWS Session Manager Plugin
         if: env.DEPLOY_TARGET == 'aws_ssm'
-        run: |\n          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+        run: |
+          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
           sudo dpkg -i session-manager-plugin.deb
 
       - name: Setup SSH
@@ -90,7 +93,8 @@ jobs:
           NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
           NETBIRD_REALM: ${{ secrets.NETBIRD_REALM || 'netbird' }}
           OUTPUT_FORMAT: json
-        run: |\n          chmod +x infrastructure/scripts/keycloak-setup.sh
+        run: |
+          chmod +x infrastructure/scripts/keycloak-setup.sh
           infrastructure/scripts/keycloak-setup.sh > keycloak-output.json 2>&1
           
           echo "Keycloak configuration completed"
@@ -98,7 +102,8 @@ jobs:
 
       - name: Load Keycloak Configuration
         id: keycloak_config
-        run: |\n          if [ -f keycloak-output.json ]; then
+        run: |
+          if [ -f keycloak-output.json ]; then
             echo "Using Keycloak automation output"
             echo "KEYCLOAK_AUTOMATED=true" >> $GITHUB_ENV
             
@@ -131,7 +136,8 @@ jobs:
           NETBIRD_EXTERNAL_IP: ${{ secrets.NETBIRD_EXTERNAL_IP }}
           IDP_SERVICE_NAME: ${{ secrets.IDP_SERVICE_NAME || 'keycloak' }}
           KEYCLOAK_PORT: ${{ secrets.KEYCLOAK_PORT || '8080' }}
-        run: |\n          echo "[netbird_servers]" > inventory_gh.ini
+        run: |
+          echo "[netbird_servers]" > inventory_gh.ini
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
             echo "netbird-primary ansible_host=$AWS_INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
