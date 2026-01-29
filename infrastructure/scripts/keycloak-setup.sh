@@ -16,15 +16,15 @@ NETBIRD_DOMAIN="${NETBIRD_DOMAIN:-}"
 NETBIRD_REALM="${NETBIRD_REALM:-netbird}"
 
 print_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${GREEN}[INFO]${NC} $1" >&2
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}[WARN]${NC} $1" >&2
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
 check_dependencies() {
@@ -356,11 +356,13 @@ EOF
 }
 
 main() {
-    echo ""
-    echo "╔════════════════════════════════════════╗"
-    echo "║   NetBird Keycloak Setup Script       ║"
-    echo "╚════════════════════════════════════════╝"
-    echo ""
+    if [ "${OUTPUT_FORMAT:-text}" != "json" ]; then
+        echo "" >&2
+        echo "╔════════════════════════════════════════╗" >&2
+        echo "║   NetBird Keycloak Setup Script       ║" >&2
+        echo "╚════════════════════════════════════════╝" >&2
+        echo "" >&2
+    fi
     
     check_dependencies
     validate_inputs
@@ -372,10 +374,12 @@ main() {
     generate_secrets
     print_configuration
     
-    echo ""
-    print_info "Next steps:"
-    echo "  1. Update your Ansible vars.yml file with the configuration above"
-    echo "  2. Run the Ansible playbook to deploy NetBird"
+    if [ "${OUTPUT_FORMAT:-text}" != "json" ]; then
+        echo "" >&2
+        print_info "Next steps:"
+        echo "  1. Update your Ansible vars.yml file with the configuration above" >&2
+        echo "  2. Run the Ansible playbook to deploy NetBird" >&2
+    fi
 }
 
 main "$@"

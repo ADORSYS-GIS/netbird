@@ -44,6 +44,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DEPLOY_TARGET: ${{ github.event.inputs.deployment_target || 'ssh_remote' }}
+      KEYCLOAK_URL_SECRET: ${{ secrets.KEYCLOAK_URL }}
+      KEYCLOAK_ADMIN_PASSWORD_SECRET: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
     
     steps:
       - name: Checkout Code
@@ -85,7 +87,7 @@ jobs:
           ssh-private-key: ${{ secrets.ANSIBLE_SSH_KEY }}
 
       - name: Configure Keycloak for NetBird
-        if: ${{ secrets.KEYCLOAK_URL != '' && secrets.KEYCLOAK_ADMIN_PASSWORD != '' }}
+        if: env.KEYCLOAK_URL_SECRET != '' && env.KEYCLOAK_ADMIN_PASSWORD_SECRET != ''
         env:
           KEYCLOAK_URL: ${{ secrets.KEYCLOAK_URL }}
           KEYCLOAK_ADMIN_USER: ${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}
@@ -185,6 +187,5 @@ jobs:
             [ -n "${{ secrets.KEYCLOAK_DOMAIN }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_domain=${{ secrets.KEYCLOAK_DOMAIN }}\""
             [ -n "${{ secrets.NETBIRD_REALM }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_realm=${{ secrets.NETBIRD_REALM }}\""
           fi
-          
           # Execute the command
           eval $PLAYBOOK_CMD
