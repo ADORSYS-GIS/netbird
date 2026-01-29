@@ -9,8 +9,9 @@ NetBird provides a modern, peer-to-peer alternative to traditional client-to-sit
 *   **Benefit**: Improved performance due to direct peer-to-peer connections.
 *   **Security**: Integrated with Identity Providers (SSO) and enforced by granular access policies.
 *   **User Experience**: Simple "one-click" connection for end-users.
+*   **Documentation**: [Getting Started with NetBird](https://docs.netbird.io/how-to/getting-started)
 
-![Placeholder: NetBird Client UI showing active connection](file:///home/richemond/Projects/netbird/docs/img/client-ui-screenshot.png)
+![Placeholder: NetBird Client UI showing active connection](../img/netbird_peer&routing_peer_active.png)
 
 ## 2. Private Network Gateway (Secure VPC Access)
 
@@ -19,6 +20,7 @@ This use case allows you to grant secure access to an entire private network, su
 *   **How it works**: A NetBird peer installed within the VPC acts as a "Routing Peer," forwarding traffic from the NetBird network to the VPC's internal CIDR.
 *   **Security**: No need for public IPs or open SSH ports on your internal servers.
 *   **Control**: Use NetBird Groups to define exactly which users can access which VPC resources.
+*   **Documentation**: [Tutorial: Secure AWS VPC Access with NetBird](../tutorials/aws-vpc-tutorial.md)
 
 ```mermaid
 graph LR
@@ -36,6 +38,7 @@ NetBird simplifies connecting geographically distributed offices or data centers
 *   **Benefit**: Bypasses complex firewall rules and NAT configurations.
 *   **Reliability**: Automatic failover and path optimization.
 *   **Simplicity**: Configure site-to-site tunnels in minutes through the web dashboard.
+*   **Documentation**: [Connect AWS VPC and on-premises site-to-site networks](https://docs.netbird.io/how-to/routing-traffic)
 
 ## 4. Multi-Cloud Connectivity
 
@@ -43,13 +46,15 @@ Seamlessly connect resources across different cloud providers (e.g., AWS to GCP)
 
 *   **Benefit**: Unified networking layer across heterogeneous environments.
 *   **Security**: End-to-end encryption for all cross-cloud traffic.
+*   **Documentation**: [Mapping Cloud VPCs and Private Networks](https://docs.netbird.io/how-to/routing-traffic#example-mapping-a-cloud-vpc)
 
 ## 5. Zero-Trust Access Control (Segmentation)
 
 Moving beyond simple connectivity, NetBird allows you to implement micro-segmentation based on user identity and device groups.
 
 *   **Identity-Based**: Rules are defined by "Who" is accessing, not "Where" they are connecting from.
-*   **Fine-Grained**: Limit a developer's access to only the "Staging" group, while an admin has access to "Production".
+*   **Fine-Grained**: Limit a developer's access to only the "Staging" group.
+*   **Documentation**: [Enforce Granular Access Policies](https://docs.netbird.io/how-to/manage-access-control-policies)
 
 ---
 
