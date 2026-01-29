@@ -9,7 +9,7 @@ x-default-args: &default
   restart: unless-stopped
   networks:
     - netbird
-    - key-netbird 
+    - key-netbird
 services:
   # Caddy reverse proxy service.
   # Caddy handles SSL termination, serves the NetBird dashboard, and proxies requests to other NetBird services.
@@ -25,7 +25,7 @@ services:
       - caddy_data:/data # Volume for Caddy's persistent data, including SSL certificates.
     networks:
       - netbird
-      - key-netbird 
+      - key-netbird
     depends_on:
       - management # Ensure management service is running before Caddy starts.
       - signal # Ensure signal service is running before Caddy starts.
@@ -39,7 +39,7 @@ services:
       - 8081:80 # Expose internal port 80 to host port 8081 (Caddy will proxy to internal 80).
     networks:
       - netbird
-      - key-netbird 
+      - key-netbird
     environment:
       # NetBird Management API and gRPC endpoints, configured to be accessed via Caddy.
       - NETBIRD_MGMT_API_ENDPOINT=https://{{ netbird_domain }}
@@ -62,7 +62,7 @@ services:
     image: netbirdio/signal:latest
     networks:
       - netbird
-      - key-netbird 
+      - key-netbird
     volumes:
       - netbird-signal:/var/lib/netbird # Volume for signal service data.
     ports:
