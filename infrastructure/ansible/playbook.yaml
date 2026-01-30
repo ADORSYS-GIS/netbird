@@ -82,24 +82,38 @@
     - name: Pre-flight | Validate required variables
       ansible.builtin.assert:
         that:
-          - netbird_domain is defined
-          - netbird_management_secret is defined
-          - netbird_relay_secret is defined
-          - netbird_turn_secret is defined
-          - netbird_turn_password is defined
-          - netbird_datastore_encryption_key is defined
-          - keycloak_admin_user is defined
-          - keycloak_admin_password is defined
-          - keycloak_domain is defined
-        fail_msg: "One or more required variables are missing. Please check your vars.yml."
+          - netbird_domain is defined and not netbird_domain.startswith('<YOUR_')
+          - netbird_management_secret is defined and not netbird_management_secret.startswith('<YOUR_')
+          - netbird_relay_secret is defined and not netbird_relay_secret.startswith('<YOUR_')
+          - netbird_turn_secret is defined and not netbird_turn_secret.startswith('<YOUR_')
+          - netbird_turn_password is defined and not netbird_turn_password.startswith('<YOUR_')
+          - netbird_datastore_encryption_key is defined and not netbird_datastore_encryption_key.startswith('<YOUR_')
+        fail_msg: "One or more required variables are missing or contain placeholder values. Please check your vars.yml or GitHub Secrets."
+
+    - name: Pre-flight | Check if Keycloak configuration is needed
+      ansible.builtin.set_fact:
+        run_keycloak_config: >-
+          {{
+            keycloak_auto_setup | default(true) and
+            (netbird_idp_mgmt_client_secret == '<YOUR_IDP_MGMT_CLIENT_SECRET>' or netbird_idp_mgmt_client_secret == '') and
+            not keycloak_domain.startswith('<YOUR_')
+          }}
 
     # Keycloak Configuration
     - name: Configure Keycloak realm and OAuth clients via API
       block:
+        - name: Keycloak | Validate Keycloak admin credentials
+          ansible.builtin.assert:
+            that:
+              - keycloak_admin_user is defined and not keycloak_admin_user.startswith('<YOUR_')
+              - keycloak_admin_password is defined and not keycloak_admin_password.startswith('<YOUR_')
+            fail_msg: "Keycloak admin credentials are required for automated setup but are missing or placeholders."
+
         - name: Keycloak | Get admin token
           ansible.builtin.uri:
             url: "{{ keycloak_auth_url }}/realms/master/protocol/openid-connect/token"
             method: POST
+            validate_certs: "{{ keycloak_validate_certs }}"
             body_format: form-urlencoded
             body:
               username: "{{ keycloak_admin_user }}"
@@ -117,6 +131,7 @@
           ansible.builtin.uri:
             url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}"
             method: GET
+            validate_certs: "{{ keycloak_validate_certs }}"
             headers:
               Authorization: "Bearer {{ keycloak_admin_token }}"
           register: keycloak_realm_check
@@ -127,6 +142,7 @@
           ansible.builtin.uri:
             url: "{{ keycloak_auth_url }}/admin/realms"
             method: POST
+            validate_certs: "{{ keycloak_validate_certs }}"
             headers:
               Authorization: "Bearer {{ keycloak_admin_token }}"
             body_format: json
@@ -141,6 +157,7 @@
           ansible.builtin.uri:
             url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients?clientId=netbird-client"
             method: GET
+            validate_certs: "{{ keycloak_validate_certs }}"
             headers:
               Authorization: "Bearer {{ keycloak_admin_token }}"
           register: keycloak_netbird_client_check
@@ -149,6 +166,7 @@
           ansible.builtin.uri:
             url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients"
             method: POST
+            validate_certs: "{{ keycloak_validate_certs }}"
             headers:
               Authorization: "Bearer {{ keycloak_admin_token }}"
             body_format: json
@@ -170,6 +188,7 @@
           ansible.builtin.uri:
             url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients?clientId=netbird-management"
             method: GET
+            validate_certs: "{{ keycloak_validate_certs }}"
             headers:
               Authorization: "Bearer {{ keycloak_admin_token }}"
           register: keycloak_mgmt_client_check
@@ -178,6 +197,7 @@
           ansible.builtin.uri:
             url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients"
             method: POST
+            validate_certs: "{{ keycloak_validate_certs }}"
             headers:
               Authorization: "Bearer {{ keycloak_admin_token }}"
             body_format: json
@@ -193,6 +213,7 @@
           ansible.builtin.uri:
             url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients?clientId=netbird-management"
             method: GET
+            validate_certs: "{{ keycloak_validate_certs }}"
             headers:
               Authorization: "Bearer {{ keycloak_admin_token }}"
           register: keycloak_mgmt_client_info
@@ -208,6 +229,7 @@
           ansible.builtin.uri:
             url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients/{{ keycloak_mgmt_client_uuid }}/client-secret"
             method: GET
+            validate_certs: "{{ keycloak_validate_certs }}"
             headers:
               Authorization: "Bearer {{ keycloak_admin_token }}"
           register: keycloak_mgmt_client_secret
@@ -220,7 +242,7 @@
             netbird_idp_mgmt_client_secret: "{{ keycloak_mgmt_client_secret.json.value }}"
             netbird_auth_authority: "{{ keycloak_auth_url }}/realms/{{ netbird_realm }}"
             netbird_auth_audience: "netbird-client"
-      when: keycloak_auto_setup | default(true)
+      when: run_keycloak_config | bool
 
 
     # Task: Create the main deployment directory for NetBird.

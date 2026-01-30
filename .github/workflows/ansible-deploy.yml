@@ -53,6 +53,7 @@ jobs:
     env:
       DEPLOY_TARGET: ${{ github.event.inputs.deployment_target || 'ssh_remote' }}
       KEYCLOAK_URL_SECRET: ${{ secrets.KEYCLOAK_URL }}
+      KEYCLOAK_ADMIN_USER_SECRET: ${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}
       KEYCLOAK_ADMIN_PASSWORD_SECRET: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
     
     steps:
@@ -166,6 +167,11 @@ jobs:
           PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_external_ip=$NETBIRD_EXTERNAL_IP\""
           PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"idp_service_name=$IDP_SERVICE_NAME\""
           PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_port=$KEYCLOAK_PORT\""
+          
+          # Add Keycloak admin vars if provided
+          [ -n "$KEYCLOAK_URL_SECRET" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_auth_url=$KEYCLOAK_URL_SECRET\""
+          [ -n "$KEYCLOAK_ADMIN_USER_SECRET" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_admin_user=$KEYCLOAK_ADMIN_USER_SECRET\""
+          [ -n "$KEYCLOAK_ADMIN_PASSWORD_SECRET" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_admin_password=$KEYCLOAK_ADMIN_PASSWORD_SECRET\""
           
           # Add Keycloak-specific vars based on source
           if [ "$KEYCLOAK_AUTOMATED" = "true" ]; then
