@@ -189,61 +189,117 @@
             status_code: [201, 409] # 201 Created, 409 Conflict (already exists)
           when: keycloak_realm_check.status == 404
 
-        - name: Keycloak | Check if netbird-client exists
-          ansible.builtin.uri:
-            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients?clientId=netbird-client"
-            method: GET
-            validate_certs: "{{ keycloak_validate_certs }}"
-            headers:
-              Authorization: "Bearer {{ keycloak_admin_token }}"
-          register: keycloak_netbird_client_check
+        - name: Keycloak | Create or Update netbird-client
+          block:
+            - name: Keycloak | Check if netbird-client exists
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients?clientId=netbird-client"
+                method: GET
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+              register: keycloak_netbird_client_check
 
-        - name: Keycloak | Create netbird-client if it does not exist
-          ansible.builtin.uri:
-            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients"
-            method: POST
-            validate_certs: "{{ keycloak_validate_certs }}"
-            headers:
-              Authorization: "Bearer {{ keycloak_admin_token }}"
-            body_format: json
-            body:
-              clientId: "netbird-client"
-              name: "NetBird Web Client"
-              publicClient: true
-              standardFlowEnabled: true
-              redirectUris:
-                - "https://{{ netbird_domain }}/*"
-                - "http://localhost:53000/*"
-              webOrigins:
-                - "https://{{ netbird_domain }}"
-                - "http://localhost:53000"
-            status_code: [201, 409]
-          when: keycloak_netbird_client_check.json | length == 0
+            - name: Keycloak | Set client UUID if exists
+              ansible.builtin.set_fact:
+                keycloak_netbird_client_uuid: "{{ keycloak_netbird_client_check.json[0].id if keycloak_netbird_client_check.json | length > 0 else none }}"
 
-        - name: Keycloak | Check if netbird-management client exists
-          ansible.builtin.uri:
-            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients?clientId=netbird-management"
-            method: GET
-            validate_certs: "{{ keycloak_validate_certs }}"
-            headers:
-              Authorization: "Bearer {{ keycloak_admin_token }}"
-          register: keycloak_mgmt_client_check
+            - name: Keycloak | Create netbird-client
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients"
+                method: POST
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+                body_format: json
+                body:
+                  clientId: "netbird-client"
+                  name: "NetBird Web Client"
+                  publicClient: true
+                  standardFlowEnabled: true
+                  redirectUris:
+                    - "https://{{ netbird_domain }}/*"
+                    - "https://{{ netbird_domain }}"
+                    - "http://localhost:53000/*"
+                    - "http://localhost:53000"
+                  webOrigins:
+                    - "https://{{ netbird_domain }}"
+                    - "http://localhost:53000"
+                    - "*"
+                status_code: 201
+              when: keycloak_netbird_client_uuid is none
 
-        - name: Keycloak | Create netbird-management client if it does not exist
-          ansible.builtin.uri:
-            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients"
-            method: POST
-            validate_certs: "{{ keycloak_validate_certs }}"
-            headers:
-              Authorization: "Bearer {{ keycloak_admin_token }}"
-            body_format: json
-            body:
-              clientId: "netbird-management"
-              name: "NetBird Management Service"
-              serviceAccountsEnabled: true
-              publicClient: false
-            status_code: [201, 409]
-          when: keycloak_mgmt_client_check.json | length == 0
+            - name: Keycloak | Update netbird-client
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{ keycloak_netbird_client_uuid }}"
+                method: PUT
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+                body_format: json
+                body:
+                  clientId: "netbird-client"
+                  name: "NetBird Web Client"
+                  publicClient: true
+                  standardFlowEnabled: true
+                  redirectUris:
+                    - "https://{{ netbird_domain }}/*"
+                    - "https://{{ netbird_domain }}"
+                    - "http://localhost:53000/*"
+                    - "http://localhost:53000"
+                  webOrigins:
+                    - "https://{{ netbird_domain }}"
+                    - "http://localhost:53000"
+                    - "*"
+                status_code: 204
+              when: keycloak_netbird_client_uuid is not none
+
+        - name: Keycloak | Create or Update netbird-management client
+          block:
+            - name: Keycloak | Check if netbird-management client exists
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients?clientId=netbird-management"
+                method: GET
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+              register: keycloak_mgmt_client_check
+
+            - name: Keycloak | Set management client UUID fact if exists
+              ansible.builtin.set_fact:
+                keycloak_mgmt_client_uuid: "{{ keycloak_mgmt_client_check.json[0].id if keycloak_mgmt_client_check.json | length > 0 else none }}"
+
+            - name: Keycloak | Create netbird-management client
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients"
+                method: POST
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+                body_format: json
+                body:
+                  clientId: "netbird-management"
+                  name: "NetBird Management Service"
+                  serviceAccountsEnabled: true
+                  publicClient: false
+                status_code: 201
+              when: keycloak_mgmt_client_uuid is none
+
+            - name: Keycloak | Update netbird-management client
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{ keycloak_mgmt_client_uuid }}"
+                method: PUT
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+                body_format: json
+                body:
+                  clientId: "netbird-management"
+                  name: "NetBird Management Service"
+                  serviceAccountsEnabled: true
+                  publicClient: false
+                status_code: 204
+              when: keycloak_mgmt_client_uuid is not none
 
         - name: Keycloak | Get netbird-management client UUID
           ansible.builtin.uri:

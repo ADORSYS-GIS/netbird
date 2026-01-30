@@ -157,52 +157,60 @@ get_client_id() {
 }
 
 create_netbird_client() {
-    print_info "Creating NetBird web client..."
+    print_info "Creating/Updating NetBird web client..."
     
     # Check if client already exists
-    EXISTING_CLIENT=$(get_client_id "netbird-client")
+    CLIENT_UUID=$(get_client_id "netbird-client")
     
-    if [ -n "$EXISTING_CLIENT" ] && [ "$EXISTING_CLIENT" != "null" ]; then
-        print_warning "Client 'netbird-client' already exists (ID: $EXISTING_CLIENT)"
-        NETBIRD_CLIENT_ID="netbird-client"
-        return
+    CLIENT_DATA='{
+        "clientId": "netbird-client",
+        "name": "NetBird Web Client",
+        "description": "NetBird Dashboard and Web Application",
+        "enabled": true,
+        "publicClient": true,
+        "protocol": "openid-connect",
+        "standardFlowEnabled": true,
+        "implicitFlowEnabled": false,
+        "directAccessGrantsEnabled": true,
+        "serviceAccountsEnabled": false,
+        "redirectUris": [
+            "https://'"$NETBIRD_DOMAIN"'/*",
+            "https://'"$NETBIRD_DOMAIN"'",
+            "http://localhost:53000/*",
+            "http://localhost:53000"
+        ],
+        "webOrigins": [
+            "https://'"$NETBIRD_DOMAIN"'",
+            "http://localhost:53000",
+            "*"
+        ],
+        "attributes": {
+            "pkce.code.challenge.method": "S256"
+        }
+    }'
+
+    if [ -n "$CLIENT_UUID" ] && [ "$CLIENT_UUID" != "null" ]; then
+        print_info "Client 'netbird-client' already exists (ID: $CLIENT_UUID), updating..."
+        RESPONSE=$(curl -sS -X PUT "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$CLIENT_UUID" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$CLIENT_DATA")
+    else
+        print_info "Creating new client 'netbird-client'..."
+        RESPONSE=$(curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$CLIENT_DATA")
     fi
     
-    RESPONSE=$(curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients" \
-        -H "Authorization: Bearer $ADMIN_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{
-            "clientId": "netbird-client",
-            "name": "NetBird Web Client",
-            "description": "NetBird Dashboard and Web Application",
-            "enabled": true,
-            "publicClient": true,
-            "protocol": "openid-connect",
-            "standardFlowEnabled": true,
-            "implicitFlowEnabled": false,
-            "directAccessGrantsEnabled": true,
-            "serviceAccountsEnabled": false,
-            "redirectUris": [
-                "https://'"$NETBIRD_DOMAIN"'/*",
-                "http://localhost:53000/*"
-            ],
-            "webOrigins": [
-                "https://'"$NETBIRD_DOMAIN"'",
-                "http://localhost:53000"
-            ],
-            "attributes": {
-                "pkce.code.challenge.method": "S256"
-            }
-        }')
-    
     if [ $? -ne 0 ]; then
-        print_error "Failed to create NetBird client"
+        print_error "Failed to create/update NetBird client"
         echo "Response: $RESPONSE"
         exit 1
     fi
     
     NETBIRD_CLIENT_ID="netbird-client"
-    print_info "NetBird client created successfully"
+    print_info "NetBird client configured successfully"
 }
 
 create_management_client() {
