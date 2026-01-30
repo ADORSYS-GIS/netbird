@@ -213,6 +213,59 @@ create_netbird_client() {
     
     NETBIRD_CLIENT_ID="netbird-client"
     print_info "NetBird client configured successfully"
+    configure_client_mappers "$CLIENT_UUID" "netbird-client"
+}
+
+configure_client_mappers() {
+    local CLIENT_UUID=$1
+    local CLIENT_ID=$2
+    print_info "Configuring protocol mappers for client $CLIENT_ID..."
+
+    # Check if audience mapper already exists
+    local MAPPERS=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$CLIENT_UUID/protocol-mappers/models" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null)
+    
+    if echo "$MAPPERS" | jq -e '.[] | select(.name=="audience")' > /dev/null; then
+        print_info "Audience mapper already exists"
+    else
+        print_info "Adding audience mapper..."
+        curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$CLIENT_UUID/protocol-mappers/models" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                "name": "audience",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-audience-mapper",
+                "consentRequired": false,
+                "config": {
+                    "included.client.audience": "'"$CLIENT_ID"'",
+                    "id.token.claim": "false",
+                    "access.token.claim": "true"
+                }
+            }' > /dev/null
+    fi
+
+    if echo "$MAPPERS" | jq -e '.[] | select(.name=="groups")' > /dev/null; then
+        print_info "Groups mapper already exists"
+    else
+        print_info "Adding groups mapper..."
+        curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$CLIENT_UUID/protocol-mappers/models" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                "name": "groups",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-group-membership-mapper",
+                "consentRequired": false,
+                "config": {
+                    "full.path": "false",
+                    "id.token.claim": "true",
+                    "access.token.claim": "true",
+                    "claim.name": "groups",
+                    "userinfo.token.claim": "true"
+                }
+            }' > /dev/null
+    fi
 }
 
 create_management_client() {

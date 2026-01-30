@@ -254,6 +254,67 @@
                 status_code: 204
               when: keycloak_netbird_client_uuid is not none
 
+            - name: Keycloak | Get netbird-client protocol mappers
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{ keycloak_netbird_client_uuid if keycloak_netbird_client_uuid is not none else (keycloak_netbird_client_check.json[0].id if keycloak_netbird_client_check.json | length > 0 else none) }}/protocol-mappers/models"
+                method: GET
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+              register: keycloak_client_mappers
+              when: (keycloak_netbird_client_uuid is not none) or (keycloak_netbird_client_check.json | length > 0)
+
+            - name: Keycloak | Set client UUID fact if not set
+              ansible.builtin.set_fact:
+                keycloak_netbird_client_uuid: "{{ keycloak_netbird_client_check.json[0].id }}"
+              when: keycloak_netbird_client_uuid is none and keycloak_netbird_client_check.json | length > 0
+
+            - name: Keycloak | Add audience mapper to netbird-client
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{ keycloak_netbird_client_uuid }}/protocol-mappers/models"
+                method: POST
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+                body_format: json
+                body:
+                  name: "audience"
+                  protocol: "openid-connect"
+                  protocolMapper: "oidc-audience-mapper"
+                  consentRequired: false
+                  config:
+                    included.client.audience: "netbird-client"
+                    id.token.claim: "false"
+                    access.token.claim: "true"
+                status_code: [201, 409]
+              when: 
+                - keycloak_netbird_client_uuid is not none
+                - keycloak_client_mappers.json | selectattr('name', 'equalto', 'audience') | list | length == 0
+
+            - name: Keycloak | Add groups mapper to netbird-client
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{ keycloak_netbird_client_uuid }}/protocol-mappers/models"
+                method: POST
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+                body_format: json
+                body:
+                  name: "groups"
+                  protocol: "openid-connect"
+                  protocolMapper: "oidc-group-membership-mapper"
+                  consentRequired: false
+                  config:
+                    full.path: "false"
+                    id.token.claim: "true"
+                    access.token.claim: "true"
+                    claim.name: "groups"
+                    userinfo.token.claim: "true"
+                status_code: [201, 409]
+              when: 
+                - keycloak_netbird_client_uuid is not none
+                - keycloak_client_mappers.json | selectattr('name', 'equalto', 'groups') | list | length == 0
+
         - name: Keycloak | Create or Update netbird-management client
           block:
             - name: Keycloak | Check if netbird-management client exists
