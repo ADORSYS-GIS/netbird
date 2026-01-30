@@ -93,27 +93,52 @@
         - name: Sanitize | Generate Management Secret
           ansible.builtin.set_fact:
             netbird_management_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-          when: netbird_management_secret | default('') == '' or netbird_management_secret.startswith('<YOUR_')
+          when: >-
+            netbird_management_secret | default('') == '' or
+            netbird_management_secret.startswith('<YOUR_') or
+            netbird_management_secret | length < 16
 
         - name: Sanitize | Generate Relay Secret
           ansible.builtin.set_fact:
             netbird_relay_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-          when: netbird_relay_secret | default('') == '' or netbird_relay_secret.startswith('<YOUR_')
+          when: >-
+            netbird_relay_secret | default('') == '' or
+            netbird_relay_secret.startswith('<YOUR_') or
+            netbird_relay_secret | length < 16
 
         - name: Sanitize | Generate TURN Secret
           ansible.builtin.set_fact:
             netbird_turn_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-          when: netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_')
+          when: >-
+            netbird_turn_secret | default('') == '' or
+            netbird_turn_secret.startswith('<YOUR_') or
+            netbird_turn_secret | length < 16
 
         - name: Sanitize | Generate TURN Password
           ansible.builtin.set_fact:
             netbird_turn_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=24') }}"
-          when: netbird_turn_password | default('') == '' or netbird_turn_password.startswith('<YOUR_')
+          when: >-
+            netbird_turn_password | default('') == '' or
+            netbird_turn_password.startswith('<YOUR_') or
+            netbird_turn_password | length < 12
 
         - name: Sanitize | Generate Datastore Encryption Key
           ansible.builtin.set_fact:
             netbird_datastore_encryption_key: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-          when: netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_')
+          when: >-
+            netbird_datastore_encryption_key | default('') == '' or
+            netbird_datastore_encryption_key.startswith('<YOUR_') or
+            netbird_datastore_encryption_key | length != 32
+
+        - name: Sanitize | Debug Variable Lengths (Sensitive)
+          ansible.builtin.debug:
+            msg:
+              - "Management Secret Length: {{ netbird_management_secret | length }}"
+              - "Relay Secret Length: {{ netbird_relay_secret | length }}"
+              - "TURN Secret Length: {{ netbird_turn_secret | length }}"
+              - "TURN Password Length: {{ netbird_turn_password | length }}"
+              - "Datastore Encryption Key Length: {{ netbird_datastore_encryption_key | length }}"
+          tags: [debug, always]
 
         - name: Sanitize | Ensure Authentication Authority is correctly set
           ansible.builtin.set_fact:
