@@ -197,6 +197,5 @@ jobs:
             [ -n "${{ secrets.KEYCLOAK_DOMAIN }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_domain=${{ secrets.KEYCLOAK_DOMAIN }}\""
             [ -n "${{ secrets.NETBIRD_REALM }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_realm=${{ secrets.NETBIRD_REALM }}\""
           fi
-          
           # Execute the command
           eval $PLAYBOOK_CMD
