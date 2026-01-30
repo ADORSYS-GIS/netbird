@@ -120,8 +120,13 @@
               password: "{{ keycloak_admin_password }}"
               grant_type: password
               client_id: admin-cli
+            status_code: 200
           register: keycloak_admin_token_response
           no_log: true
+          # Retrying in case Keycloak is still starting up
+          until: keycloak_admin_token_response.status == 200
+          retries: 5
+          delay: 5
 
         - name: Keycloak | Set admin token fact
           ansible.builtin.set_fact:
