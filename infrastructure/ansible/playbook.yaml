@@ -88,78 +88,42 @@
             not keycloak_domain.startswith('<YOUR_')
           }}
 
-    - name: Pre-flight | Variable Sanitization and Generation
+    - name: Pre-flight | Variable Sanitization and Finalization
       block:
-        - name: Sanitize | Generate Management Secret
+        - name: Sanitize | Finalize All Variables
           ansible.builtin.set_fact:
-            netbird_management_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-          when: >-
-            netbird_management_secret | default('') == '' or
-            netbird_management_secret.startswith('<YOUR_') or
-            netbird_management_secret | length < 16
-
-        - name: Sanitize | Generate Relay Secret
-          ansible.builtin.set_fact:
-            netbird_relay_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-          when: >-
-            netbird_relay_secret | default('') == '' or
-            netbird_relay_secret.startswith('<YOUR_') or
-            netbird_relay_secret | length < 16
-
-        - name: Sanitize | Generate TURN Secret
-          ansible.builtin.set_fact:
-            netbird_turn_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-          when: >-
-            netbird_turn_secret | default('') == '' or
-            netbird_turn_secret.startswith('<YOUR_') or
-            netbird_turn_secret | length < 16
-
-        - name: Sanitize | Generate TURN Password
-          ansible.builtin.set_fact:
-            netbird_turn_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=24') }}"
-          when: >-
-            netbird_turn_password | default('') == '' or
-            netbird_turn_password.startswith('<YOUR_') or
-            netbird_turn_password | length < 12
-
-        - name: Sanitize | Generate Datastore Encryption Key
-          ansible.builtin.set_fact:
-            netbird_datastore_encryption_key: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-          when: >-
-            netbird_datastore_encryption_key | default('') == '' or
-            netbird_datastore_encryption_key.startswith('<YOUR_') or
-            netbird_datastore_encryption_key | length != 32
+            nb_management_secret: "{{ (netbird_management_secret | default('') == '' or netbird_management_secret.startswith('<YOUR_') or netbird_management_secret | length < 16) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32'), netbird_management_secret) }}"
+            nb_relay_secret: "{{ (netbird_relay_secret | default('') == '' or netbird_relay_secret.startswith('<YOUR_') or netbird_relay_secret | length < 16) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32'), netbird_relay_secret) }}"
+            nb_turn_secret: "{{ (netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_') or netbird_turn_secret | length < 16) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32'), netbird_turn_secret) }}"
+            nb_turn_password: "{{ (netbird_turn_password | default('') == '' or netbird_turn_password.startswith('<YOUR_') or netbird_turn_password | length < 12) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=24'), netbird_turn_password) }}"
+            nb_datastore_encryption_key: "{{ (netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_') or netbird_datastore_encryption_key | length != 32) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32'), netbird_datastore_encryption_key) }}"
+            nb_auth_authority: "{{ (netbird_auth_authority | default('') == '' or '<YOUR_' in netbird_auth_authority) | ternary('https://' + keycloak_domain + '/realms/' + netbird_realm, netbird_auth_authority) }}"
+            nb_caddy_email: "{{ (netbird_caddy_email | default('') == '' or netbird_caddy_email.startswith('<YOUR_')) | ternary('admin@' + netbird_domain, netbird_caddy_email) }}"
+            nb_auth_audience: "{{ netbird_auth_audience | default('netbird-client') }}"
+            nb_auth_client_id: "{{ netbird_auth_client_id | default('netbird-client') }}"
+            nb_idp_mgmt_client_id: "{{ netbird_idp_mgmt_client_id | default('netbird-management') }}"
+            nb_idp_mgmt_client_secret: "{{ netbird_idp_mgmt_client_secret | default('') }}"
 
         - name: Sanitize | Debug Variable Lengths (Sensitive)
           ansible.builtin.debug:
             msg:
-              - "Management Secret Length: {{ netbird_management_secret | length }}"
-              - "Relay Secret Length: {{ netbird_relay_secret | length }}"
-              - "TURN Secret Length: {{ netbird_turn_secret | length }}"
-              - "TURN Password Length: {{ netbird_turn_password | length }}"
-              - "Datastore Encryption Key Length: {{ netbird_datastore_encryption_key | length }}"
+              - "Management Secret Length: {{ nb_management_secret | length }}"
+              - "Relay Secret Length: {{ nb_relay_secret | length }}"
+              - "TURN Secret Length: {{ nb_turn_secret | length }}"
+              - "TURN Password Length: {{ nb_turn_password | length }}"
+              - "Datastore Encryption Key Length: {{ nb_datastore_encryption_key | length }}"
           tags: [debug, always]
-
-        - name: Sanitize | Ensure Authentication Authority is correctly set
-          ansible.builtin.set_fact:
-            netbird_auth_authority: "https://{{ keycloak_domain }}/realms/{{ netbird_realm }}"
-          when: netbird_auth_authority | default('') == '' or '<YOUR_' in netbird_auth_authority
-
-        - name: Sanitize | Ensure Caddy email is set
-          ansible.builtin.set_fact:
-            netbird_caddy_email: "admin@{{ netbird_domain }}"
-          when: netbird_caddy_email | default('') == '' or netbird_caddy_email.startswith('<YOUR_')
 
     - name: Pre-flight | Validate required variables
       ansible.builtin.assert:
         that:
           - netbird_domain is defined and not netbird_domain.startswith('<YOUR_')
-          - (netbird_management_secret is defined and not netbird_management_secret.startswith('<YOUR_')) or (run_keycloak_config | bool)
-          - (netbird_relay_secret is defined and not netbird_relay_secret.startswith('<YOUR_')) or (run_keycloak_config | bool)
-          - (netbird_turn_secret is defined and not netbird_turn_secret.startswith('<YOUR_')) or (run_keycloak_config | bool)
-          - (netbird_turn_password is defined and not netbird_turn_password.startswith('<YOUR_')) or (run_keycloak_config | bool)
-          - (netbird_datastore_encryption_key is defined and not netbird_datastore_encryption_key.startswith('<YOUR_')) or (run_keycloak_config | bool)
-        fail_msg: "One or more required variables are missing or contain placeholder values. Please check your vars.yml or GitHub Secrets."
+          - nb_management_secret | length >= 16
+          - nb_relay_secret | length >= 16
+          - nb_turn_secret | length >= 16
+          - nb_turn_password | length >= 12
+          - nb_datastore_encryption_key | length == 32
+        fail_msg: "One or more required variables are missing or contain placeholders, and finalization failed. Please check your vars.yml or GitHub Secrets."
 
     # Keycloak Configuration
     - name: Configure Keycloak realm and OAuth clients via API
@@ -314,6 +278,12 @@
             netbird_idp_mgmt_client_secret: "{{ keycloak_mgmt_client_secret.json.value }}"
             netbird_auth_authority: "{{ keycloak_base_url }}/realms/{{ keycloak_realm_name }}"
             netbird_auth_audience: "netbird-client"
+            # Update finalized versions
+            nb_auth_client_id: "netbird-client"
+            nb_idp_mgmt_client_id: "netbird-management"
+            nb_idp_mgmt_client_secret: "{{ keycloak_mgmt_client_secret.json.value }}"
+            nb_auth_authority: "{{ keycloak_base_url }}/realms/{{ keycloak_realm_name }}"
+            nb_auth_audience: "netbird-client"
       when: run_keycloak_config | bool
 
 
@@ -370,16 +340,16 @@
         remove_orphans: true
       environment:
         NETBIRD_DOMAIN: "{{ netbird_domain }}"
-        NETBIRD_CADDY_EMAIL: "{{ netbird_caddy_email }}"
-        NETBIRD_AUTH_AUDIENCE: "{{ netbird_auth_audience }}"
-        NETBIRD_AUTH_CLIENT_ID: "{{ netbird_auth_client_id }}"
-        NETBIRD_AUTH_AUTHORITY: "{{ netbird_auth_authority }}"
-        NETBIRD_IDP_MGMT_CLIENT_ID: "{{ netbird_idp_mgmt_client_id }}"
-        NETBIRD_IDP_MGMT_CLIENT_SECRET: "{{ netbird_idp_mgmt_client_secret }}"
-        NETBIRD_MANAGEMENT_SECRET: "{{ netbird_management_secret }}"
-        NETBIRD_RELAY_SECRET: "{{ netbird_relay_secret }}"
-        NETBIRD_TURN_SECRET: "{{ netbird_turn_secret }}"
-        NETBIRD_TURN_PASSWORD: "{{ netbird_turn_password }}"
-        NETBIRD_DATASTORE_ENCRYPTION_KEY: "{{ netbird_datastore_encryption_key }}"
+        NETBIRD_CADDY_EMAIL: "{{ nb_caddy_email }}"
+        NETBIRD_AUTH_AUDIENCE: "{{ nb_auth_audience }}"
+        NETBIRD_AUTH_CLIENT_ID: "{{ nb_auth_client_id }}"
+        NETBIRD_AUTH_AUTHORITY: "{{ nb_auth_authority }}"
+        NETBIRD_IDP_MGMT_CLIENT_ID: "{{ nb_idp_mgmt_client_id }}"
+        NETBIRD_IDP_MGMT_CLIENT_SECRET: "{{ nb_idp_mgmt_client_secret }}"
+        NETBIRD_MANAGEMENT_SECRET: "{{ nb_management_secret }}"
+        NETBIRD_RELAY_SECRET: "{{ nb_relay_secret }}"
+        NETBIRD_TURN_SECRET: "{{ nb_turn_secret }}"
+        NETBIRD_TURN_PASSWORD: "{{ nb_turn_password }}"
+        NETBIRD_DATASTORE_ENCRYPTION_KEY: "{{ nb_datastore_encryption_key }}"
         KEYCLOAK_DOMAIN: "{{ keycloak_domain }}"
         NETBIRD_REALM: "{{ netbird_realm }}"

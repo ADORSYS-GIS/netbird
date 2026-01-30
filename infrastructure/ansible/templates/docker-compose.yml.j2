@@ -45,9 +45,9 @@ services:
       - NETBIRD_MGMT_API_ENDPOINT=https://{{ netbird_domain }}
       - NETBIRD_MGMT_GRPC_API_ENDPOINT=https://{{ netbird_domain }}
       # OIDC authentication configuration. These variables are placeholders for Keycloak setup.
-      - AUTH_AUDIENCE={{ netbird_auth_audience }}
-      - AUTH_CLIENT_ID={{ netbird_auth_client_id }}
-      - AUTH_AUTHORITY={{ netbird_auth_authority }}
+      - AUTH_AUDIENCE={{ nb_auth_audience }}
+      - AUTH_CLIENT_ID={{ nb_auth_client_id }}
+      - AUTH_AUTHORITY={{ nb_auth_authority }}
       - USE_AUTH0=false
       - AUTH_SUPPORTED_SCOPES=openid profile email offline_access api
       - NETBIRD_TOKEN_SOURCE=accessToken
@@ -96,13 +96,13 @@ services:
     environment:
       - NETBIRD_STORE_ENGINE_POSTGRES_DSN= # Placeholder for PostgreSQL DSN.
       - NETBIRD_STORE_ENGINE_MYSQL_DSN= # Placeholder for MySQL DSN.
-      - NETBIRD_IDP_MGMT_CLIENT_ID={{ netbird_idp_mgmt_client_id }}
-      - NETBIRD_IDP_MGMT_CLIENT_SECRET={{ netbird_idp_mgmt_client_secret }}
-      - NETBIRD_MANAGEMENT_SECRET={{ netbird_management_secret }}
+      - NETBIRD_IDP_MGMT_CLIENT_ID={{ nb_idp_mgmt_client_id }}
+      - NETBIRD_IDP_MGMT_CLIENT_SECRET={{ nb_idp_mgmt_client_secret }}
+      - NETBIRD_MANAGEMENT_SECRET={{ nb_management_secret }}
       - NETBIRD_IDP_MGMT_EXTRA_ADMIN_ENDPOINT=https://{{ keycloak_domain }}/admin/realms/{{ netbird_realm }}
-      - NETBIRD_AUTH_AUDIENCE={{ netbird_auth_audience }}
-      - NETBIRD_AUTH_ISSUER={{ netbird_auth_authority }}
-      - NETBIRD_AUTH_OIDC_CONFIGURATION_ENDPOINT={{ netbird_auth_authority }}/.well-known/openid-configuration
+      - NETBIRD_AUTH_AUDIENCE={{ nb_auth_audience }}
+      - NETBIRD_AUTH_ISSUER={{ nb_auth_authority }}
+      - NETBIRD_AUTH_OIDC_CONFIGURATION_ENDPOINT={{ nb_auth_authority }}/.well-known/openid-configuration
   # NetBird Relay service.
   # The Relay service facilitates peer-to-peer connections, especially for clients behind NAT.
   relay:
@@ -115,7 +115,7 @@ services:
       - NB_LOG_LEVEL=info # Set logging level to info.
       - NB_LISTEN_ADDRESS=:33080 # Listen on internal port 33080.
       - NB_EXPOSED_ADDRESS=rels://{{ netbird_domain }}/relay # Exposed address for the relay, proxied through Caddy.
-      - NB_AUTH_SECRET={{ netbird_relay_secret }} # Authentication secret for the relay.
+      - NB_AUTH_SECRET={{ nb_relay_secret }} # Authentication secret for the relay.
     ports:
       - 33080:33080 # Expose internal port 33080 to host port 33080.
 

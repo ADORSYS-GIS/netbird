@@ -12,13 +12,13 @@
   "TURNConfig": {
     "TimeBasedCredentials": false,
     "CredentialsTTL": "12h0m0s",
-    "Secret": "{{ netbird_turn_secret }}",
+    "Secret": "{{ nb_turn_secret }}",
     "Turns": [
       {
         "Proto": "udp",
         "URI": "turn:{{ netbird_domain }}:3478",
         "Username": "self",
-        "Password": "{{ netbird_turn_password }}"
+        "Password": "{{ nb_turn_password }}"
       }
     ]
   },
@@ -28,7 +28,7 @@
       "rels://{{ netbird_domain }}/relay"
     ],
     "CredentialsTTL": "24h0m0s",
-    "Secret": "{{ netbird_relay_secret }}"
+    "Secret": "{{ nb_relay_secret }}"
   },
 
   "Signal": {
@@ -40,17 +40,17 @@
 
   "Datadir": "/var/lib/netbird/",
 
-  "DataStoreEncryptionKey": "{{ netbird_datastore_encryption_key }}",
+  "DataStoreEncryptionKey": "{{ nb_datastore_encryption_key }}",
   
   "StoreConfig": {
     "Engine": "sqlite"
   },
 
   "HttpConfig": {
-    "AuthAudience": "{{ netbird_auth_audience }}",
-    "AuthIssuer": "{{ netbird_auth_authority }}",
-    "AuthKeysLocation": "{{ netbird_auth_authority }}/protocol/openid-connect/certs",
-    "OIDCConfigEndpoint": "{{ netbird_auth_authority }}/.well-known/openid-configuration",
+    "AuthAudience": "{{ nb_auth_audience }}",
+    "AuthIssuer": "{{ nb_auth_authority }}",
+    "AuthKeysLocation": "{{ nb_auth_authority }}/protocol/openid-connect/certs",
+    "OIDCConfigEndpoint": "{{ nb_auth_authority }}/.well-known/openid-configuration",
     "IdpSignKeyRefreshEnabled": false
   }
 }
