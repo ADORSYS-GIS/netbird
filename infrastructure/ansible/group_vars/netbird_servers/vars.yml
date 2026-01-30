@@ -16,6 +16,10 @@ keycloak_validate_certs: true
 netbird_realm: "netbird"
 idp_service_name: "keycloak"
 
+# Default NetBird User (created during auto-setup)
+netbird_default_user: "admin"
+netbird_default_password: "<YOUR_DEFAULT_USER_PASSWORD>"
+
 # Keycloak Auto-Setup Flag (set to false to skip Keycloak configuration)
 keycloak_auto_setup: true
 

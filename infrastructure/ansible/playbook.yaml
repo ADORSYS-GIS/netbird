@@ -301,6 +301,49 @@
                 status_code: 204
               when: keycloak_mgmt_client_uuid is not none
 
+            - name: Keycloak | Check if default user exists
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/users?username={{ netbird_default_user | default('admin') }}"
+                method: GET
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+              register: keycloak_user_check
+
+            - name: Keycloak | Set default user password fact
+              ansible.builtin.set_fact:
+                nb_default_password: "{{ netbird_default_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=12')) }}"
+              when: keycloak_user_check.json | length == 0
+
+            - name: Keycloak | Create default user
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/users"
+                method: POST
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+                body_format: json
+                body:
+                  username: "{{ netbird_default_user | default('admin') }}"
+                  enabled: true
+                  emailVerified: true
+                  firstName: "NetBird"
+                  lastName: "Admin"
+                  email: "{{ netbird_default_user | default('admin') }}@{{ netbird_domain }}"
+                  credentials:
+                    - type: password
+                      value: "{{ nb_default_password }}"
+                      temporary: false
+                status_code: 201
+              when: keycloak_user_check.json | length == 0
+
+            - name: Keycloak | Debug default user credentials
+              ansible.builtin.debug:
+                msg:
+                  - "Default User: {{ netbird_default_user | default('admin') }}"
+                  - "Default Password: {{ nb_default_password | default('User already exists') }}"
+              when: keycloak_user_check.json | length == 0
+
         - name: Keycloak | Get netbird-management client UUID
           ansible.builtin.uri:
             url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients?clientId=netbird-management"

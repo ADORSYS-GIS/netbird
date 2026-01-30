@@ -14,6 +14,8 @@ KEYCLOAK_ADMIN_USER="${KEYCLOAK_ADMIN_USER:-admin}"
 KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-}"
 NETBIRD_DOMAIN="${NETBIRD_DOMAIN:-}"
 NETBIRD_REALM="${NETBIRD_REALM:-netbird}"
+NETBIRD_DEFAULT_USER="${NETBIRD_DEFAULT_USER:-admin}"
+NETBIRD_DEFAULT_PASSWORD="${NETBIRD_DEFAULT_PASSWORD:-}"
 
 print_info() {
     echo -e "${GREEN}[INFO]${NC} $1" >&2
@@ -300,6 +302,53 @@ configure_realm_settings() {
     print_info "Realm settings configured"
 }
 
+create_default_user() {
+    print_info "Creating default NetBird user..."
+    
+    # Generate password if not provided
+    if [ -z "$NETBIRD_DEFAULT_PASSWORD" ]; then
+        NETBIRD_DEFAULT_PASSWORD=$(openssl rand -base64 12 | tr -d '\n')
+        print_info "Generated default user password: $NETBIRD_DEFAULT_PASSWORD"
+    fi
+    
+    # Check if user already exists
+    RESPONSE=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/users?username=$NETBIRD_DEFAULT_USER" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
+        -H "Content-Type: application/json" 2>/dev/null)
+    
+    USER_EXISTS=$(echo "$RESPONSE" | jq -r '.[0].username // empty' 2>/dev/null)
+    
+    if [ "$USER_EXISTS" = "$NETBIRD_DEFAULT_USER" ]; then
+        print_warning "User '$NETBIRD_DEFAULT_USER' already exists, skipping creation"
+        return
+    fi
+    
+    RESPONSE=$(curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/users" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "username": "'"$NETBIRD_DEFAULT_USER"'",
+            "enabled": true,
+            "emailVerified": true,
+            "firstName": "NetBird",
+            "lastName": "Admin",
+            "email": "'"$NETBIRD_DEFAULT_USER"'@'"$NETBIRD_DOMAIN"'",
+            "credentials": [{
+                "type": "password",
+                "value": "'"$NETBIRD_DEFAULT_PASSWORD"'",
+                "temporary": false
+            }]
+        }')
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to create default user"
+        echo "Response: $RESPONSE"
+        exit 1
+    fi
+    
+    print_info "Default user '$NETBIRD_DEFAULT_USER' created successfully"
+}
+
 generate_secrets() {
     print_info "Generating random secrets for NetBird services..."
     
@@ -327,6 +376,8 @@ print_configuration() {
             --arg realm "$NETBIRD_REALM" \
             --arg domain "$(echo "$KEYCLOAK_URL" | sed 's|https://||;s|http://||')" \
             --arg authority "$KEYCLOAK_URL/realms/$NETBIRD_REALM" \
+            --arg du "$NETBIRD_DEFAULT_USER" \
+            --arg dp "$NETBIRD_DEFAULT_PASSWORD" \
             '{
                 netbird_client_id: $ncid,
                 netbird_idp_mgmt_client_id: $mid,
@@ -338,7 +389,9 @@ print_configuration() {
                 netbird_datastore_encryption_key: $dsk,
                 netbird_realm: $realm,
                 keycloak_domain: $domain,
-                netbird_auth_authority: $authority
+                netbird_auth_authority: $authority,
+                netbird_default_user: $du,
+                netbird_default_password: $dp
             }' > /tmp/keycloak-config.json
         cat /tmp/keycloak-config.json
     else
@@ -357,6 +410,10 @@ print_configuration() {
         echo "  Client ID (Web): $NETBIRD_CLIENT_ID"
         echo "  Client ID (Management): $MGMT_CLIENT_ID"
         echo "  Client Secret (Management): $MGMT_CLIENT_SECRET"
+        echo ""
+        print_info "Default NetBird User:"
+        echo "  Username: $NETBIRD_DEFAULT_USER"
+        echo "  Password: $NETBIRD_DEFAULT_PASSWORD"
         echo ""
         print_info "NetBird Secrets (save these securely):"
         echo "  Management Secret: $MANAGEMENT_SECRET"
@@ -400,6 +457,7 @@ main() {
     create_realm
     create_netbird_client
     create_management_client
+    create_default_user
     configure_realm_settings
     generate_secrets
     print_configuration
