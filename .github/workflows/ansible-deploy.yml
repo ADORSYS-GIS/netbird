@@ -139,69 +139,64 @@ jobs:
 
       - name: Run Ansible Playbook
         env:
-          # Targets
           TARGET_HOST: ${{ github.event.inputs.target_host || secrets.ANSIBLE_HOST }}
           TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
-          AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
-          # NetBird Vars
           NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
-          NETBIRD_CADDY_EMAIL: ${{ secrets.NETBIRD_CADDY_EMAIL }}
-          NETBIRD_EXTERNAL_IP: ${{ secrets.NETBIRD_EXTERNAL_IP }}
-          IDP_SERVICE_NAME: ${{ secrets.IDP_SERVICE_NAME || 'keycloak' }}
-          KEYCLOAK_PORT: ${{ secrets.KEYCLOAK_PORT || '8080' }}
         run: |
+          # Create a secure variables file to prevent shell mangling of secrets
+          cat <<EOF > extra_vars.json
+          {
+            "netbird_domain": "$NETBIRD_DOMAIN",
+            "netbird_caddy_email": "${{ secrets.NETBIRD_CADDY_EMAIL }}",
+            "netbird_external_ip": "${{ secrets.NETBIRD_EXTERNAL_IP }}",
+            "idp_service_name": "${{ secrets.IDP_SERVICE_NAME || 'keycloak' }}",
+            "keycloak_port": "${{ secrets.KEYCLOAK_PORT || '8080' }}",
+            "keycloak_auth_url": "${{ secrets.KEYCLOAK_URL }}",
+            "keycloak_admin_user": "${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}",
+            "keycloak_admin_password": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}",
+            "netbird_auth_audience": "${{ secrets.NETBIRD_AUTH_AUDIENCE }}",
+            "netbird_auth_client_id": "${{ secrets.NETBIRD_AUTH_CLIENT_ID }}",
+            "netbird_auth_authority": "${{ secrets.NETBIRD_AUTH_AUTHORITY }}",
+            "netbird_management_secret": "${{ secrets.NETBIRD_MANAGEMENT_SECRET }}",
+            "netbird_relay_secret": "${{ secrets.NETBIRD_RELAY_SECRET }}",
+            "netbird_turn_secret": "${{ secrets.NETBIRD_TURN_SECRET }}",
+            "netbird_turn_password": "${{ secrets.NETBIRD_TURN_PASSWORD }}",
+            "netbird_datastore_encryption_key": "${{ secrets.NETBIRD_DATASTORE_ENCRYPTION_KEY }}",
+            "netbird_idp_mgmt_client_id": "${{ secrets.NETBIRD_IDP_MGMT_CLIENT_ID }}",
+            "keycloak_domain": "${{ secrets.KEYCLOAK_DOMAIN }}",
+            "netbird_realm": "${{ secrets.NETBIRD_REALM || 'netbird' }}"
+          }
+          EOF
+          
           echo "[netbird_servers]" > inventory_gh.ini
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
-            echo "netbird-primary ansible_host=$AWS_INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
+            echo "netbird-primary ansible_host=${{ secrets.AWS_INSTANCE_ID }} ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
           else
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi
           
-          # Build ansible-playbook command
-          PLAYBOOK_CMD="ansible-playbook -i inventory_gh.ini infrastructure/ansible/playbook.yaml"
+          # Build ansible-playbook command using the JSON vars file
+          PLAYBOOK_CMD="ansible-playbook -i inventory_gh.ini infrastructure/ansible/playbook.yaml -e @extra_vars.json"
           
-          # Add base extra-vars
-          PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_domain=$NETBIRD_DOMAIN\""
-          PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_caddy_email=$NETBIRD_CADDY_EMAIL\""
-          PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_external_ip=$NETBIRD_EXTERNAL_IP\""
-          PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"idp_service_name=$IDP_SERVICE_NAME\""
-          PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_port=$KEYCLOAK_PORT\""
-          
-          # Add Keycloak admin vars if provided
-          [ -n "$KEYCLOAK_URL_SECRET" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_auth_url=$KEYCLOAK_URL_SECRET\""
-          [ -n "$KEYCLOAK_ADMIN_USER_SECRET" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_admin_user=$KEYCLOAK_ADMIN_USER_SECRET\""
-          [ -n "$KEYCLOAK_ADMIN_PASSWORD_SECRET" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_admin_password=$KEYCLOAK_ADMIN_PASSWORD_SECRET\""
-          
-          # Add Keycloak-specific vars based on source
           if [ "$KEYCLOAK_AUTOMATED" = "true" ]; then
-            echo "Using Keycloak automation values"
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_client_id=$KC_CLIENT_ID\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_audience=$KC_CLIENT_ID\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_idp_mgmt_client_id=$KC_MGMT_CLIENT_ID\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_idp_mgmt_client_secret=$KC_MGMT_CLIENT_SECRET\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_management_secret=$KC_MANAGEMENT_SECRET\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_relay_secret=$KC_RELAY_SECRET\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_turn_secret=$KC_TURN_SECRET\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_turn_password=$KC_TURN_PASSWORD\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_datastore_encryption_key=$KC_DATASTORE_KEY\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_realm=$KC_REALM\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_domain=$KC_DOMAIN\""
-            PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_authority=$KC_AUTHORITY\""
-          else
-            echo "Using GitHub Secrets"
-            # Only add if secrets are provided
-            [ -n "${{ secrets.NETBIRD_AUTH_AUDIENCE }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_audience=${{ secrets.NETBIRD_AUTH_AUDIENCE }}\""
-            [ -n "${{ secrets.NETBIRD_AUTH_CLIENT_ID }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_client_id=${{ secrets.NETBIRD_AUTH_CLIENT_ID }}\""
-            [ -n "${{ secrets.NETBIRD_AUTH_AUTHORITY }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_auth_authority=${{ secrets.NETBIRD_AUTH_AUTHORITY }}\""
-            [ -n "${{ secrets.NETBIRD_MANAGEMENT_SECRET }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_management_secret=${{ secrets.NETBIRD_MANAGEMENT_SECRET }}\""
-            [ -n "${{ secrets.NETBIRD_RELAY_SECRET }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_relay_secret=${{ secrets.NETBIRD_RELAY_SECRET }}\""
-            [ -n "${{ secrets.NETBIRD_TURN_SECRET }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_turn_secret=${{ secrets.NETBIRD_TURN_SECRET }}\""
-            [ -n "${{ secrets.NETBIRD_TURN_PASSWORD }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_turn_password=${{ secrets.NETBIRD_TURN_PASSWORD }}\""
-            [ -n "${{ secrets.NETBIRD_DATASTORE_ENCRYPTION_KEY }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_datastore_encryption_key=${{ secrets.NETBIRD_DATASTORE_ENCRYPTION_KEY }}\""
-            [ -n "${{ secrets.NETBIRD_IDP_MGMT_CLIENT_ID }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_idp_mgmt_client_id=${{ secrets.NETBIRD_IDP_MGMT_CLIENT_ID }}\""
-            [ -n "${{ secrets.KEYCLOAK_DOMAIN }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"keycloak_domain=${{ secrets.KEYCLOAK_DOMAIN }}\""
-            [ -n "${{ secrets.NETBIRD_REALM }}" ] && PLAYBOOK_CMD="$PLAYBOOK_CMD --extra-vars \"netbird_realm=${{ secrets.NETBIRD_REALM }}\""
+            echo "Merging Keycloak automation values"
+            PLAYBOOK_CMD="$PLAYBOOK_CMD -e \"{
+              'netbird_auth_client_id': '$KC_CLIENT_ID',
+              'netbird_auth_audience': '$KC_CLIENT_ID',
+              'netbird_idp_mgmt_client_id': '$KC_MGMT_CLIENT_ID',
+              'netbird_idp_mgmt_client_secret': '$KC_MGMT_CLIENT_SECRET',
+              'netbird_management_secret': '$KC_MANAGEMENT_SECRET',
+              'netbird_relay_secret': '$KC_RELAY_SECRET',
+              'netbird_turn_secret': '$KC_TURN_SECRET',
+              'netbird_turn_password': '$KC_TURN_PASSWORD',
+              'netbird_datastore_encryption_key': '$KC_DATASTORE_KEY',
+              'netbird_realm': '$KC_REALM',
+              'keycloak_domain': '$KC_DOMAIN',
+              'netbird_auth_authority': '$KC_AUTHORITY'
+            }\""
           fi
+          
           # Execute the command
           eval $PLAYBOOK_CMD
+          rm extra_vars.json

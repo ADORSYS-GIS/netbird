@@ -111,7 +111,7 @@
 
         - name: Keycloak | Get admin token
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url }}/realms/master/protocol/openid-connect/token"
+            url: "{{ keycloak_auth_url | regex_replace('/$', '') }}/realms/master/protocol/openid-connect/token"
             method: POST
             validate_certs: "{{ keycloak_validate_certs }}"
             body_format: form-urlencoded
