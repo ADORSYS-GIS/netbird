@@ -102,6 +102,11 @@
     # Keycloak Configuration
     - name: Configure Keycloak realm and OAuth clients via API
       block:
+        - name: Keycloak | Set normalized facts
+          ansible.builtin.set_fact:
+            keycloak_base_url: "{{ keycloak_auth_url | trim | regex_replace('/+$', '') }}"
+            keycloak_realm_name: "{{ netbird_realm | default('netbird') | trim | regex_replace('^/+', '') | regex_replace('/+$', '') }}"
+
         - name: Keycloak | Validate Keycloak admin credentials
           ansible.builtin.assert:
             that:
@@ -111,7 +116,7 @@
 
         - name: Keycloak | Get admin token
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url | regex_replace('/$', '') }}/realms/master/protocol/openid-connect/token"
+            url: "{{ keycloak_base_url }}/realms/master/protocol/openid-connect/token"
             method: POST
             validate_certs: "{{ keycloak_validate_certs }}"
             body_format: form-urlencoded
@@ -124,7 +129,7 @@
           register: keycloak_admin_token_response
           no_log: true
           # Retrying in case Keycloak is still starting up
-          until: keycloak_admin_token_response.status == 200
+          until: keycloak_admin_token_response.status is defined and keycloak_admin_token_response.status == 200
           retries: 5
           delay: 5
 
@@ -134,7 +139,7 @@
 
         - name: Keycloak | Check if realm exists
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}"
+            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}"
             method: GET
             validate_certs: "{{ keycloak_validate_certs }}"
             headers:
@@ -145,14 +150,14 @@
 
         - name: Keycloak | Create realm if it does not exist
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url }}/admin/realms"
+            url: "{{ keycloak_base_url }}/admin/realms"
             method: POST
             validate_certs: "{{ keycloak_validate_certs }}"
             headers:
               Authorization: "Bearer {{ keycloak_admin_token }}"
             body_format: json
             body:
-              realm: "{{ netbird_realm }}"
+              realm: "{{ keycloak_realm_name }}"
               enabled: true
               displayName: "NetBird"
             status_code: [201, 409] # 201 Created, 409 Conflict (already exists)
@@ -160,7 +165,7 @@
 
         - name: Keycloak | Check if netbird-client exists
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients?clientId=netbird-client"
+            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients?clientId=netbird-client"
             method: GET
             validate_certs: "{{ keycloak_validate_certs }}"
             headers:
@@ -169,7 +174,7 @@
 
         - name: Keycloak | Create netbird-client if it does not exist
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients"
+            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients"
             method: POST
             validate_certs: "{{ keycloak_validate_certs }}"
             headers:
@@ -191,7 +196,7 @@
 
         - name: Keycloak | Check if netbird-management client exists
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients?clientId=netbird-management"
+            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients?clientId=netbird-management"
             method: GET
             validate_certs: "{{ keycloak_validate_certs }}"
             headers:
@@ -200,7 +205,7 @@
 
         - name: Keycloak | Create netbird-management client if it does not exist
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients"
+            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients"
             method: POST
             validate_certs: "{{ keycloak_validate_certs }}"
             headers:
@@ -216,7 +221,7 @@
 
         - name: Keycloak | Get netbird-management client UUID
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients?clientId=netbird-management"
+            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients?clientId=netbird-management"
             method: GET
             validate_certs: "{{ keycloak_validate_certs }}"
             headers:
@@ -232,7 +237,7 @@
 
         - name: Keycloak | Get netbird-management client secret
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url }}/admin/realms/{{ netbird_realm }}/clients/{{ keycloak_mgmt_client_uuid }}/client-secret"
+            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{ keycloak_mgmt_client_uuid }}/client-secret"
             method: GET
             validate_certs: "{{ keycloak_validate_certs }}"
             headers:
@@ -245,7 +250,7 @@
             netbird_auth_client_id: "netbird-client"
             netbird_idp_mgmt_client_id: "netbird-management"
             netbird_idp_mgmt_client_secret: "{{ keycloak_mgmt_client_secret.json.value }}"
-            netbird_auth_authority: "{{ keycloak_auth_url }}/realms/{{ netbird_realm }}"
+            netbird_auth_authority: "{{ keycloak_base_url }}/realms/{{ keycloak_realm_name }}"
             netbird_auth_audience: "netbird-client"
       when: run_keycloak_config | bool
 

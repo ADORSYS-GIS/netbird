@@ -62,8 +62,13 @@ validate_inputs() {
         exit 1
     fi
     
-    # Remove trailing slash from URL
-    KEYCLOAK_URL="${KEYCLOAK_URL%/}"
+    # Remove all trailing slashes from URL
+    while [[ "$KEYCLOAK_URL" == */ ]]; do
+        KEYCLOAK_URL="${KEYCLOAK_URL%/}"
+    done
+    
+    # Normalize Realm Name
+    NETBIRD_REALM=$(echo "$NETBIRD_REALM" | sed 's|^/||;s|/$||')
     
     print_info "Configuration:"
     echo "  Keycloak URL: $KEYCLOAK_URL"
@@ -80,9 +85,14 @@ get_admin_token() {
         -d "username=$KEYCLOAK_ADMIN_USER" \
         -d "password=$KEYCLOAK_ADMIN_PASSWORD" \
         -d "grant_type=password" \
-        -d "client_id=admin-cli" 2>&1)
+        -d "client_id=admin-cli" 2>/dev/null)
     
-    ADMIN_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token // empty')
+    if [ $? -ne 0 ] || [ -z "$RESPONSE" ]; then
+        print_error "Failed to reach Keycloak at $KEYCLOAK_URL"
+        exit 1
+    fi
+
+    ADMIN_TOKEN=$(echo "$RESPONSE" | jq -r '.access_token // empty' 2>/dev/null)
     
     if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
         print_error "Failed to authenticate to Keycloak"
@@ -97,9 +107,11 @@ create_realm() {
     print_info "Creating NetBird realm..."
     
     # Check if realm already exists
-    EXISTING_REALM=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM" \
+    RESPONSE=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM" \
         -H "Authorization: Bearer $ADMIN_TOKEN" \
-        -H "Content-Type: application/json" | jq -r '.realm // empty')
+        -H "Content-Type: application/json" 2>/dev/null)
+    
+    EXISTING_REALM=$(echo "$RESPONSE" | jq -r '.realm // empty' 2>/dev/null)
     
     if [ "$EXISTING_REALM" = "$NETBIRD_REALM" ]; then
         print_warning "Realm '$NETBIRD_REALM' already exists, skipping creation"
@@ -138,9 +150,9 @@ get_client_id() {
     
     RESPONSE=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients?clientId=$CLIENT_NAME" \
         -H "Authorization: Bearer $ADMIN_TOKEN" \
-        -H "Content-Type: application/json")
+        -H "Content-Type: application/json" 2>/dev/null)
     
-    CLIENT_UUID=$(echo "$RESPONSE" | jq -r '.[0].id // empty')
+    CLIENT_UUID=$(echo "$RESPONSE" | jq -r '.[0].id // empty' 2>/dev/null)
     echo "$CLIENT_UUID"
 }
 
@@ -205,9 +217,9 @@ create_management_client() {
         # Get existing secret
         SECRET_RESPONSE=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$EXISTING_CLIENT/client-secret" \
             -H "Authorization: Bearer $ADMIN_TOKEN" \
-            -H "Content-Type: application/json")
+            -H "Content-Type: application/json" 2>/dev/null)
         
-        MGMT_CLIENT_SECRET=$(echo "$SECRET_RESPONSE" | jq -r '.value // empty')
+        MGMT_CLIENT_SECRET=$(echo "$SECRET_RESPONSE" | jq -r '.value // empty' 2>/dev/null)
         MGMT_CLIENT_ID="netbird-management"
         return
     fi
@@ -247,9 +259,9 @@ create_management_client() {
     # Get client secret
     SECRET_RESPONSE=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$CLIENT_UUID/client-secret" \
         -H "Authorization: Bearer $ADMIN_TOKEN" \
-        -H "Content-Type: application/json")
+        -H "Content-Type: application/json" 2>/dev/null)
     
-    MGMT_CLIENT_SECRET=$(echo "$SECRET_RESPONSE" | jq -r '.value // empty')
+    MGMT_CLIENT_SECRET=$(echo "$SECRET_RESPONSE" | jq -r '.value // empty' 2>/dev/null)
     
     if [ -z "$MGMT_CLIENT_SECRET" ] || [ "$MGMT_CLIENT_SECRET" = "null" ]; then
         print_error "Failed to retrieve management client secret"
@@ -294,22 +306,32 @@ generate_secrets() {
 
 print_configuration() {
     if [ "${OUTPUT_FORMAT:-text}" = "json" ]; then
-        # JSON output for CI/CD automation
-        cat > /tmp/keycloak-config.json <<EOF
-{
-  "netbird_client_id": "$NETBIRD_CLIENT_ID",
-  "netbird_idp_mgmt_client_id": "$MGMT_CLIENT_ID",
-  "netbird_idp_mgmt_client_secret": "$MGMT_CLIENT_SECRET",
-  "netbird_management_secret": "$MANAGEMENT_SECRET",
-  "netbird_relay_secret": "$RELAY_SECRET",
-  "netbird_turn_secret": "$TURN_SECRET",
-  "netbird_turn_password": "$TURN_PASSWORD",
-  "netbird_datastore_encryption_key": "$DATASTORE_KEY",
-  "netbird_realm": "$NETBIRD_REALM",
-  "keycloak_domain": "$(echo $KEYCLOAK_URL | sed 's|https://||' | sed 's|http://||')",
-  "netbird_auth_authority": "$KEYCLOAK_URL/realms/$NETBIRD_REALM"
-}
-EOF
+        # JSON output for CI/CD automation - using jq for safe generation
+        jq -n \
+            --arg ncid "$NETBIRD_CLIENT_ID" \
+            --arg mid "$MGMT_CLIENT_ID" \
+            --arg ms "$MGMT_CLIENT_SECRET" \
+            --arg nms "$MANAGEMENT_SECRET" \
+            --arg rs "$RELAY_SECRET" \
+            --arg ts "$TURN_SECRET" \
+            --arg tp "$TURN_PASSWORD" \
+            --arg dsk "$DATASTORE_KEY" \
+            --arg realm "$NETBIRD_REALM" \
+            --arg domain "$(echo "$KEYCLOAK_URL" | sed 's|https://||;s|http://||')" \
+            --arg authority "$KEYCLOAK_URL/realms/$NETBIRD_REALM" \
+            '{
+                netbird_client_id: $ncid,
+                netbird_idp_mgmt_client_id: $mid,
+                netbird_idp_mgmt_client_secret: $ms,
+                netbird_management_secret: $nms,
+                netbird_relay_secret: $rs,
+                netbird_turn_secret: $ts,
+                netbird_turn_password: $tp,
+                netbird_datastore_encryption_key: $dsk,
+                netbird_realm: $realm,
+                keycloak_domain: $domain,
+                netbird_auth_authority: $authority
+            }' > /tmp/keycloak-config.json
         cat /tmp/keycloak-config.json
     else
         # Human-readable output
