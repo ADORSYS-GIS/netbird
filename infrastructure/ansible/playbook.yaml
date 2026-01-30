@@ -21,6 +21,10 @@
         - name: Install | Update apt cache
           ansible.builtin.apt:
             update_cache: true
+          register: apt_update
+          until: apt_update is success
+          retries: 10
+          delay: 10
 
         - name: Install | Install required packages
           ansible.builtin.apt:
@@ -32,6 +36,10 @@
               - lsb-release
               - python3-pip
             state: present
+          register: apt_install_req
+          until: apt_install_req is success
+          retries: 10
+          delay: 10
 
         - name: Install | Add Docker GPG key
           ansible.builtin.apt_key:
@@ -52,6 +60,10 @@
               - docker-compose-plugin
             state: present
             update_cache: true
+          register: apt_install_docker
+          until: apt_install_docker is success
+          retries: 10
+          delay: 10
 
         - name: Install | Ensure Docker service is started
           ansible.builtin.service:
