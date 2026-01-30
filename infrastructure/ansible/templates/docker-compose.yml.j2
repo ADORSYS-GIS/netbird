@@ -85,6 +85,7 @@ services:
     ports:
       - 33073:80 # Expose internal port 80 to host port 33073 (Caddy will proxy to internal 80).
     command: [
+      "--config", "/etc/netbird/management.json", # Explicitly load the management.json configuration file.
       "--port", "80", # Listen on internal port 80.
       "--log-file", "console", # Direct logs to console.
       "--log-level", "info", # Set logging level to info.
@@ -99,6 +100,9 @@ services:
       - NETBIRD_IDP_MGMT_CLIENT_SECRET={{ netbird_idp_mgmt_client_secret }}
       - NETBIRD_MANAGEMENT_SECRET={{ netbird_management_secret }}
       - NETBIRD_IDP_MGMT_EXTRA_ADMIN_ENDPOINT=https://{{ keycloak_domain }}/admin/realms/{{ netbird_realm }}
+      - NETBIRD_AUTH_AUDIENCE={{ netbird_auth_audience }}
+      - NETBIRD_AUTH_ISSUER={{ netbird_auth_authority }}
+      - NETBIRD_AUTH_OIDC_CONFIGURATION_ENDPOINT={{ netbird_auth_authority }}/.well-known/openid-configuration
   # NetBird Relay service.
   # The Relay service facilitates peer-to-peer connections, especially for clients behind NAT.
   relay:
