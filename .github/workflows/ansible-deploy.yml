@@ -143,7 +143,7 @@ jobs:
           TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
           NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
         run: |
-          # Create a secure variables file to prevent shell mangling of secrets
+          # Create a secure variables file, only including non-empty secrets
           cat <<EOF > extra_vars.json
           {
             "netbird_domain": "$NETBIRD_DOMAIN",
@@ -154,20 +154,31 @@ jobs:
             "keycloak_auth_url": "${{ secrets.KEYCLOAK_URL }}",
             "keycloak_admin_user": "${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}",
             "keycloak_admin_password": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}",
-            "netbird_auth_audience": "${{ secrets.NETBIRD_AUTH_AUDIENCE }}",
-            "netbird_auth_client_id": "${{ secrets.NETBIRD_AUTH_CLIENT_ID }}",
-            "netbird_auth_authority": "${{ secrets.NETBIRD_AUTH_AUTHORITY }}",
-            "netbird_management_secret": "${{ secrets.NETBIRD_MANAGEMENT_SECRET }}",
-            "netbird_relay_secret": "${{ secrets.NETBIRD_RELAY_SECRET }}",
-            "netbird_turn_secret": "${{ secrets.NETBIRD_TURN_SECRET }}",
-            "netbird_turn_password": "${{ secrets.NETBIRD_TURN_PASSWORD }}",
-            "netbird_datastore_encryption_key": "${{ secrets.NETBIRD_DATASTORE_ENCRYPTION_KEY }}",
-            "netbird_idp_mgmt_client_id": "${{ secrets.NETBIRD_IDP_MGMT_CLIENT_ID }}",
             "keycloak_domain": "${{ secrets.KEYCLOAK_DOMAIN }}",
             "netbird_realm": "${{ secrets.NETBIRD_REALM || 'netbird' }}"
           }
           EOF
-          
+
+          # Function to add secret only if not empty
+          add_secret() {
+            local name=$1
+            local value=$2
+            if [ -n "$value" ]; then
+              jq --arg name "$name" --arg value "$value" '. + {($name): $value}' extra_vars.json > extra_vars.json.tmp && mv extra_vars.json.tmp extra_vars.json
+            fi
+          }
+
+          add_secret "netbird_auth_audience" "${{ secrets.NETBIRD_AUTH_AUDIENCE }}"
+          add_secret "netbird_auth_client_id" "${{ secrets.NETBIRD_AUTH_CLIENT_ID }}"
+          add_secret "netbird_auth_authority" "${{ secrets.NETBIRD_AUTH_AUTHORITY }}"
+          add_secret "netbird_management_secret" "${{ secrets.NETBIRD_MANAGEMENT_SECRET }}"
+          add_secret "netbird_relay_secret" "${{ secrets.NETBIRD_RELAY_SECRET }}"
+          add_secret "netbird_turn_secret" "${{ secrets.NETBIRD_TURN_SECRET }}"
+          add_secret "netbird_turn_password" "${{ secrets.NETBIRD_TURN_PASSWORD }}"
+          add_secret "netbird_datastore_encryption_key" "${{ secrets.NETBIRD_DATASTORE_ENCRYPTION_KEY }}"
+          add_secret "netbird_idp_mgmt_client_id" "${{ secrets.NETBIRD_IDP_MGMT_CLIENT_ID }}"
+          add_secret "netbird_idp_mgmt_client_secret" "${{ secrets.NETBIRD_IDP_MGMT_CLIENT_SECRET }}"
+
           echo "[netbird_servers]" > inventory_gh.ini
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
@@ -181,22 +192,36 @@ jobs:
           
           if [ "$KEYCLOAK_AUTOMATED" = "true" ]; then
             echo "Merging Keycloak automation values"
-            PLAYBOOK_CMD="$PLAYBOOK_CMD -e \"{
-              'netbird_auth_client_id': '$KC_CLIENT_ID',
-              'netbird_auth_audience': '$KC_CLIENT_ID',
-              'netbird_idp_mgmt_client_id': '$KC_MGMT_CLIENT_ID',
-              'netbird_idp_mgmt_client_secret': '$KC_MGMT_CLIENT_SECRET',
-              'netbird_management_secret': '$KC_MANAGEMENT_SECRET',
-              'netbird_relay_secret': '$KC_RELAY_SECRET',
-              'netbird_turn_secret': '$KC_TURN_SECRET',
-              'netbird_turn_password': '$KC_TURN_PASSWORD',
-              'netbird_datastore_encryption_key': '$KC_DATASTORE_KEY',
-              'netbird_realm': '$KC_REALM',
-              'keycloak_domain': '$KC_DOMAIN',
-              'netbird_auth_authority': '$KC_AUTHORITY'
-            }\""
+            # Build an object with only non-empty KC values
+            KC_VARS=$(jq -n \
+              --arg client_id "$KC_CLIENT_ID" \
+              --arg mgmt_client_id "$KC_MGMT_CLIENT_ID" \
+              --arg mgmt_client_secret "$KC_MGMT_CLIENT_SECRET" \
+              --arg mgmt_secret "$KC_MANAGEMENT_SECRET" \
+              --arg relay_secret "$KC_RELAY_SECRET" \
+              --arg turn_secret "$KC_TURN_SECRET" \
+              --arg turn_password "$KC_TURN_PASSWORD" \
+              --arg datastore_key "$KC_DATASTORE_KEY" \
+              --arg realm "$KC_REALM" \
+              --arg domain "$KC_DOMAIN" \
+              --arg authority "$KC_AUTHORITY" \
+              '{} 
+              | if $client_id != "" then . + {netbird_auth_client_id: $client_id, netbird_auth_audience: $client_id} else . end
+              | if $mgmt_client_id != "" then . + {netbird_idp_mgmt_client_id: $mgmt_client_id} else . end
+              | if $mgmt_client_secret != "" then . + {netbird_idp_mgmt_client_secret: $mgmt_client_secret} else . end
+              | if $mgmt_secret != "" then . + {netbird_management_secret: $mgmt_secret} else . end
+              | if $relay_secret != "" then . + {netbird_relay_secret: $relay_secret} else . end
+              | if $turn_secret != "" then . + {netbird_turn_secret: $turn_secret} else . end
+              | if $turn_password != "" then . + {netbird_turn_password: $turn_password} else . end
+              | if $datastore_key != "" then . + {netbird_datastore_encryption_key: $datastore_key} else . end
+              | if $realm != "" then . + {netbird_realm: $realm} else . end
+              | if $domain != "" then . + {keycloak_domain: $domain} else . end
+              | if $authority != "" then . + {netbird_auth_authority: $authority} else . end')
+            
+            # Save KC vars to another file and use it
+            echo "$KC_VARS" > kc_vars.json
+            PLAYBOOK_CMD="$PLAYBOOK_CMD -e @kc_vars.json"
           fi
           
           # Execute the command
           eval $PLAYBOOK_CMD
-          rm extra_vars.json

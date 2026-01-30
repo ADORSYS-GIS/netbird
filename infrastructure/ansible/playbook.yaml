@@ -84,45 +84,46 @@
         run_keycloak_config: >-
           {{
             keycloak_auto_setup | default(true) and
-            (netbird_idp_mgmt_client_secret == '<YOUR_IDP_MGMT_CLIENT_SECRET>' or netbird_idp_mgmt_client_secret == '') and
+            (netbird_idp_mgmt_client_secret | default('') == '<YOUR_IDP_MGMT_CLIENT_SECRET>' or netbird_idp_mgmt_client_secret | default('') == '') and
             not keycloak_domain.startswith('<YOUR_')
           }}
 
-    # Task: Generate random secrets if placeholders are still present.
-    - name: Pre-flight | Generate random secrets for NetBird services
-      ansible.builtin.set_fact:
-        netbird_management_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-      when: netbird_management_secret | default('') == '' or netbird_management_secret.startswith('<YOUR_')
+    - name: Pre-flight | Variable Sanitization and Generation
+      block:
+        - name: Sanitize | Generate Management Secret
+          ansible.builtin.set_fact:
+            netbird_management_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
+          when: netbird_management_secret | default('') == '' or netbird_management_secret.startswith('<YOUR_')
 
-    - name: Pre-flight | Generate relay secret
-      ansible.builtin.set_fact:
-        netbird_relay_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-      when: netbird_relay_secret | default('') == '' or netbird_relay_secret.startswith('<YOUR_')
+        - name: Sanitize | Generate Relay Secret
+          ansible.builtin.set_fact:
+            netbird_relay_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
+          when: netbird_relay_secret | default('') == '' or netbird_relay_secret.startswith('<YOUR_')
 
-    - name: Pre-flight | Generate turn secret
-      ansible.builtin.set_fact:
-        netbird_turn_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-      when: netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_')
+        - name: Sanitize | Generate TURN Secret
+          ansible.builtin.set_fact:
+            netbird_turn_secret: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
+          when: netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_')
 
-    - name: Pre-flight | Generate turn password
-      ansible.builtin.set_fact:
-        netbird_turn_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=24') }}"
-      when: netbird_turn_password | default('') == '' or netbird_turn_password.startswith('<YOUR_')
+        - name: Sanitize | Generate TURN Password
+          ansible.builtin.set_fact:
+            netbird_turn_password: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=24') }}"
+          when: netbird_turn_password | default('') == '' or netbird_turn_password.startswith('<YOUR_')
 
-    - name: Pre-flight | Generate datastore encryption key
-      ansible.builtin.set_fact:
-        netbird_datastore_encryption_key: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
-      when: netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_')
+        - name: Sanitize | Generate Datastore Encryption Key
+          ansible.builtin.set_fact:
+            netbird_datastore_encryption_key: "{{ lookup('password', '/dev/null chars=ascii_letters,digits length=32') }}"
+          when: netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_')
 
-    - name: Pre-flight | Ensure authentication authority is set
-      ansible.builtin.set_fact:
-        netbird_auth_authority: "https://{{ keycloak_domain }}/realms/{{ netbird_realm }}"
-      when: netbird_auth_authority | default('') == '' or netbird_auth_authority.startswith('<YOUR_')
+        - name: Sanitize | Ensure Authentication Authority is correctly set
+          ansible.builtin.set_fact:
+            netbird_auth_authority: "https://{{ keycloak_domain }}/realms/{{ netbird_realm }}"
+          when: netbird_auth_authority | default('') == '' or '<YOUR_' in netbird_auth_authority
 
-    - name: Pre-flight | Ensure Caddy email is set
-      ansible.builtin.set_fact:
-        netbird_caddy_email: "admin@{{ netbird_domain }}"
-      when: netbird_caddy_email | default('') == '' or netbird_caddy_email.startswith('<YOUR_')
+        - name: Sanitize | Ensure Caddy email is set
+          ansible.builtin.set_fact:
+            netbird_caddy_email: "admin@{{ netbird_domain }}"
+          when: netbird_caddy_email | default('') == '' or netbird_caddy_email.startswith('<YOUR_')
 
     - name: Pre-flight | Validate required variables
       ansible.builtin.assert:
