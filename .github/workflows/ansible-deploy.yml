@@ -113,24 +113,26 @@ jobs:
       - name: Load Keycloak Configuration
         id: keycloak_config
         run: |
-          if [ -f keycloak-output.json ]; then
+          if [ -s keycloak-output.json ] && jq '.' keycloak-output.json > /dev/null 2>&1; then
             echo "Using Keycloak automation output"
             echo "KEYCLOAK_AUTOMATED=true" >> $GITHUB_ENV
             
-            # Extract values from JSON
-            echo "KC_CLIENT_ID=$(jq -r '.netbird_client_id' keycloak-output.json)" >> $GITHUB_ENV
-            echo "KC_MGMT_CLIENT_ID=$(jq -r '.netbird_idp_mgmt_client_id' keycloak-output.json)" >> $GITHUB_ENV
-            echo "KC_MGMT_CLIENT_SECRET=$(jq -r '.netbird_idp_mgmt_client_secret' keycloak-output.json)" >> $GITHUB_ENV
-            echo "KC_MANAGEMENT_SECRET=$(jq -r '.netbird_management_secret' keycloak-output.json)" >> $GITHUB_ENV
-            echo "KC_RELAY_SECRET=$(jq -r '.netbird_relay_secret' keycloak-output.json)" >> $GITHUB_ENV
-            echo "KC_TURN_SECRET=$(jq -r '.netbird_turn_secret' keycloak-output.json)" >> $GITHUB_ENV
-            echo "KC_TURN_PASSWORD=$(jq -r '.netbird_turn_password' keycloak-output.json)" >> $GITHUB_ENV
-            echo "KC_DATASTORE_KEY=$(jq -r '.netbird_datastore_encryption_key' keycloak-output.json)" >> $GITHUB_ENV
-            echo "KC_REALM=$(jq -r '.netbird_realm' keycloak-output.json)" >> $GITHUB_ENV
-            echo "KC_DOMAIN=$(jq -r '.keycloak_domain' keycloak-output.json)" >> $GITHUB_ENV
-            echo "KC_AUTHORITY=$(jq -r '.netbird_auth_authority' keycloak-output.json)" >> $GITHUB_ENV
+            # Extract values from JSON and ensure they are not empty
+            {
+              echo "KC_CLIENT_ID=$(jq -r '.netbird_client_id // empty' keycloak-output.json)"
+              echo "KC_MGMT_CLIENT_ID=$(jq -r '.netbird_idp_mgmt_client_id // empty' keycloak-output.json)"
+              echo "KC_MGMT_CLIENT_SECRET=$(jq -r '.netbird_idp_mgmt_client_secret // empty' keycloak-output.json)"
+              echo "KC_MANAGEMENT_SECRET=$(jq -r '.netbird_management_secret // empty' keycloak-output.json)"
+              echo "KC_RELAY_SECRET=$(jq -r '.netbird_relay_secret // empty' keycloak-output.json)"
+              echo "KC_TURN_SECRET=$(jq -r '.netbird_turn_secret // empty' keycloak-output.json)"
+              echo "KC_TURN_PASSWORD=$(jq -r '.netbird_turn_password // empty' keycloak-output.json)"
+              echo "KC_DATASTORE_KEY=$(jq -r '.netbird_datastore_encryption_key // empty' keycloak-output.json)"
+              echo "KC_REALM=$(jq -r '.netbird_realm // empty' keycloak-output.json)"
+              echo "KC_DOMAIN=$(jq -r '.keycloak_domain // empty' keycloak-output.json)"
+              echo "KC_AUTHORITY=$(jq -r '.netbird_auth_authority // empty' keycloak-output.json)"
+            } >> $GITHUB_ENV
           else
-            echo "Using GitHub Secrets"
+            echo "Keycloak automation output missing or invalid. Falling back to GitHub Secrets."
             echo "KEYCLOAK_AUTOMATED=false" >> $GITHUB_ENV
           fi
 
@@ -138,7 +140,7 @@ jobs:
         env:
           # Targets
           TARGET_HOST: ${{ github.event.inputs.target_host || secrets.ANSIBLE_HOST }}
-          TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER }}
+          TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
           AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
           # NetBird Vars
           NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
