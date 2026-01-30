@@ -9,8 +9,58 @@
   gather_facts: true
 
   tasks:
-    # Pre-flight Checklist
-    - name: Pre-flight | Check if Docker is installed and running
+    # Pre-flight Checklist: Install Docker if missing
+    - name: Pre-flight | Check if Docker is installed
+      ansible.builtin.command: docker --version
+      register: docker_installed
+      ignore_errors: true
+      changed_when: false
+
+    - name: Pre-flight | Install Docker and dependencies
+      block:
+        - name: Install | Update apt cache
+          ansible.builtin.apt:
+            update_cache: true
+
+        - name: Install | Install required packages
+          ansible.builtin.apt:
+            name:
+              - apt-transport-https
+              - ca-certificates
+              - curl
+              - gnupg
+              - lsb-release
+              - python3-pip
+            state: present
+
+        - name: Install | Add Docker GPG key
+          ansible.builtin.apt_key:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            state: present
+
+        - name: Install | Add Docker repository
+          ansible.builtin.apt_repository:
+            repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+            state: present
+
+        - name: Install | Install Docker Engine
+          ansible.builtin.apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+              - docker-compose-plugin
+            state: present
+            update_cache: true
+
+        - name: Install | Ensure Docker service is started
+          ansible.builtin.service:
+            name: docker
+            state: started
+            enabled: true
+      when: docker_installed.rc != 0
+
+    - name: Pre-flight | Check if Docker is running
       ansible.builtin.shell: docker info
       register: docker_check
       changed_when: false
