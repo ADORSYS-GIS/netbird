@@ -547,7 +547,7 @@
           community.docker.docker_compose_v2:
             project_src: /opt/netbird
             state: absent
-            remove_volumes: false
+            remove_volumes: true
           ignore_errors: true
 
         - name: Cleanup | Remove deployment directory
