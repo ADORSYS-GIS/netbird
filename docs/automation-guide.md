@@ -64,6 +64,13 @@ The automation ensures that:
 4. **Protocol Mappers** for `audience` and `groups` are added to the tokens.
 5. A **Default Admin User** is provisioned for immediate access.
 
+### Custom Credentials:
+You can customize the default user and password by setting the following variables in `vars.yml` or GitHub Secrets:
+- `NETBIRD_DEFAULT_USER`: Defaults to `admin`.
+- `NETBIRD_DEFAULT_PASSWORD`: If set to `<YOUR_DEFAULT_USER_PASSWORD>` or left empty, a secure random password will be generated and printed in the logs.
+
+**Note**: If you change the password in your configuration after a deployment, the automation will update the password for the existing user in Keycloak on the next run.
+
 ## Cleanup and Reset
 
 The cleanup routine is designed for a total environment reset.

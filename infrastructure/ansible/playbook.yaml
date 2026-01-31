@@ -440,7 +440,6 @@
             - name: Keycloak | Set default user password fact
               ansible.builtin.set_fact:
                 nb_default_password: "{{ (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>') | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=12'), netbird_default_password) }}"
-              when: keycloak_user_check.json | length == 0
 
             - name: Keycloak | Create default user
               ansible.builtin.uri:
@@ -464,12 +463,29 @@
                 status_code: 201
               when: keycloak_user_check.json | length == 0
 
+            - name: Keycloak | Update default user password
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/users/{{ keycloak_user_check.json[0].id }}/reset-password"
+                method: PUT
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+                body_format: json
+                body:
+                  type: password
+                  value: "{{ nb_default_password }}"
+                  temporary: false
+                status_code: 204
+              when: 
+                - keycloak_user_check.json | length > 0
+                - netbird_default_password | default('') != ''
+                - netbird_default_password != '<YOUR_DEFAULT_USER_PASSWORD>'
+
             - name: Keycloak | Debug default user credentials
               ansible.builtin.debug:
                 msg:
                   - "Default User: {{ netbird_default_user | default('admin') }}"
-                  - "Default Password: {{ nb_default_password | default('User already exists') }}"
-              when: keycloak_user_check.json | length == 0
+                  - "Default Password: {{ nb_default_password if keycloak_user_check.json | length == 0 else 'Updated if provided' }}"
 
         - name: Keycloak | Get netbird-management client UUID
           ansible.builtin.uri:

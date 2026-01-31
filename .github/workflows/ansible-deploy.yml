@@ -112,6 +112,8 @@ jobs:
           KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
           NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
           NETBIRD_REALM: ${{ secrets.NETBIRD_REALM || 'netbird' }}
+          NETBIRD_DEFAULT_USER: ${{ secrets.NETBIRD_DEFAULT_USER || 'admin' }}
+          NETBIRD_DEFAULT_PASSWORD: ${{ secrets.NETBIRD_DEFAULT_PASSWORD }}
           OUTPUT_FORMAT: json
         run: |
           chmod +x infrastructure/scripts/keycloak-setup.sh
@@ -189,6 +191,8 @@ jobs:
           add_secret "netbird_datastore_encryption_key" "${{ secrets.NETBIRD_DATASTORE_ENCRYPTION_KEY }}"
           add_secret "netbird_idp_mgmt_client_id" "${{ secrets.NETBIRD_IDP_MGMT_CLIENT_ID }}"
           add_secret "netbird_idp_mgmt_client_secret" "${{ secrets.NETBIRD_IDP_MGMT_CLIENT_SECRET }}"
+          add_secret "netbird_default_user" "${{ secrets.NETBIRD_DEFAULT_USER || 'admin' }}"
+          add_secret "netbird_default_password" "${{ secrets.NETBIRD_DEFAULT_PASSWORD }}"
 
           echo "[netbird_servers]" > inventory_gh.ini
           

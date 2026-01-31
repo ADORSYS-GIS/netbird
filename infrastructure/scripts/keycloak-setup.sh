@@ -413,10 +413,26 @@ create_default_user() {
         -H "Authorization: Bearer $ADMIN_TOKEN" \
         -H "Content-Type: application/json" 2>/dev/null)
     
+    USER_UUID=$(echo "$RESPONSE" | jq -r '.[0].id // empty' 2>/dev/null)
     USER_EXISTS=$(echo "$RESPONSE" | jq -r '.[0].username // empty' 2>/dev/null)
     
     if [ "$USER_EXISTS" = "$NETBIRD_DEFAULT_USER" ]; then
-        print_warning "User '$NETBIRD_DEFAULT_USER' already exists, skipping creation"
+        print_info "User '$NETBIRD_DEFAULT_USER' already exists (ID: $USER_UUID), updating password..."
+        
+        RESPONSE=$(curl -sS -X PUT "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/users/$USER_UUID/reset-password" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                "type": "password",
+                "value": "'"$NETBIRD_DEFAULT_PASSWORD"'",
+                "temporary": false
+            }' 2>/dev/null)
+            
+        if [ $? -eq 0 ]; then
+            print_info "Password updated successfully for user '$NETBIRD_DEFAULT_USER'"
+        else
+            print_warning "Failed to update password for existing user"
+        fi
         return
     fi
     
