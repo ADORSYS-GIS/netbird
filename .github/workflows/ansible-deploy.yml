@@ -198,7 +198,19 @@ jobs:
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
             INSTANCE_ID="${{ github.event.inputs.target_host || secrets.AWS_INSTANCE_ID }}"
-            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
+            REGION="${{ secrets.AWS_REGION }}"
+            
+            if [ -z "$INSTANCE_ID" ]; then
+              echo "::error::AWS Instance ID is missing. Provide it via 'target_host' input or AWS_INSTANCE_ID secret."
+              exit 1
+            fi
+            
+            if [ -z "$REGION" ]; then
+              echo "::error::AWS Region is missing. Ensure AWS_REGION secret is set."
+              exit 1
+            fi
+
+            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION" >> inventory_gh.ini
           else
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi
@@ -252,7 +264,19 @@ jobs:
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
             INSTANCE_ID="${{ github.event.inputs.target_host || secrets.AWS_INSTANCE_ID }}"
-            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
+            REGION="${{ secrets.AWS_REGION }}"
+            
+            if [ -z "$INSTANCE_ID" ]; then
+              echo "::error::AWS Instance ID is missing. Provide it via 'target_host' input or AWS_INSTANCE_ID secret."
+              exit 1
+            fi
+            
+            if [ -z "$REGION" ]; then
+              echo "::error::AWS Region is missing. Ensure AWS_REGION secret is set."
+              exit 1
+            fi
+
+            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION" >> inventory_gh.ini
           else
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi
