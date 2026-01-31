@@ -72,7 +72,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.12'
 
       - name: Install Ansible and Dependencies
         run: |
@@ -210,7 +210,7 @@ jobs:
               exit 1
             fi
 
-            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION" >> inventory_gh.ini
+            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION ansible_user=$TARGET_USER" >> inventory_gh.ini
           else
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi
@@ -276,7 +276,7 @@ jobs:
               exit 1
             fi
 
-            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION" >> inventory_gh.ini
+            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION ansible_user=$TARGET_USER" >> inventory_gh.ini
           else
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi
