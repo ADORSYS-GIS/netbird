@@ -187,7 +187,8 @@ create_netbird_client() {
             "*"
         ],
         "attributes": {
-            "pkce.code.challenge.method": "S256"
+            "pkce.code.challenge.method": "S256",
+            "post.logout.redirect.uris": "+"
         }
     }'
 
@@ -213,6 +214,14 @@ create_netbird_client() {
     
     NETBIRD_CLIENT_ID="netbird-client"
     print_info "NetBird client configured successfully"
+    
+    # Assign 'api' scope if UUID is available
+    if [ -n "$API_SCOPE_UUID" ]; then
+        print_info "Assigning 'api' scope to netbird-client..."
+        curl -sS -X PUT "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$CLIENT_UUID/default-client-scopes/$API_SCOPE_UUID" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" > /dev/null
+    fi
+
     configure_client_mappers "$CLIENT_UUID" "netbird-client"
 }
 
@@ -266,6 +275,41 @@ configure_client_mappers() {
                 }
             }' > /dev/null
     fi
+}
+
+create_api_scope() {
+    print_info "Creating 'api' client scope..."
+    
+    # Check if scope already exists
+    local SCOPES=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/client-scopes" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null)
+    
+    local SCOPE_UUID=$(echo "$SCOPES" | jq -r '.[] | select(.name=="api") | .id // empty' 2>/dev/null)
+    
+    if [ -n "$SCOPE_UUID" ]; then
+        print_info "Client scope 'api' already exists (ID: $SCOPE_UUID)"
+    else
+        print_info "Creating new client scope 'api'..."
+        RESPONSE=$(curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/client-scopes" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                "name": "api",
+                "protocol": "openid-connect",
+                "attributes": {
+                    "include.in.token.scope": "true",
+                    "display.on.consent.screen": "true"
+                }
+            }')
+        
+        # Get the new ID
+        sleep 1
+        SCOPES=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/client-scopes" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null)
+        SCOPE_UUID=$(echo "$SCOPES" | jq -r '.[] | select(.name=="api") | .id // empty' 2>/dev/null)
+    fi
+    
+    API_SCOPE_UUID="$SCOPE_UUID"
 }
 
 create_management_client() {
@@ -508,6 +552,7 @@ main() {
     validate_inputs
     get_admin_token
     create_realm
+    create_api_scope
     create_netbird_client
     create_management_client
     create_default_user

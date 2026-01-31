@@ -190,6 +190,53 @@
             status_code: [201, 409] # 201 Created, 409 Conflict (already exists)
           when: keycloak_realm_check.status == 404
 
+        - name: Keycloak | Create 'api' client scope if it does not exist
+          block:
+            - name: Keycloak | Check if 'api' scope exists
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/client-scopes"
+                method: GET
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+              register: keycloak_scopes_check
+
+            - name: Keycloak | Set 'api' scope UUID if exists
+              ansible.builtin.set_fact:
+                keycloak_api_scope_uuid: "{{ (keycloak_scopes_check.json | selectattr('name', 'equalto', 'api') | list | first).id if keycloak_scopes_check.json | selectattr('name', 'equalto', 'api') | list | length > 0 else none }}"
+
+            - name: Keycloak | Create 'api' scope
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/client-scopes"
+                method: POST
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+                body_format: json
+                body:
+                  name: "api"
+                  protocol: "openid-connect"
+                  attributes:
+                    include.in.token.scope: "true"
+                    display.on.consent.screen: "true"
+                status_code: 201
+              when: keycloak_api_scope_uuid is none
+
+            - name: Keycloak | Get 'api' scope UUID after creation
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/client-scopes"
+                method: GET
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+              register: keycloak_scopes_after_create
+              when: keycloak_api_scope_uuid is none
+
+            - name: Keycloak | Set 'api' scope UUID fact
+              ansible.builtin.set_fact:
+                keycloak_api_scope_uuid: "{{ (keycloak_scopes_after_create.json | selectattr('name', 'equalto', 'api') | list | first).id }}"
+              when: keycloak_api_scope_uuid is none
+
         - name: Keycloak | Create or Update netbird-client
           block:
             - name: Keycloak | Check if netbird-client exists
@@ -227,6 +274,9 @@
                     - "https://{{ netbird_domain }}"
                     - "http://localhost:53000"
                     - "*"
+                  attributes:
+                    pkce.code.challenge.method: "S256"
+                    post.logout.redirect.uris: "+"
                 status_code: 201
               when: keycloak_netbird_client_uuid is none
 
@@ -252,6 +302,9 @@
                     - "https://{{ netbird_domain }}"
                     - "http://localhost:53000"
                     - "*"
+                  attributes:
+                    pkce.code.challenge.method: "S256"
+                    post.logout.redirect.uris: "+"
                 status_code: 204
               when: keycloak_netbird_client_uuid is not none
 
@@ -315,6 +368,18 @@
               when: 
                 - keycloak_netbird_client_uuid is not none
                 - keycloak_client_mappers.json | selectattr('name', 'equalto', 'groups') | list | length == 0
+
+            - name: Keycloak | Assign 'api' scope to netbird-client
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{ keycloak_netbird_client_uuid }}/default-client-scopes/{{ keycloak_api_scope_uuid }}"
+                method: PUT
+                validate_certs: "{{ keycloak_validate_certs }}"
+                headers:
+                  Authorization: "Bearer {{ keycloak_admin_token }}"
+                status_code: [204, 409]
+              when: 
+                - keycloak_netbird_client_uuid is not none
+                - keycloak_api_scope_uuid is not none
 
         - name: Keycloak | Create or Update netbird-management client
           block:
