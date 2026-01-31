@@ -197,7 +197,8 @@ jobs:
           echo "[netbird_servers]" > inventory_gh.ini
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
-            echo "netbird-primary ansible_host=${{ secrets.AWS_INSTANCE_ID }} ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
+            INSTANCE_ID="${{ github.event.inputs.target_host || secrets.AWS_INSTANCE_ID }}"
+            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
           else
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi
@@ -250,7 +251,8 @@ jobs:
           echo "[netbird_servers]" > inventory_gh.ini
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
-            echo "netbird-primary ansible_host=${{ secrets.AWS_INSTANCE_ID }} ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
+            INSTANCE_ID="${{ github.event.inputs.target_host || secrets.AWS_INSTANCE_ID }}"
+            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
           else
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi

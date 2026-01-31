@@ -187,6 +187,18 @@ ansible-playbook -i inventory.yaml playbook.yaml --tags cleanup \
 4. Select **cleanup** in the "Action to perform" dropdown.
 5. Click **Run workflow**.
 
+OR, Locally:
+
+``` # Replace <BRANCH_NAME> with your feature branch name                        
+gh workflow run "Ansible Deployment" \
+  --ref <BRANCH_NAME> \
+  -f action=cleanup \
+  -f deployment_target=<TARGET_OPTION> # ssh_remote/aws_ssm
+```
+
+```bash
+ansible-playbook -i inventory.yaml playbook.
+
 ---
 
 #  Variable Reference Guide
