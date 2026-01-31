@@ -89,30 +89,30 @@
           }}
 
     - name: Pre-flight | Variable Sanitization and Finalization
-      block:
-        - name: Sanitize | Finalize All Variables
-          ansible.builtin.set_fact:
-            nb_management_secret: "{{ (netbird_management_secret | default('') == '' or netbird_management_secret.startswith('<YOUR_') or netbird_management_secret | length < 43 or not netbird_management_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_management_secret) }}"
-            nb_relay_secret: "{{ (netbird_relay_secret | default('') == '' or netbird_relay_secret.startswith('<YOUR_') or netbird_relay_secret | length < 43 or not netbird_relay_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_relay_secret) }}"
-            nb_turn_secret: "{{ (netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_') or netbird_turn_secret | length < 43 or not netbird_turn_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_turn_secret) }}"
-            nb_turn_password: "{{ (netbird_turn_password | default('') == '' or netbird_turn_password.startswith('<YOUR_') or netbird_turn_password | length < 12) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=24'), netbird_turn_password) }}"
-            nb_datastore_encryption_key: "{{ (netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_') or netbird_datastore_encryption_key | length < 43 or not netbird_datastore_encryption_key.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_datastore_encryption_key) }}"
-            nb_auth_authority: "{{ (netbird_auth_authority | default('') == '' or '<YOUR_' in netbird_auth_authority) | ternary('https://' + keycloak_domain + '/realms/' + netbird_realm, netbird_auth_authority) }}"
-            nb_caddy_email: "{{ (netbird_caddy_email | default('') == '' or netbird_caddy_email.startswith('<YOUR_')) | ternary('admin@' + netbird_domain, netbird_caddy_email) }}"
-            nb_auth_audience: "{{ netbird_auth_audience | default('netbird-client') }}"
-            nb_auth_client_id: "{{ netbird_auth_client_id | default('netbird-client') }}"
-            nb_idp_mgmt_client_id: "{{ netbird_idp_mgmt_client_id | default('netbird-management') }}"
-            nb_idp_mgmt_client_secret: "{{ netbird_idp_mgmt_client_secret | default('') }}"
+      ansible.builtin.set_fact:
+        nb_management_secret: "{{ (netbird_management_secret | default('') == '' or netbird_management_secret.startswith('<YOUR_') or netbird_management_secret | length < 43 or not netbird_management_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_management_secret) }}"
+        nb_relay_secret: "{{ (netbird_relay_secret | default('') == '' or netbird_relay_secret.startswith('<YOUR_') or netbird_relay_secret | length < 43 or not netbird_relay_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_relay_secret) }}"
+        nb_turn_secret: "{{ (netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_') or netbird_turn_secret | length < 43 or not netbird_turn_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_turn_secret) }}"
+        nb_turn_password: "{{ (netbird_turn_password | default('') == '' or netbird_turn_password.startswith('<YOUR_') or netbird_turn_password | length < 12) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=24'), netbird_turn_password) }}"
+        nb_datastore_encryption_key: "{{ (netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_') or netbird_datastore_encryption_key | length < 43 or not netbird_datastore_encryption_key.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_datastore_encryption_key) }}"
+        nb_auth_authority: "{{ (netbird_auth_authority | default('') == '' or '<YOUR_' in netbird_auth_authority) | ternary('https://' + keycloak_domain + '/realms/' + netbird_realm, netbird_auth_authority) }}"
+        nb_caddy_email: "{{ (netbird_caddy_email | default('') == '' or netbird_caddy_email.startswith('<YOUR_')) | ternary('admin@' + netbird_domain, netbird_caddy_email) }}"
+        nb_auth_audience: "{{ netbird_auth_audience | default('netbird-client') }}"
+        nb_auth_client_id: "{{ netbird_auth_client_id | default('netbird-client') }}"
+        nb_idp_mgmt_client_id: "{{ netbird_idp_mgmt_client_id | default('netbird-management') }}"
+        nb_idp_mgmt_client_secret: "{{ netbird_idp_mgmt_client_secret | default('') }}"
+      tags: [always]
 
-        - name: Sanitize | Debug Variable Lengths (Sensitive)
-          ansible.builtin.debug:
-            msg:
-              - "Management Secret Length: {{ nb_management_secret | length }}"
-              - "Relay Secret Length: {{ nb_relay_secret | length }}"
-              - "TURN Secret Length: {{ nb_turn_secret | length }}"
-              - "TURN Password Length: {{ nb_turn_password | length }}"
-              - "Datastore Encryption Key Length: {{ nb_datastore_encryption_key | length }}"
-          tags: [debug, always]
+    - name: Pre-flight | Debug Variable Lengths (Sensitive)
+      ansible.builtin.debug:
+        msg:
+          - "Management Secret Length: {{ nb_management_secret | length }}"
+          - "Relay Secret Length: {{ nb_relay_secret | length }}"
+          - "TURN Secret Length: {{ nb_turn_secret | length }}"
+          - "TURN Password Length: {{ nb_turn_password | length }}"
+          - "Datastore Encryption Key Length: {{ nb_datastore_encryption_key | length }}"
+      tags: [debug]
+      when: "'cleanup' not in ansible_run_tags"
 
     - name: Pre-flight | Validate required variables
       ansible.builtin.assert:
@@ -124,6 +124,7 @@
           - nb_turn_password | length >= 12
           - nb_datastore_encryption_key | length >= 43 and nb_datastore_encryption_key.endswith('=')
         fail_msg: "One or more required variables are missing or contain placeholders, and finalization failed. Please check your vars.yml or GitHub Secrets."
+      when: "'cleanup' not in ansible_run_tags"
 
     # Keycloak Configuration
     - name: Configure Keycloak realm and OAuth clients via API

@@ -2,6 +2,16 @@
 
 Complete automation for deploying NetBird with Caddy reverse proxy and Keycloak OpenID Connect authentication. **All methods automatically configure Keycloak realm and OAuth clients.**
 
+##  Features
+
+- **Fully Automated Keycloak Setup** - Realm, OAuth clients, and default admin user created automatically
+- **Three Deployment Methods** - Local, SSH, or GitHub Actions pipeline
+- **Cleanup & Teardown** - Complete removal of deployment and Keycloak resources with a single command
+- **Dynamic Configuration** - Jinja2 templating for all config files
+- **Automatic TLS** - Let's Encrypt via Caddy, auto-renewal included
+- **Complete NAT Traversal** - STUN/TURN via Coturn for all network types
+- **Production Ready** - Idempotent, repeatable, offline-capable
+
 ## Quick Overview
 
 Three deployment methods, all with automated Keycloak setup:
@@ -11,6 +21,7 @@ Three deployment methods, all with automated Keycloak setup:
 | **QuickStart (Local Docker)** | Testing/Development | 5 min | `ansible-playbook -i inventory.yaml playbook.yaml` |
 | **Remote SSH** | Single Server | 15 min | `ansible-playbook -i inventory.yaml playbook.yaml --ask-become-pass` |
 | **GitHub Actions** | CI/CD & Auto Deploy | 10 min | Push to main branch (auto-triggers) |
+| **Cleanup** | Environment Reset | 2 min | `ansible-playbook -i inventory.yaml playbook.yaml --tags cleanup` |
 
 ## Prerequisites
 
@@ -146,6 +157,35 @@ To confirm that all services are running, use the following command:
 ```bash
 docker compose -f /opt/netbird/docker-compose.yml ps
 ```
+
+---
+
+#  Cleanup & Teardown
+
+If you need to completely remove the NetBird deployment and reset your environment, you can use the cleanup routine.
+
+## Local/SSH Cleanup
+
+Run the playbook with the `cleanup` tag:
+
+```bash
+ansible-playbook -i inventory.yaml playbook.yaml --tags cleanup \
+  -e "keycloak_admin_password=your-password"
+```
+
+**What this does:**
+1. Deletes the NetBird realm from your Keycloak instance
+2. Stops and removes all Docker containers
+3. Deletes the `/opt/netbird` deployment directory
+4. Removes the `key-netbird` Docker network
+
+## GitHub Actions Cleanup
+
+1. Go to the **Actions** tab in your GitHub repository.
+2. Select the **Ansible Deployment** workflow.
+3. Click **Run workflow**.
+4. Select **cleanup** in the "Action to perform" dropdown.
+5. Click **Run workflow**.
 
 ---
 
