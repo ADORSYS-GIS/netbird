@@ -30,8 +30,16 @@ on:
       - '.github/workflows/ansible-deploy.yml'
   workflow_dispatch:
     inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - cleanup
       deployment_target:
-        description: 'Where to deploy NetBird'
+        description: 'Where to deploy/cleanup NetBird'
         required: true
         default: 'ssh_remote'
         type: choice
@@ -51,6 +59,7 @@ jobs:
     name: Deploy NetBird
     runs-on: ubuntu-latest
     env:
+      ACTION: ${{ github.event.inputs.action || 'deploy' }}
       DEPLOY_TARGET: ${{ github.event.inputs.deployment_target || 'ssh_remote' }}
       KEYCLOAK_URL_SECRET: ${{ secrets.KEYCLOAK_URL }}
       KEYCLOAK_ADMIN_USER_SECRET: ${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}
@@ -96,7 +105,7 @@ jobs:
           ssh-private-key: ${{ secrets.ANSIBLE_SSH_KEY }}
 
       - name: Configure Keycloak for NetBird
-        if: env.KEYCLOAK_URL_SECRET != '' && env.KEYCLOAK_ADMIN_PASSWORD_SECRET != ''
+        if: env.ACTION == 'deploy' && env.KEYCLOAK_URL_SECRET != '' && env.KEYCLOAK_ADMIN_PASSWORD_SECRET != ''
         env:
           KEYCLOAK_URL: ${{ secrets.KEYCLOAK_URL }}
           KEYCLOAK_ADMIN_USER: ${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}
@@ -112,6 +121,7 @@ jobs:
           cat keycloak-output.json
 
       - name: Load Keycloak Configuration
+        if: env.ACTION == 'deploy'
         id: keycloak_config
         run: |
           if [ -s keycloak-output.json ] && jq '.' keycloak-output.json > /dev/null 2>&1; then
@@ -138,6 +148,7 @@ jobs:
           fi
 
       - name: Run Ansible Playbook
+        if: env.ACTION == 'deploy'
         env:
           TARGET_HOST: ${{ github.event.inputs.target_host || secrets.ANSIBLE_HOST }}
           TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
@@ -225,3 +236,25 @@ jobs:
           
           # Execute the command
           eval $PLAYBOOK_CMD
+
+      - name: Run Cleanup Playbook
+        if: env.ACTION == 'cleanup'
+        env:
+          TARGET_HOST: ${{ github.event.inputs.target_host || secrets.ANSIBLE_HOST }}
+          TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
+        run: |
+          echo "[netbird_servers]" > inventory_gh.ini
+          
+          if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
+            echo "netbird-primary ansible_host=${{ secrets.AWS_INSTANCE_ID }} ansible_connection=aws_ssm ansible_aws_ssm_region=${{ secrets.AWS_REGION }}" >> inventory_gh.ini
+          else
+            echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
+          fi
+          
+          ansible-playbook -i inventory_gh.ini infrastructure/ansible/playbook.yaml \
+            --tags cleanup \
+            -e "keycloak_auth_url=${{ secrets.KEYCLOAK_URL }}" \
+            -e "keycloak_admin_user=${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}" \
+            -e "keycloak_admin_password=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}" \
+            -e "netbird_realm=${{ secrets.NETBIRD_REALM || 'netbird' }}" \
+            -e "keycloak_validate_certs=${{ secrets.KEYCLOAK_VALIDATE_CERTS || 'true' }}"

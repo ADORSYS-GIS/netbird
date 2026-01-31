@@ -513,3 +513,50 @@
         NETBIRD_DATASTORE_ENCRYPTION_KEY: "{{ nb_datastore_encryption_key }}"
         KEYCLOAK_DOMAIN: "{{ keycloak_domain }}"
         NETBIRD_REALM: "{{ netbird_realm }}"
+    - name: Cleanup | Stop and Remove NetBird Deployment
+      block:
+        - name: Cleanup | Get admin token for Keycloak cleanup
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url | trim | regex_replace('/+$', '') }}/realms/master/protocol/openid-connect/token"
+            method: POST
+            validate_certs: "{{ keycloak_validate_certs }}"
+            body_format: form-urlencoded
+            body:
+              username: "{{ keycloak_admin_user }}"
+              password: "{{ keycloak_admin_password }}"
+              grant_type: password
+              client_id: admin-cli
+            status_code: 200
+          register: cleanup_token_response
+          no_log: true
+          ignore_errors: true
+
+        - name: Cleanup | Delete NetBird realm in Keycloak
+          ansible.builtin.uri:
+            url: "{{ keycloak_auth_url | trim | regex_replace('/+$', '') }}/admin/realms/{{ netbird_realm }}"
+            method: DELETE
+            validate_certs: "{{ keycloak_validate_certs }}"
+            headers:
+              Authorization: "Bearer {{ cleanup_token_response.json.access_token }}"
+            status_code: [204, 404]
+          when: cleanup_token_response.status == 200
+          ignore_errors: true
+
+        - name: Cleanup | Stop NetBird services
+          community.docker.docker_compose_v2:
+            project_src: /opt/netbird
+            state: absent
+            remove_volumes: false
+          ignore_errors: true
+
+        - name: Cleanup | Remove deployment directory
+          ansible.builtin.file:
+            path: /opt/netbird
+            state: absent
+
+        - name: Cleanup | Remove Docker network
+          community.docker.docker_network:
+            name: key-netbird
+            state: absent
+          ignore_errors: true
+      tags: [never, cleanup]
