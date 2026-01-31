@@ -41,7 +41,7 @@ on:
       deployment_target:
         description: 'Where to deploy/cleanup NetBird'
         required: true
-        default: 'ssh_remote'
+        default: 'aws_ssm'
         type: choice
         options:
           - ssh_remote

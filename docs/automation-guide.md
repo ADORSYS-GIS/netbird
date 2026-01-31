@@ -15,7 +15,7 @@ This guide provides detailed documentation for the infrastructure automation too
 
 ## Architecture Overview
 
-The automation stack deploys NetBird in a production-ready configuration using:
+The automation stack deploys NetBird in a production-grade Infrastructure-as-Code (IaC) configuration using:
 - **Caddy**: As a reverse proxy with automatic TLS (Let's Encrypt).
 - **Keycloak**: As the Identity Provider (OIDC).
 - **Docker Compose**: Orchestrates NetBird services (Management, Signal, Relay, Dashboard).
@@ -29,11 +29,12 @@ The automation stack deploys NetBird in a production-ready configuration using:
 
 ## Ansible Playbook Details
 
-The playbook is designed to be **idempotent** and **self-healing**.
+The playbook is designed to be **idempotent**, **self-healing**, and supports both **SSH Remote** and **AWS SSM** connections.
 
 ### Key Features:
 - **Automatic Secret Generation**: If service secrets are not provided in `vars.yml`, they are automatically generated using secure random strings and base64 encoded.
 - **Dynamic Keycloak Configuration**: It can detect if Keycloak needs to be configured and will automatically create the Realm, Clients (Web and Management), Protocol Mappers, and a default Admin user.
+- **Security Hardening**: Enforces PKCE, secure redirect policies, and audience validation.
 - **Tag-based Execution**:
   - `config`: Only update configuration files and restart services.
   - `cleanup`: Remove the entire deployment and clean up Keycloak.
@@ -62,7 +63,9 @@ The automation ensures that:
 2. A **Public Client** (`netbird-client`) is configured with correct Redirect URIs and Web Origins.
 3. A **Confidential Client** (`netbird-management`) is created for API access.
 4. **Protocol Mappers** for `audience` and `groups` are added to the tokens.
-5. A **Default Admin User** is provisioned for immediate access.
+5. The **`api` client scope** is automatically created and assigned to ensure dashboard access.
+6. **Logout Redirects** are configured to prevent redirect loops during session expiration.
+7. A **Default Admin User** is provisioned for immediate access.
 
 ### Custom Credentials:
 You can customize the default user and password by setting the following variables in `vars.yml` or GitHub Secrets:
@@ -76,7 +79,7 @@ You can customize the default user and password by setting the following variabl
 The cleanup routine is designed for a total environment reset.
 
 ### What is removed:
-- All Docker containers and volumes associated with the project.
+- All Docker containers and volumes associated with the project (using `remove_volumes: true`).
 - The `/opt/netbird` deployment directory.
 - The custom Docker network `key-netbird`.
 - The entire **Keycloak Realm** created for NetBird.

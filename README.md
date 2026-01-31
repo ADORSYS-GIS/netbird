@@ -1,33 +1,57 @@
-# NetBird Infrastructure
+# NetBird Infrastructure Lifecycle Automation
 
-## Overview
+Production-grade Infrastructure-as-Code (IaC) for NetBird deployments, featuring automated lifecycle management, Identity Provider (IdP) orchestration, and secure reverse proxy configuration.
 
-Production-grade infrastructure automation for NetBird deployments.
+## 🚀 Key Features
 
-This repository provides comprehensive deployment solutions for NetBird with Caddy setup as reverse proxy.
+- **Full Lifecycle Automation**: One-click deployment and complete environment destruction (Cleanup) via Ansible or GitHub Actions.
+- **Keycloak IdP Orchestration**: Automatic configuration of Keycloak realms, OIDC clients (Web & Management), API scopes, and protocol mappers.
+- **Secure Reverse Proxy**: Integrated Caddy setup with automatic Let's Encrypt TLS.
+- **Flexible Provisioning**: Support for SSH Remote hosts and AWS SSM (Systems Manager).
+- **Security Hardening**: Automated secret generation, PKCE enforcement, and secure redirect policies.
 
-## Deployment Options
+## 🛠 Deployment Options
 
-### 1. Automated Deployment (Recommended)
+### 1. GitHub Actions (Production-Ready CI/CD)
+The recommended way to manage your NetBird infrastructure. Supports manual triggers and automated push-to-deploy.
 
-Use Ansible to automatically provision NetBird with Caddy, Keycloak, and all required configurations.
+- **Action**: `Ansible Deployment`
+- **Features**: 
+  - Toggle between `deploy` and `cleanup`.
+  - Targeted deployment to `ssh_remote` or `aws_ssm`.
+  - Automatic Keycloak setup using repository secrets.
+- **Documentation**: [CI/CD Automation Guide](./docs/automation-guide.md)
 
-- **Guide**: [Ansible Deployment Guide](infrastructure/ansible/README.md)
+### 2. Ansible (Self-Hosted Orchestration)
+Idempotent and self-healing deployment script for manual execution.
 
-### 2. Quickstart (Test/Dev)
+- **Guide**: [Ansible Deployment Guide](./infrastructure/ansible/README.md)
+- **Features**: Automatic secret generation and Keycloak API integration.
 
-Quickly bootstrap a full stack including Zitadel IdP using the setup script.
+### 3. Quickstart / Legacy Options
+For testing or specific manual configurations.
 
-- **Guide**: [Quickstart with Zitadel](infrastructure/scripts/README.md)
+- **Zitadel Quickstart**: [Setup Guide](./infrastructure/scripts/README.md)
+- **Manual Caddy**: [Manual Deployment](./docs/caddy-deployment.md)
 
-### 3. Manual Deployment
+## 🔐 Custom Credentials
 
-Manually deploy NetBird with Caddy reverse proxy on a single host.
+You can easily customize the initial admin access by setting these variables (GitHub Secrets or Ansible vars):
 
-- **Guide**: [Manual Caddy Deployment Guide](docs/caddy-deployment.md)
+- `NETBIRD_DEFAULT_USER`: Admin username (defaults to `admin`).
+- `NETBIRD_DEFAULT_PASSWORD`: Custom password for the dashboard user.
 
-## Support and Contributions
+*Note: If you update the password secret after deployment, the automation will automatically sync the new password to Keycloak on the next run.*
 
-- Documentation: [docs/](docs/)
-- Issues: GitHub issue tracker
-- NetBird: [Official documentation](https://docs.netbird.io/)
+## 🧹 Cleanup and Reset
+
+The project includes a robust cleanup routine that performs a total reset:
+- Stops all containers and **removes all Docker volumes**.
+- Deletes the entire Keycloak Realm and associated clients.
+- Removes all configuration directories (`/opt/netbird`).
+
+## 📚 Documentation
+
+- [**Automation Guide**](./docs/automation-guide.md): Deep dive into the CI/CD and Ansible lifecycle.
+- [**Ansible README**](./infrastructure/ansible/README.md): Variable definitions and local usage.
+- [**Official NetBird Docs**](https://docs.netbird.io/): NetBird configuration and architecture.
