@@ -402,8 +402,8 @@ configure_realm_settings() {
 create_default_user() {
     print_info "Creating default NetBird user..."
     
-    # Generate password if not provided
-    if [ -z "$NETBIRD_DEFAULT_PASSWORD" ]; then
+    # Generate password if not provided or placeholder used
+    if [ -z "$NETBIRD_DEFAULT_PASSWORD" ] || [ "$NETBIRD_DEFAULT_PASSWORD" = "<YOUR_DEFAULT_USER_PASSWORD>" ]; then
         NETBIRD_DEFAULT_PASSWORD=$(openssl rand -base64 12 | tr -d '\n')
         print_info "Generated default user password: $NETBIRD_DEFAULT_PASSWORD"
     fi

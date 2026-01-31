@@ -439,7 +439,7 @@
 
             - name: Keycloak | Set default user password fact
               ansible.builtin.set_fact:
-                nb_default_password: "{{ netbird_default_password | default(lookup('password', '/dev/null chars=ascii_letters,digits length=12')) }}"
+                nb_default_password: "{{ (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>') | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=12'), netbird_default_password) }}"
               when: keycloak_user_check.json | length == 0
 
             - name: Keycloak | Create default user
