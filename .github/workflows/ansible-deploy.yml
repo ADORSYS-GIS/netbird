@@ -81,8 +81,8 @@ jobs:
 
       - name: Install Ansible Collections
         run: |
-          ansible-galaxy collection install community.docker
-          ansible-galaxy collection install community.aws
+          ansible-galaxy collection install community.docker --upgrade
+          ansible-galaxy collection install community.aws --upgrade
 
       - name: Configure AWS Credentials
         if: env.DEPLOY_TARGET == 'aws_ssm'
@@ -97,6 +97,7 @@ jobs:
         run: |
           curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
           sudo dpkg -i session-manager-plugin.deb
+          session-manager-plugin --version
 
       - name: Setup SSH
         if: env.DEPLOY_TARGET == 'ssh_remote'
@@ -155,6 +156,7 @@ jobs:
           TARGET_HOST: ${{ github.event.inputs.target_host || secrets.ANSIBLE_HOST }}
           TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
           NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
+          ANSIBLE_AWS_SSM_PLUGIN_PATH: /usr/local/bin/session-manager-plugin
         run: |
           # Create a secure variables file, only including non-empty secrets
           cat <<EOF > extra_vars.json

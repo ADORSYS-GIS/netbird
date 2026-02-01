@@ -131,8 +131,8 @@
       block:
         - name: Keycloak | Set normalized facts
           ansible.builtin.set_fact:
-            keycloak_base_url: "{{ keycloak_auth_url | trim | regex_replace('/+$', '') }}"
-            keycloak_realm_name: "{{ netbird_realm | default('netbird') | trim | regex_replace('^/+', '') | regex_replace('/+$', '') }}"
+            keycloak_base_url: "{{ (keycloak_auth_url | default('')) | trim | regex_replace('/+$', '') }}"
+            keycloak_realm_name: "{{ (netbird_realm | default('netbird')) | trim | regex_replace('^/+', '') | regex_replace('/+$', '') }}"
 
         - name: Keycloak | Validate Keycloak admin credentials
           ansible.builtin.assert:
@@ -599,7 +599,7 @@
       block:
         - name: Cleanup | Get admin token for Keycloak cleanup
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url | trim | regex_replace('/+$', '') }}/realms/master/protocol/openid-connect/token"
+            url: "{{ (keycloak_auth_url | default('')) | trim | regex_replace('/+$', '') }}/realms/master/protocol/openid-connect/token"
             method: POST
             validate_certs: "{{ keycloak_validate_certs }}"
             body_format: form-urlencoded
@@ -615,7 +615,7 @@
 
         - name: Cleanup | Delete NetBird realm in Keycloak
           ansible.builtin.uri:
-            url: "{{ keycloak_auth_url | trim | regex_replace('/+$', '') }}/admin/realms/{{ netbird_realm }}"
+            url: "{{ (keycloak_auth_url | default('')) | trim | regex_replace('/+$', '') }}/admin/realms/{{ netbird_realm | default('netbird') }}"
             method: DELETE
             validate_certs: "{{ keycloak_validate_certs }}"
             headers:

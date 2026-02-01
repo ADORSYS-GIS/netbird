@@ -101,5 +101,11 @@ This usually occurs if the sanitization block was skipped. Ensure you are using 
 ### Keycloak 'invalid_uri' or 'invalid_audience'
 These are typically caused by missing Protocol Mappers or incorrect Redirect URIs. The automated setup script resolves these by explicitly adding the `oidc-audience-mapper` and `oidc-group-membership-mapper`.
 
+### AWS SSM 'NoneType' Error
+If the pipeline fails with `expected string or bytes-like object, got 'NoneType'` during Gathering Facts:
+1. Ensure the **AWS Session Manager Plugin** is installed (handled by the workflow).
+2. Verify that the GitHub Runner's IAM user has **`ssm:StartSession`** permissions for the target instance.
+3. Check that the target EC2 instance has the **SSM Agent** installed and an IAM Role with the `AmazonSSMManagedInstanceCore` policy.
+
 ### Docker Network Conflicts
 If the `key-netbird` network already exists with a different driver, the playbook might fail. The cleanup routine will remove it, allowing for a fresh start.
