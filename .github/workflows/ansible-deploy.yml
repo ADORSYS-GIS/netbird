@@ -41,7 +41,7 @@ on:
       deployment_target:
         description: 'Where to deploy/cleanup NetBird'
         required: true
-        default: 'ssh_remote'
+        default: 'aws_ssm'
         type: choice
         options:
           - ssh_remote
@@ -100,7 +100,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Install AWS Session Manager Plugin
+      - name: Install Session Manager Plugin
         if: env.DEPLOY_TARGET == 'aws_ssm'
         run: |
           curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
