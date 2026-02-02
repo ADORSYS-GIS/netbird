@@ -7,6 +7,10 @@
   hosts: netbird_servers
   become: true
   gather_facts: true
+  vars:
+    # Force remote temp directory to /tmp to avoid issues with restricted home directories (especially on AWS SSM)
+    ansible_remote_tmp: /tmp
+    ansible_system_tmpdirs: [/tmp]
 
   tasks:
     # Pre-flight Checklist: Install Docker if missing
@@ -106,13 +110,15 @@
     - name: Pre-flight | Debug Variable Lengths (Sensitive)
       ansible.builtin.debug:
         msg:
-          - "Management Secret Length: {{ nb_management_secret | length }}"
-          - "Relay Secret Length: {{ nb_relay_secret | length }}"
-          - "TURN Secret Length: {{ nb_turn_secret | length }}"
-          - "TURN Password Length: {{ nb_turn_password | length }}"
-          - "Datastore Encryption Key Length: {{ nb_datastore_encryption_key | length }}"
+          - "Management Secret Length: {{ nb_management_secret | default('') | length }}"
+          - "Relay Secret Length: {{ nb_relay_secret | default('') | length }}"
+          - "TURN Secret Length: {{ nb_turn_secret | default('') | length }}"
+          - "TURN Password Length: {{ nb_turn_password | default('') | length }}"
+          - "Datastore Encryption Key Length: {{ nb_datastore_encryption_key | default('') | length }}"
       tags: [debug]
-      when: "'cleanup' not in ansible_run_tags"
+      when: 
+        - "'cleanup' not in ansible_run_tags"
+        - "'always' not in ansible_run_tags"
 
     - name: Pre-flight | Validate required variables
       ansible.builtin.assert:
@@ -124,7 +130,9 @@
           - nb_turn_password | length >= 12
           - nb_datastore_encryption_key | length >= 43 and nb_datastore_encryption_key.endswith('=')
         fail_msg: "One or more required variables are missing or contain placeholders, and finalization failed. Please check your vars.yml or GitHub Secrets."
-      when: "'cleanup' not in ansible_run_tags"
+      when: 
+        - "'cleanup' not in ansible_run_tags"
+        - "'always' not in ansible_run_tags"
 
     # Keycloak Configuration
     - name: Configure Keycloak realm and OAuth clients via API
@@ -630,6 +638,17 @@
             state: absent
             remove_volumes: true
           ignore_errors: true
+
+        - name: Cleanup | Remove any remaining NetBird volumes
+          ansible.builtin.shell: |
+            # Remove volumes matching the netbird project name prefix
+            docker volume rm $(docker volume ls -q --filter name=netbird_) || true
+            # Remove caddy data volume specifically if it persists
+            docker volume rm netbird_caddy_data || true
+          args:
+            executable: /bin/bash
+          ignore_errors: true
+          changed_when: false
 
         - name: Cleanup | Remove deployment directory
           ansible.builtin.file:

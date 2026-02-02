@@ -123,6 +123,11 @@ jobs:
           NETBIRD_REALM: ${{ secrets.NETBIRD_REALM || 'netbird' }}
           NETBIRD_DEFAULT_USER: ${{ secrets.NETBIRD_DEFAULT_USER || 'admin' }}
           NETBIRD_DEFAULT_PASSWORD: ${{ secrets.NETBIRD_DEFAULT_PASSWORD }}
+          NETBIRD_MANAGEMENT_SECRET: ${{ secrets.NETBIRD_MANAGEMENT_SECRET }}
+          NETBIRD_RELAY_SECRET: ${{ secrets.NETBIRD_RELAY_SECRET }}
+          NETBIRD_TURN_SECRET: ${{ secrets.NETBIRD_TURN_SECRET }}
+          NETBIRD_TURN_PASSWORD: ${{ secrets.NETBIRD_TURN_PASSWORD }}
+          NETBIRD_DATASTORE_ENCRYPTION_KEY: ${{ secrets.NETBIRD_DATASTORE_ENCRYPTION_KEY }}
           OUTPUT_FORMAT: json
         run: |
           chmod +x infrastructure/scripts/keycloak-setup.sh

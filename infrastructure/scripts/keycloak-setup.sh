@@ -463,15 +463,15 @@ create_default_user() {
 }
 
 generate_secrets() {
-    print_info "Generating random secrets for NetBird services..."
+    print_info "Checking/Generating secrets for NetBird services..."
     
-    MANAGEMENT_SECRET=$(openssl rand -base64 32 | tr -d '\n')
-    RELAY_SECRET=$(openssl rand -base64 32 | tr -d '\n')
-    TURN_SECRET=$(openssl rand -base64 32 | tr -d '\n')
-    TURN_PASSWORD=$(openssl rand -base64 24 | tr -d '\n')
-    DATASTORE_KEY=$(openssl rand -base64 32 | tr -d '\n')
+    MANAGEMENT_SECRET="${NETBIRD_MANAGEMENT_SECRET:-$(openssl rand -base64 32 | tr -d '\n')}"
+    RELAY_SECRET="${NETBIRD_RELAY_SECRET:-$(openssl rand -base64 32 | tr -d '\n')}"
+    TURN_SECRET="${NETBIRD_TURN_SECRET:-$(openssl rand -base64 32 | tr -d '\n')}"
+    TURN_PASSWORD="${NETBIRD_TURN_PASSWORD:-$(openssl rand -base64 24 | tr -d '\n')}"
+    DATASTORE_KEY="${NETBIRD_DATASTORE_ENCRYPTION_KEY:-$(openssl rand -base64 32 | tr -d '\n')}"
     
-    print_info "Secrets generated"
+    print_info "Secrets finalized"
 }
 
 print_configuration() {
