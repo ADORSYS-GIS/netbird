@@ -11,6 +11,7 @@
     # Force remote temp directory to /tmp to avoid issues with restricted home directories (especially on AWS SSM)
     ansible_remote_tmp: /tmp
     ansible_system_tmpdirs: [/tmp]
+    ansible_aws_ssm_shell: /bin/bash
 
   tasks:
     # Pre-flight Checklist: Install Docker if missing

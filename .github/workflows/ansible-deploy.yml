@@ -227,7 +227,7 @@ jobs:
               exit 1
             fi
 
-            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION ansible_user=$USER_TO_USE" >> inventory_gh.ini
+            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION ansible_user=$USER_TO_USE ansible_aws_ssm_timeout=60" >> inventory_gh.ini
           else
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi
@@ -276,6 +276,7 @@ jobs:
         env:
           TARGET_HOST: ${{ github.event.inputs.target_host || secrets.ANSIBLE_HOST }}
           TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
+          ANSIBLE_AWS_SSM_PLUGIN_PATH: /usr/local/bin/session-manager-plugin
         run: |
           echo "[netbird_servers]" > inventory_gh.ini
           
@@ -294,7 +295,7 @@ jobs:
               exit 1
             fi
 
-            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION ansible_user=$USER_TO_USE" >> inventory_gh.ini
+            echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION ansible_user=$USER_TO_USE ansible_aws_ssm_timeout=60" >> inventory_gh.ini
           else
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi
