@@ -109,7 +109,42 @@ A successful ping confirms that:
 *   AWS Security Groups and Source/Destination checks are correctly configured.
 
 ---
+## Step 6: Troubleshooting
 
+### Problem: Cannot ping private resources
+
+**Check 1: NetBird Status**
+`
+netbird status
+# Should show: Status: Connected
+`
+
+**Check 2: Gateway Peer Health**
+- Navigate to NetBird dashboard → Peers
+- Verify Gateway peer shows "Connected" status
+- Check "Last Seen" is recent (< 1 minute)
+
+**Check 3: AWS Source/Destination Check**
+`
+aws ec2 describe-instance-attribute \
+  --instance-id i-xxxxx \
+  --attribute sourceDestCheck
+# Should return: "SourceDestCheck": {"Value": false}
+`
+
+**Check 4: Security Group Rules**
+- Verify inbound rule exists on target resource
+- Confirm source is Gateway's private IP or security group
+
+**Check 5: Routing Metric**
+- Lower metric = higher priority (default is 9999)
+- If you have multiple routes, ensure correct priority
+
+### Problem: Routing peer not showing up
+
+- Verify "Enable Routing" toggle is selected
+- Check Network Routes section shows the VPC CIDR
+- Restart NetBird on gateway: `sudo systemctl restart netbird`
 ```markdown
 ## Additional Resources
 
