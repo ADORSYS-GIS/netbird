@@ -6,14 +6,19 @@
 - name: Deploy NetBird with Caddy Reverse Proxy
   hosts: netbird_servers
   become: true
-  gather_facts: true
+  gather_facts: false
   vars:
     # Force remote temp directory to /tmp to avoid issues with restricted home directories (especially on AWS SSM)
     ansible_remote_tmp: /tmp
     ansible_system_tmpdirs: [/tmp]
-    ansible_aws_ssm_shell: /bin/bash
+    ansible_aws_ssm_shell: bash
 
   tasks:
+    - name: Gather facts if not cleanup
+      ansible.builtin.setup:
+      when: "'cleanup' not in ansible_run_tags"
+      tags: [always]
+
     # Pre-flight Checklist: Install Docker if missing
     - name: Pre-flight | Check if Docker is installed
       ansible.builtin.command: docker --version
@@ -493,8 +498,15 @@
             - name: Keycloak | Debug default user credentials
               ansible.builtin.debug:
                 msg:
-                  - "Default User: {{ netbird_default_user | default('admin') }}"
-                  - "Default Password: {{ nb_default_password if keycloak_user_check.json | length == 0 else 'Updated if provided' }}"
+                  - "Default Admin User: {{ netbird_default_user | default('admin') }}"
+                  - "Password Status: {{ (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>') | ternary('GENERATED (Check logs below)', 'CUSTOM (From Secrets/Vars)') }}"
+              tags: [always]
+
+            - name: Keycloak | Debug generated password
+              ansible.builtin.debug:
+                msg: "Generated Password: {{ nb_default_password }}"
+              when: (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>')
+              tags: [always]
 
         - name: Keycloak | Get netbird-management client UUID
           ansible.builtin.uri:
@@ -642,10 +654,14 @@
 
         - name: Cleanup | Remove any remaining NetBird volumes
           ansible.builtin.shell: |
-            # Remove volumes matching the netbird project name prefix
-            docker volume rm $(docker volume ls -q --filter name=netbird_) || true
-            # Remove caddy data volume specifically if it persists
-            docker volume rm netbird_caddy_data || true
+            # Get all volumes that might be related to netbird
+            VOLUMES=$(docker volume ls -q --filter name=netbird)
+            if [ -n "$VOLUMES" ]; then
+              echo "Removing volumes: $VOLUMES"
+              docker volume rm $VOLUMES || true
+            fi
+            # Prune any anonymous volumes left over
+            docker volume prune -f --filter "label=com.docker.compose.project=netbird" || true
           args:
             executable: /bin/bash
           ignore_errors: true

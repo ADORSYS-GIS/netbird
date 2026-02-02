@@ -1,0 +1,84 @@
+---
+- name: Install NetBird client (Apt)
+  block:
+    - name: Install dependencies
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: true
+
+    - name: Add NetBird GPG key
+      ansible.builtin.apt_key:
+        url: https://pkgs.netbird.io/debian/public.key
+        state: present
+
+    - name: Add NetBird repository
+      ansible.builtin.apt_repository:
+        repo: 'deb [arch=amd64] https://pkgs.netbird.io/debian stable main'
+        state: present
+        filename: netbird
+
+    - name: Install NetBird
+      ansible.builtin.apt:
+        name: netbird
+        state: present
+        update_cache: true
+  when: ansible_os_family == "Debian" and not netbird_docker_enabled | default(false)
+
+- name: Install NetBird client (RPM)
+  block:
+    - name: Add NetBird repository
+      ansible.builtin.yum_repository:
+        name: NetBird
+        description: NetBird Repo
+        baseurl: https://pkgs.netbird.io/yum/
+        gpgcheck: no
+        gpgkey: https://pkgs.netbird.io/yum/repodata/repomd.xml.key
+        enabled: yes
+
+    - name: Install NetBird
+      ansible.builtin.package:
+        name: netbird
+        state: present
+  when: ansible_os_family == "RedHat" and not netbird_docker_enabled | default(false)
+
+- name: Install NetBird client (Docker)
+  block:
+    - name: Pull NetBird image
+      community.docker.docker_image:
+        name: netbirdio/netbird:latest
+        source: pull
+
+    - name: Run NetBird container
+      community.docker.docker_container:
+        name: netbird
+        image: netbirdio/netbird:latest
+        state: started
+        restart_policy: always
+        network_mode: host
+        volumes:
+          - /etc/netbird:/etc/netbird
+        env:
+          NB_SETUP_KEY: "{{ netbird_setup_key }}"
+          NB_MANAGEMENT_URL: "{{ netbird_management_url | default(omit) }}"
+      when: netbird_setup_key is defined
+  when: netbird_docker_enabled | default(false)
+
+- name: Configure and Up NetBird (Native)
+  block:
+    - name: Check if NetBird is already connected
+      ansible.builtin.command: netbird status
+      register: netbird_status
+      ignore_errors: true
+      changed_when: false
+
+    - name: Up NetBird
+      ansible.builtin.command:
+        cmd: "netbird up --setup-key {{ netbird_setup_key }} {% if netbird_management_url is defined %}--management-url {{ netbird_management_url }}{% endif %}"
+      when: 
+        - netbird_setup_key is defined
+        - "'Connected' not in netbird_status.stdout"
+  when: not netbird_docker_enabled | default(false)

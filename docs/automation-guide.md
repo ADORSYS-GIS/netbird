@@ -103,9 +103,11 @@ These are typically caused by missing Protocol Mappers or incorrect Redirect URI
 
 ### AWS SSM 'NoneType' Error
 If the pipeline fails with `expected string or bytes-like object, got 'NoneType'` during Gathering Facts:
-1. Ensure the **AWS Session Manager Plugin** is installed (handled by the workflow).
-2. Verify that the GitHub Runner's IAM user has **`ssm:StartSession`** permissions for the target instance.
-3. Check that the target EC2 instance has the **SSM Agent** installed and an IAM Role with the `AmazonSSMManagedInstanceCore` policy.
+1. The playbook now defaults to `gather_facts: false` and uses an explicit setup task to mitigate this.
+2. Ensure the **AWS Session Manager Plugin** is installed (handled by the workflow).
+3. Verify that the GitHub Runner's IAM user has **`ssm:StartSession`** permissions for the target instance.
+4. Check that the target EC2 instance has the **SSM Agent** installed and an IAM Role with the `AmazonSSMManagedInstanceCore` policy.
+5. The connection now uses `ansible_aws_ssm_shell: bash` and `ansible_shell_type: sh` for maximum compatibility.
 
 ### Docker Network Conflicts
 If the `key-netbird` network already exists with a different driver, the playbook might fail. The cleanup routine will remove it, allowing for a fresh start.

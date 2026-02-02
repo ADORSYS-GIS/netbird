@@ -39,16 +39,19 @@ For testing or specific manual configurations.
 You can easily customize the initial admin access by setting these variables (GitHub Secrets or Ansible vars):
 
 - `NETBIRD_DEFAULT_USER`: Admin username (defaults to `admin`).
-- `NETBIRD_DEFAULT_PASSWORD`: Custom password for the dashboard user.
+- `NETBIRD_DEFAULT_PASSWORD`: Custom password for the dashboard user. If left empty or set to `<YOUR_DEFAULT_USER_PASSWORD>`, a secure random password will be generated and displayed in the deployment logs.
 
 *Note: If you update the password secret after deployment, the automation will automatically sync the new password to Keycloak on the next run.*
 
 ## 🧹 Cleanup and Reset
 
 The project includes a robust cleanup routine that performs a total reset:
-- Stops all containers and **removes all Docker volumes**.
+- Stops all containers and **removes all Docker volumes** (including persistent data).
 - Deletes the entire Keycloak Realm and associated clients.
 - Removes all configuration directories (`/opt/netbird`).
+- Resets the `key-netbird` Docker network.
+
+You can trigger this by running the workflow with the `cleanup` action.
 
 ## 📚 Documentation
 
