@@ -1,6 +1,17 @@
 # Tutorial: Secure AWS VPC Access with NetBird
 
-This tutorial guides you through configuring NetBird to provide secure remote access to resources within an AWS VPC. We will use a "Gateway Peer" to route traffic from the NetBird network to your private AWS subnet.
+## Overview
+
+Traditional VPN solutions require complex infrastructure, expose ports to the internet, 
+and create performance bottlenecks. This tutorial shows you how to use NetBird to 
+provide secure, peer-to-peer access to AWS VPC resources without a central gateway 
+bottleneck.
+
+**You'll learn how to:**
+- Configure a NetBird Gateway Peer within your AWS VPC
+- Set up secure routing without exposing services publicly
+- Apply fine-grained access control policies
+- Verify connectivity to private resources
 
 ## Prerequisites
 
