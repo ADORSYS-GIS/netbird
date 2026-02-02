@@ -41,7 +41,7 @@ on:
       deployment_target:
         description: 'Where to deploy/cleanup NetBird'
         required: true
-        default: 'aws_ssm'
+        default: 'ssh_remote'
         type: choice
         options:
           - ssh_remote
@@ -83,6 +83,14 @@ jobs:
         run: |
           ansible-galaxy collection install community.docker --upgrade
           ansible-galaxy collection install community.aws --upgrade
+          ansible-galaxy collection install amazon.aws --upgrade
+
+      - name: Verify AWS CLI and Plugin
+        run: |
+          which aws
+          aws --version
+          which session-manager-plugin
+          session-manager-plugin --version
 
       - name: Configure AWS Credentials
         if: env.DEPLOY_TARGET == 'aws_ssm'
@@ -170,7 +178,8 @@ jobs:
             "keycloak_admin_user": "${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}",
             "keycloak_admin_password": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}",
             "keycloak_domain": "${{ secrets.KEYCLOAK_DOMAIN }}",
-            "netbird_realm": "${{ secrets.NETBIRD_REALM || 'netbird' }}"
+            "netbird_realm": "${{ secrets.NETBIRD_REALM || 'netbird' }}",
+            "ansible_remote_tmp": "/tmp"
           }
           EOF
 
@@ -287,6 +296,7 @@ jobs:
           
           ansible-playbook -vvv -i inventory_gh.ini infrastructure/ansible/playbook.yaml \
             --tags cleanup \
+            -e "ansible_remote_tmp=/tmp" \
             -e "keycloak_auth_url=${{ secrets.KEYCLOAK_URL }}" \
             -e "keycloak_admin_user=${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}" \
             -e "keycloak_admin_password=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}" \
