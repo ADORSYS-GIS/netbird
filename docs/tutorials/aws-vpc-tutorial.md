@@ -110,5 +110,12 @@ A successful ping confirms that:
 
 ---
 
-> [!TIP]
+```markdown
+## Additional Resources
+
+- [NetBird Official Documentation](https://docs.netbird.io/)
+- [NetBird Routing Traffic Guide](https://docs.netbird.io/how-to/routing-traffic)
+- [AWS VPC Security Best 
+Practices](https://docs.aws.amazon.com/vpc/latest/userguide/security-best-practices.html)
+- [Troubleshooting Connection Issues](https://docs.netbird.io/how-to/troubleshooting)
 > If you cannot reach your resources, double-check the **Metric** in Advanced Settings. A lower metric indicates a higher priority for that routing peer.
