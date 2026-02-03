@@ -315,11 +315,21 @@ create_api_scope() {
                 }
             }')
         
-        # Get the new ID
-        sleep 1
-        SCOPES=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/client-scopes" \
-            -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null)
-        SCOPE_UUID=$(echo "$SCOPES" | jq -r '.[] | select(.name=="api") | .id // empty' 2>/dev/null)
+        # Get the created scope UUID with retries
+        MAX_RETRIES=5
+        RETRY_COUNT=0
+        SCOPE_UUID=""
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            SCOPES=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/client-scopes" \
+                -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null)
+            SCOPE_UUID=$(echo "$SCOPES" | jq -r '.[] | select(.name=="api") | .id // empty' 2>/dev/null)
+            if [ -n "$SCOPE_UUID" ] && [ "$SCOPE_UUID" != "null" ]; then
+                break
+            fi
+            print_info "Waiting for 'api' scope to be available (attempt $((RETRY_COUNT+1))/$MAX_RETRIES)..."
+            sleep 2
+            RETRY_COUNT=$((RETRY_COUNT+1))
+        done
     fi
     
     API_SCOPE_UUID="$SCOPE_UUID"

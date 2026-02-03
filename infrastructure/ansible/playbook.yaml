@@ -291,8 +291,7 @@
 
             - name: Keycloak | Set client UUID if exists
               ansible.builtin.set_fact:
-                keycloak_netbird_client_uuid: >-
-                  {{ keycloak_netbird_client_check.json[0].id if keycloak_netbird_client_check.json | length > 0 else none }}
+                keycloak_netbird_client_uuid: "{{ keycloak_netbird_client_check.json[0].id if keycloak_netbird_client_check.json | length > 0 else none }}"
 
             - name: Keycloak | Create netbird-client
               ansible.builtin.uri:
@@ -350,20 +349,20 @@
                 status_code: 204
               when: keycloak_netbird_client_uuid is not none
 
+            - name: Keycloak | Set client UUID fact if not set
+              ansible.builtin.set_fact:
+                keycloak_netbird_client_uuid: "{{ keycloak_netbird_client_check.json[0].id }}"
+              when: keycloak_netbird_client_uuid is none and keycloak_netbird_client_check.json | length > 0
+
             - name: Keycloak | Get netbird-client protocol mappers
               ansible.builtin.uri:
-                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{ keycloak_netbird_client_uuid if keycloak_netbird_client_uuid is not none else (keycloak_netbird_client_check.json[0].id if keycloak_netbird_client_check.json | length > 0 else none) }}/protocol-mappers/models"
+                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{ keycloak_netbird_client_uuid }}/protocol-mappers/models"
                 method: GET
                 validate_certs: "{{ keycloak_validate_certs }}"
                 headers:
                   Authorization: "Bearer {{ keycloak_admin_token }}"
               register: keycloak_client_mappers
-              when: (keycloak_netbird_client_uuid is not none) or (keycloak_netbird_client_check.json | length > 0)
-
-            - name: Keycloak | Set client UUID fact if not set
-              ansible.builtin.set_fact:
-                keycloak_netbird_client_uuid: "{{ keycloak_netbird_client_check.json[0].id }}"
-              when: keycloak_netbird_client_uuid is none and keycloak_netbird_client_check.json | length > 0
+              when: keycloak_netbird_client_uuid is not none
 
             - name: Keycloak | Add audience mapper to netbird-client
               ansible.builtin.uri:
@@ -413,7 +412,9 @@
 
             - name: Keycloak | Assign 'api' scope to netbird-client
               ansible.builtin.uri:
-                url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{ keycloak_netbird_client_uuid }}/default-client-scopes/{{ keycloak_api_scope_uuid }}"
+                url: >-
+                  {{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/clients/{{
+                  keycloak_netbird_client_uuid }}/default-client-scopes/{{ keycloak_api_scope_uuid }}
                 method: PUT
                 validate_certs: "{{ keycloak_validate_certs }}"
                 headers:
@@ -599,8 +600,6 @@
             nb_idp_mgmt_client_secret: "{{ keycloak_mgmt_client_secret.json.value }}"
             nb_auth_authority: "{{ keycloak_base_url }}/realms/{{ keycloak_realm_name }}"
             nb_auth_audience: "netbird-client"
-      when: run_keycloak_config | bool
-
 
     # Task: Create the main deployment directory for NetBird.
     - name: Create NetBird deployment directory
