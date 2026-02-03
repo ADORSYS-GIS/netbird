@@ -246,3 +246,4 @@ openssl rand -base64 24
 - **Firewall**: Only open necessary ports (80, 443, 3478/UDP)
 - **TLS**: Always use HTTPS in production (Caddy auto-handles)
 - **Updates**: Keep images updated regularly via Docker pulls
+
