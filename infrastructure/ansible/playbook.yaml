@@ -11,8 +11,8 @@
     # Force remote temp directory to /tmp to avoid issues with restricted home directories (especially on AWS SSM)
     ansible_remote_tmp: /tmp
     ansible_system_tmpdirs: [/tmp]
-    ansible_aws_ssm_shell: bash
-    ansible_shell_type: "{{ (ansible_connection == 'aws_ssm') | ternary('sh', 'sh') }}"
+    ansible_aws_ssm_shell: sh
+    ansible_shell_type: sh
 
   tasks:
     - name: Gather facts if not cleanup
@@ -513,6 +513,27 @@
                 msg: "Generated Password: {{ nb_default_password }}"
               when: (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>')
               tags: [always]
+        
+        - name: Keycloak | Refresh admin token
+          ansible.builtin.uri:
+            url: "{{ keycloak_base_url }}/realms/master/protocol/openid-connect/token"
+            method: POST
+            validate_certs: "{{ keycloak_validate_certs }}"
+            body_format: form-urlencoded
+            body:
+              username: "{{ keycloak_admin_user }}"
+              password: "{{ keycloak_admin_password }}"
+              grant_type: password
+              client_id: admin-cli
+            status_code: 200
+          register: keycloak_admin_token_refresh
+          no_log: true
+          tags: [always]
+
+        - name: Keycloak | Update admin token fact
+          ansible.builtin.set_fact:
+            keycloak_admin_token: "{{ keycloak_admin_token_refresh.json.access_token }}"
+          tags: [always]
 
         - name: Keycloak | Get netbird-management client UUID
           ansible.builtin.uri:

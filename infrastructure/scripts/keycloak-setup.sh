@@ -2,6 +2,14 @@
 
 set -e
 
+# Error handling
+failure() {
+    local lineno=$1
+    local msg=$2
+    print_error "Failed at line $lineno: $msg"
+}
+trap 'failure ${LINENO} "$BASH_COMMAND"' ERR
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
