@@ -73,6 +73,8 @@ jobs:
       KEYCLOAK_URL_SECRET: ${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}
       KEYCLOAK_ADMIN_USER_SECRET: ${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}
       KEYCLOAK_ADMIN_PASSWORD_SECRET: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+      ANSIBLE_AWS_SSM_PLUGIN_PATH: /usr/local/bin/session-manager-plugin
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     
     steps:
       - name: Checkout Code
@@ -227,6 +229,11 @@ jobs:
             REGION="${{ secrets.AWS_REGION }}"
             USER_TO_USE="${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}"
             
+            echo "Debugging AWS SSM Connection:"
+            echo "Target Instance ID: $INSTANCE_ID"
+            echo "Target Region: $REGION"
+            echo "Target User: $USER_TO_USE"
+            
             if [ -z "$INSTANCE_ID" ]; then
               echo "::error::AWS Instance ID is missing. Provide it via 'target_host' input or AWS_INSTANCE_ID secret."
               exit 1
@@ -243,7 +250,7 @@ jobs:
           fi
           
           # Build ansible-playbook command using the JSON vars file
-          PLAYBOOK_CMD="ansible-playbook -vvv -i inventory_gh.ini infrastructure/ansible/playbook.yaml -e @extra_vars.json"
+          PLAYBOOK_CMD="ansible-playbook -vvvv -i inventory_gh.ini infrastructure/ansible/playbook.yaml -e @extra_vars.json"
           
           if [ "$KEYCLOAK_AUTOMATED" = "true" ]; then
             echo "Merging Keycloak automation values"
@@ -294,6 +301,11 @@ jobs:
             REGION="${{ secrets.AWS_REGION }}"
             USER_TO_USE="${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}"
             
+            echo "Debugging AWS SSM Connection (Cleanup):"
+            echo "Target Instance ID: $INSTANCE_ID"
+            echo "Target Region: $REGION"
+            echo "Target User: $USER_TO_USE"
+            
             if [ -z "$INSTANCE_ID" ]; then
               echo "::error::AWS Instance ID is missing. Provide it via 'target_host' input or AWS_INSTANCE_ID secret."
               exit 1
@@ -309,7 +321,7 @@ jobs:
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi
           
-          ansible-playbook -vvv -i inventory_gh.ini infrastructure/ansible/playbook.yaml \
+          ansible-playbook -vvvv -i inventory_gh.ini infrastructure/ansible/playbook.yaml \
             --tags cleanup \
             -e "ansible_remote_tmp=/tmp" \
             -e "keycloak_auth_url=${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}" \
