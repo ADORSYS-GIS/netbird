@@ -199,10 +199,12 @@
           until: keycloak_admin_token_response.status is defined and keycloak_admin_token_response.status == 200
           retries: 5
           delay: 5
+          tags: [always]
 
         - name: Keycloak | Set admin token fact
           ansible.builtin.set_fact:
             keycloak_admin_token: "{{ keycloak_admin_token_response.json.access_token }}"
+          tags: [always]
 
         - name: Keycloak | Check if realm exists
           ansible.builtin.uri:
