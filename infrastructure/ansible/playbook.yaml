@@ -165,16 +165,20 @@
           - nb_datastore_encryption_key | length >= 43 and nb_datastore_encryption_key.endswith('=')
         fail_msg: "One or more required variables are missing or contain placeholders, and finalization failed. Please check your vars.yml or GitHub Secrets."
 
+    - name: Keycloak | Set normalized facts
+      ansible.builtin.set_fact:
+        keycloak_base_url: "{{ (keycloak_auth_url | default('')) | trim | regex_replace('/+$', '') }}"
+        keycloak_realm_name: "{{ (netbird_realm | default('netbird')) | trim | regex_replace('^/+', '') | regex_replace('/+$', '') }}"
+      tags: [always]
+      delegate_to: localhost
+      become: false
+
     # Keycloak Configuration
     - name: Configure Keycloak realm and OAuth clients via API
       when: run_keycloak_config | bool
+      delegate_to: localhost
+      become: false
       block:
-        - name: Keycloak | Set normalized facts
-          ansible.builtin.set_fact:
-            keycloak_base_url: "{{ (keycloak_auth_url | default('')) | trim | regex_replace('/+$', '') }}"
-            keycloak_realm_name: "{{ (netbird_realm | default('netbird')) | trim | regex_replace('^/+', '') | regex_replace('/+$', '') }}"
-          tags: [always]
-
         - name: Keycloak | Validate Keycloak admin credentials
           ansible.builtin.assert:
             that:
@@ -691,7 +695,7 @@
       block:
         - name: Cleanup | Get admin token for Keycloak cleanup
           ansible.builtin.uri:
-            url: "{{ (keycloak_auth_url | default('')) | trim | regex_replace('/+$', '') }}/realms/master/protocol/openid-connect/token"
+            url: "{{ keycloak_base_url }}/realms/master/protocol/openid-connect/token"
             method: POST
             validate_certs: "{{ keycloak_validate_certs }}"
             body_format: form-urlencoded
@@ -704,18 +708,26 @@
           register: cleanup_token_response
           no_log: true
           ignore_errors: true
+          delegate_to: localhost
+          become: false
 
         - name: Cleanup | Delete NetBird realm in Keycloak
           ansible.builtin.uri:
-            url: "{{ (keycloak_auth_url | default('')) | trim | regex_replace('/+$', '') }}/admin/realms/{{ netbird_realm | default('netbird') }}"
+            url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}"
             method: DELETE
             validate_certs: "{{ keycloak_validate_certs }}"
             headers:
               Authorization: "Bearer {{ cleanup_token_response.json.access_token }}"
             status_code: [204, 404]
-          when: cleanup_token_response.status == 200
+          when: 
+            - cleanup_token_response.status is defined
+            - cleanup_token_response.status == 200
+            - cleanup_token_response.json is defined
+            - cleanup_token_response.json.access_token is defined
           register: cleanup_realm_result
           failed_when: false
+          delegate_to: localhost
+          become: false
 
         - name: Cleanup | Stop NetBird services
           community.docker.docker_compose_v2:
