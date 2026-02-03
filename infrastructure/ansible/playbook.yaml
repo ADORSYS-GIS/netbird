@@ -97,6 +97,7 @@
             (netbird_idp_mgmt_client_secret | default('') == '<YOUR_IDP_MGMT_CLIENT_SECRET>' or netbird_idp_mgmt_client_secret | default('') == '') and
             not keycloak_domain.startswith('<YOUR_')
           }}
+      tags: [always]
 
     - name: Pre-flight | Variable Sanitization and Finalization
       ansible.builtin.set_fact:
