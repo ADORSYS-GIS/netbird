@@ -103,13 +103,26 @@ jobs:
           which session-manager-plugin
           session-manager-plugin --version
 
+      - name: Diagnostic - Verify AWS Secrets Presence
+        if: env.DEPLOY_TARGET == 'aws_ssm'
+        run: |
+          if [ -z "$AWS_ID" ]; then echo "::error::AWS_ACCESS_KEY_ID is empty"; else echo "AWS_ACCESS_KEY_ID is set (length: ${#AWS_ID})"; fi
+          if [ -z "$AWS_SECRET" ]; then echo "::error::AWS_SECRET_ACCESS_KEY is empty"; else echo "AWS_SECRET_ACCESS_KEY is set (length: ${#AWS_SECRET})"; fi
+          if [ -z "$AWS_REGION" ]; then echo "::warning::AWS_REGION is empty, defaulting to us-east-1"; else echo "AWS_REGION is set to $AWS_REGION"; fi
+        env:
+          AWS_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+
       - name: Configure AWS Credentials
         if: env.DEPLOY_TARGET == 'aws_ssm'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+          mask-aws-account-id: 'true'
 
       - name: Install Session Manager Plugin
         if: env.DEPLOY_TARGET == 'aws_ssm'
