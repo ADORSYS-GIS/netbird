@@ -105,12 +105,17 @@
         nb_turn_secret: "{{ (netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_') or netbird_turn_secret | length < 43 or not netbird_turn_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_turn_secret) }}"
         nb_turn_password: "{{ (netbird_turn_password | default('') == '' or netbird_turn_password.startswith('<YOUR_') or netbird_turn_password | length < 12) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=24'), netbird_turn_password) }}"
         nb_datastore_encryption_key: "{{ (netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_') or netbird_datastore_encryption_key | length < 43 or not netbird_datastore_encryption_key.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_datastore_encryption_key) }}"
-        nb_auth_authority: "{{ (netbird_auth_authority | default('') == '' or '<YOUR_' in netbird_auth_authority) | ternary('https://' + keycloak_domain + '/realms/' + netbird_realm, netbird_auth_authority) }}"
-        nb_caddy_email: "{{ (netbird_caddy_email | default('') == '' or netbird_caddy_email.startswith('<YOUR_')) | ternary('admin@' + netbird_domain, netbird_caddy_email) }}"
+        nb_auth_authority: "{{ (netbird_auth_authority | default('') == '' or '<YOUR_' in netbird_auth_authority) | ternary('https://' + (keycloak_domain | default('')) + '/realms/' + (netbird_realm | default('netbird')), netbird_auth_authority) }}"
+        nb_netbird_domain: "{{ (netbird_domain | default('')) | trim | regex_replace('/+$', '') }}"
+        nb_caddy_email: "{{ (netbird_caddy_email | default('') == '' or netbird_caddy_email.startswith('<YOUR_')) | ternary('admin@' + (netbird_domain | default('')), netbird_caddy_email) }}"
         nb_auth_audience: "{{ netbird_auth_audience | default('netbird-client') }}"
         nb_auth_client_id: "{{ netbird_auth_client_id | default('netbird-client') }}"
         nb_idp_mgmt_client_id: "{{ netbird_idp_mgmt_client_id | default('netbird-management') }}"
         nb_idp_mgmt_client_secret: "{{ netbird_idp_mgmt_client_secret | default('') }}"
+        nb_netbird_realm: "{{ (netbird_realm | default('netbird')) | trim | regex_replace('^/+', '') | regex_replace('/+$', '') }}"
+        nb_keycloak_domain: "{{ (keycloak_domain | default('')) | trim | regex_replace('/+$', '') }}"
+        nb_keycloak_admin_user: "{{ (keycloak_admin_user | default('') == '' or keycloak_admin_user.startswith('<YOUR_')) | ternary('admin', keycloak_admin_user) }}"
+        nb_keycloak_admin_password: "{{ (keycloak_admin_password | default('') == '' or keycloak_admin_password.startswith('<YOUR_')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=16'), keycloak_admin_password) }}"
       tags: [always]
 
     - name: Pre-flight | Debug Variable Lengths (Sensitive)

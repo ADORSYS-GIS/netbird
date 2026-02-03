@@ -3,7 +3,7 @@
   "Stuns": [
     {
       "Proto": "udp",
-      "URI": "stun:{{ netbird_domain }}:3478",
+      "URI": "stun:{{ nb_netbird_domain }}:3478",
       "Username": "",
       "Password": ""
     }
@@ -16,7 +16,7 @@
     "Turns": [
       {
         "Proto": "udp",
-        "URI": "turn:{{ netbird_domain }}:3478",
+        "URI": "turn:{{ nb_netbird_domain }}:3478",
         "Username": "self",
         "Password": "{{ nb_turn_password }}"
       }
@@ -25,7 +25,7 @@
 
   "Relay": {
     "Addresses": [
-      "rels://{{ netbird_domain }}/relay"
+      "rels://{{ nb_netbird_domain }}/relay"
     ],
     "CredentialsTTL": "24h0m0s",
     "Secret": "{{ nb_relay_secret }}"
@@ -33,7 +33,7 @@
 
   "Signal": {
     "Proto": "https",
-    "URI": "{{ netbird_domain }}:443",
+    "URI": "{{ nb_netbird_domain }}:443",
     "Username": "",
     "Password": ""
   },

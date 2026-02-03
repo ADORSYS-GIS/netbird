@@ -1,5 +1,64 @@
 ---
-- name: Get existing groups
+# 0. Validation
+- name: NetBird | Validate API Token
+  ansible.builtin.assert:
+    that:
+      - netbird_api_token is defined
+      - netbird_api_token | length > 0
+      - netbird_api_token.startswith('nbp_')
+    fail_msg: "NETBIRD_API_TOKEN is missing or invalid. Please ensure it starts with 'nbp_' and is exported as an environment variable."
+
+# 1. Keycloak User Provisioning (Optional, if Keycloak vars provided)
+- name: Keycloak | Authenticate and Create User
+  block:
+    - name: Keycloak | Get admin token
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/realms/master/protocol/openid-connect/token"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          username: "{{ keycloak_admin_user }}"
+          password: "{{ keycloak_admin_password }}"
+          grant_type: password
+          client_id: admin-cli
+        status_code: 200
+      register: keycloak_token_response
+      no_log: true
+
+    - name: Keycloak | Check if user exists
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ netbird_realm }}/users?username={{ netbird_user_name }}"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ keycloak_token_response.json.access_token }}"
+        status_code: 200
+      register: keycloak_user_check
+
+    - name: Keycloak | Create user if missing
+      ansible.builtin.uri:
+        url: "{{ keycloak_url }}/admin/realms/{{ netbird_realm }}/users"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ keycloak_token_response.json.access_token }}"
+        body_format: json
+        body:
+          username: "{{ netbird_user_name }}"
+          enabled: true
+          emailVerified: true
+          firstName: "{{ netbird_user_first_name | default(netbird_user_name) }}"
+          credentials:
+            - type: password
+              value: "{{ netbird_user_password | default('Netbird123!') }}"
+              temporary: false
+        status_code: 201
+      when: keycloak_user_check.json | length == 0
+  when: 
+    - keycloak_url is defined and keycloak_url != ""
+    - keycloak_admin_password is defined and keycloak_admin_password != ""
+  tags: [keycloak]
+
+# 2. NetBird API Provisioning
+- name: NetBird | Get existing groups
   ansible.builtin.uri:
     url: "{{ netbird_management_url }}/api/groups"
     method: GET
@@ -8,7 +67,7 @@
     status_code: 200
   register: existing_groups
 
-- name: Create group for user if it doesn't exist
+- name: NetBird | Create group for user if it doesn't exist
   ansible.builtin.uri:
     url: "{{ netbird_management_url }}/api/groups"
     method: POST
@@ -21,11 +80,11 @@
   register: created_group
   when: "existing_groups.json | selectattr('name', 'equalto', 'group-' + netbird_user_name) | list | length == 0"
 
-- name: Set group ID
+- name: NetBird | Set group ID
   ansible.builtin.set_fact:
     netbird_group_id: "{{ (created_group.json.id) if (created_group.json is defined) else (existing_groups.json | selectattr('name', 'equalto', 'group-' + netbird_user_name) | list | first).id }}"
 
-- name: Get existing policies
+- name: NetBird | Get existing policies
   ansible.builtin.uri:
     url: "{{ netbird_management_url }}/api/policies"
     method: GET
@@ -34,7 +93,7 @@
     status_code: 200
   register: existing_policies
 
-- name: Create policy for group if it doesn't exist
+- name: NetBird | Create policy for group if it doesn't exist
   ansible.builtin.uri:
     url: "{{ netbird_management_url }}/api/policies"
     method: POST
@@ -53,7 +112,7 @@
     status_code: 201
   when: "existing_policies.json | selectattr('name', 'equalto', 'policy-' + netbird_user_name) | list | length == 0"
 
-- name: Create a reusable setup key
+- name: NetBird | Create a reusable setup key
   ansible.builtin.uri:
     url: "{{ netbird_management_url }}/api/setup-keys"
     method: POST
@@ -69,6 +128,6 @@
     status_code: 201
   register: created_setup_key
 
-- name: Set setup key fact
+- name: NetBird | Set setup key fact
   ansible.builtin.set_fact:
     netbird_setup_key: "{{ created_setup_key.json.key }}"

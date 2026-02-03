@@ -6,11 +6,11 @@
     # ZeroSSL is used here, but you can switch to Let's Encrypt by removing this line.
     acme_ca https://acme.zerossl.com/v2/DV90
     # Email for ACME certificate registration.
-    email {{ netbird_caddy_email }}
+    email {{ nb_caddy_email }}
 }
 
 # Define the domain for which Caddy will serve traffic.
-{{ netbird_domain }} {
+{{ nb_netbird_domain }} {
     # Security headers to protect against common web vulnerabilities.
     header {
         # HSTS (HTTP Strict Transport Security) to enforce HTTPS.

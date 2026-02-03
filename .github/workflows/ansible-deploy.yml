@@ -47,21 +47,30 @@ on:
           - ssh_remote
           - aws_ssm
       target_host:
-        description: 'Target Host (for ssh_remote)'
+        description: 'Target Host (SSH IP or AWS Instance ID)'
         required: false
       target_user:
-        description: 'SSH User (for ssh_remote)'
+        description: 'Target User (e.g., ubuntu, ec2-user)'
         required: false
         default: 'ubuntu'
+      netbird_domain:
+        description: 'NetBird Domain (e.g., netbird.example.com)'
+        required: false
+      netbird_default_password:
+        description: 'Initial Admin Password (optional)'
+        required: false
+      keycloak_url:
+        description: 'Keycloak URL (if using external Keycloak)'
+        required: false
 
 jobs:
   deploy:
     name: Deploy NetBird
     runs-on: ubuntu-latest
     env:
-      ACTION: ${{ github.event.inputs.action || 'deploy' }}
-      DEPLOY_TARGET: ${{ github.event.inputs.deployment_target || 'ssh_remote' }}
-      KEYCLOAK_URL_SECRET: ${{ secrets.KEYCLOAK_URL }}
+      ACTION: ${{ github.event.inputs.action || vars.DEPLOY_ACTION || 'deploy' }}
+      DEPLOY_TARGET: ${{ github.event.inputs.deployment_target || vars.DEPLOY_TARGET || 'aws_ssm' }}
+      KEYCLOAK_URL_SECRET: ${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}
       KEYCLOAK_ADMIN_USER_SECRET: ${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}
       KEYCLOAK_ADMIN_PASSWORD_SECRET: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
     
@@ -116,13 +125,13 @@ jobs:
       - name: Configure Keycloak for NetBird
         if: env.ACTION == 'deploy' && env.KEYCLOAK_URL_SECRET != '' && env.KEYCLOAK_ADMIN_PASSWORD_SECRET != ''
         env:
-          KEYCLOAK_URL: ${{ secrets.KEYCLOAK_URL }}
+          KEYCLOAK_URL: ${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}
           KEYCLOAK_ADMIN_USER: ${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}
           KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
-          NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
+          NETBIRD_DOMAIN: ${{ github.event.inputs.netbird_domain || secrets.NETBIRD_DOMAIN }}
           NETBIRD_REALM: ${{ secrets.NETBIRD_REALM || 'netbird' }}
           NETBIRD_DEFAULT_USER: ${{ secrets.NETBIRD_DEFAULT_USER || 'admin' }}
-          NETBIRD_DEFAULT_PASSWORD: ${{ secrets.NETBIRD_DEFAULT_PASSWORD }}
+          NETBIRD_DEFAULT_PASSWORD: ${{ github.event.inputs.netbird_default_password || secrets.NETBIRD_DEFAULT_PASSWORD }}
           NETBIRD_MANAGEMENT_SECRET: ${{ secrets.NETBIRD_MANAGEMENT_SECRET }}
           NETBIRD_RELAY_SECRET: ${{ secrets.NETBIRD_RELAY_SECRET }}
           NETBIRD_TURN_SECRET: ${{ secrets.NETBIRD_TURN_SECRET }}
@@ -168,7 +177,7 @@ jobs:
         env:
           TARGET_HOST: ${{ github.event.inputs.target_host || secrets.ANSIBLE_HOST }}
           TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
-          NETBIRD_DOMAIN: ${{ secrets.NETBIRD_DOMAIN }}
+          NETBIRD_DOMAIN: ${{ github.event.inputs.netbird_domain || secrets.NETBIRD_DOMAIN }}
           ANSIBLE_AWS_SSM_PLUGIN_PATH: /usr/local/bin/session-manager-plugin
         run: |
           # Create a secure variables file, only including non-empty secrets
@@ -179,11 +188,12 @@ jobs:
             "netbird_external_ip": "${{ secrets.NETBIRD_EXTERNAL_IP }}",
             "idp_service_name": "${{ secrets.IDP_SERVICE_NAME || 'keycloak' }}",
             "keycloak_port": "${{ secrets.KEYCLOAK_PORT || '8080' }}",
-            "keycloak_auth_url": "${{ secrets.KEYCLOAK_URL }}",
+            "keycloak_auth_url": "${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}",
             "keycloak_admin_user": "${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}",
             "keycloak_admin_password": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}",
             "keycloak_domain": "${{ secrets.KEYCLOAK_DOMAIN }}",
             "netbird_realm": "${{ secrets.NETBIRD_REALM || 'netbird' }}",
+            "netbird_default_password": "${{ github.event.inputs.netbird_default_password || secrets.NETBIRD_DEFAULT_PASSWORD }}",
             "ansible_remote_tmp": "/tmp"
           }
           EOF
@@ -303,7 +313,7 @@ jobs:
           ansible-playbook -vvv -i inventory_gh.ini infrastructure/ansible/playbook.yaml \
             --tags cleanup \
             -e "ansible_remote_tmp=/tmp" \
-            -e "keycloak_auth_url=${{ secrets.KEYCLOAK_URL }}" \
+            -e "keycloak_auth_url=${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}" \
             -e "keycloak_admin_user=${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}" \
             -e "keycloak_admin_password=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}" \
             -e "netbird_realm=${{ secrets.NETBIRD_REALM || 'netbird' }}" \

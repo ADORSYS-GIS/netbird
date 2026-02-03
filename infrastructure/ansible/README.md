@@ -45,14 +45,33 @@ Three deployment methods, all with automated Keycloak setup:
 ### Additional for GitHub Actions:
 - GitHub repository with write access to repository secrets
 
-##  Features
+##  GitHub Actions Pipeline Details
 
- **Fully Automated Keycloak Setup** - Realm & OAuth clients created automatically  
- **Three Deployment Methods** - Local, SSH, or GitHub Actions pipeline  
- **Dynamic Configuration** - Jinja2 templating for all config files  
- **Automatic TLS** - Let's Encrypt via Caddy, auto-renewal included  
- **Complete NAT Traversal** - STUN/TURN via Coturn for all network types  
- **Production Ready** - Idempotent, repeatable, offline-capable  
+The CI/CD pipeline at `.github/workflows/ansible-deploy.yml` is the recommended way to manage your infrastructure.
+
+### Manual Trigger (Workflow Dispatch)
+You can manually trigger the deployment or cleanup from the GitHub Actions UI with the following inputs:
+- **Action**: `deploy` (default) or `cleanup`.
+- **Target**: `ssh_remote` (default) or `aws_ssm`.
+- **NetBird Domain**: (Optional) Override the domain.
+- **Keycloak URL**: (Optional) Override the IdP URL.
+- **Admin Password**: (Optional) Set the dashboard admin password.
+
+### Repository Secrets
+For fully automated runs, configure these secrets in your repository:
+- `NETBIRD_DOMAIN`: Your NetBird domain.
+- `NETBIRD_CADDY_EMAIL`: Email for ACME.
+- `KEYCLOAK_URL_SECRET`: Your Keycloak URL.
+- `KEYCLOAK_ADMIN_USER_SECRET`: Keycloak API admin username.
+- `KEYCLOAK_ADMIN_PASSWORD_SECRET`: Keycloak API admin password.
+- `TARGET_HOST`: IP or Instance ID for deployment.
+- `TARGET_USER`: SSH user (for `ssh_remote`).
+- `SSH_PRIVATE_KEY`: Private key for authentication.
+
+### Repository Variables
+You can set default behaviors using GitHub Variables:
+- `DEPLOY_ACTION`: Default to `deploy` or `cleanup`.
+- `DEPLOY_TARGET`: Default to `ssh_remote` or `aws_ssm`.
 
 ##  Directory Structure
 
@@ -85,27 +104,6 @@ cd netbird/infrastructure/ansible
 ```
 
 ## Step 2: Configure Variables
-
-### Get Your Values
-
-Before configuring, gather these values:
-
-```bash
-# Get your server's public IP
-curl -s https://api.ipify.org
-
-# Keycloak details (from your existing Keycloak instance)
-KEYCLOAK_DOMAIN="idp.example.com"          # Your Keycloak domain
-KEYCLOAK_PORT="8080"                       # Keycloak port (usually 8080)
-KEYCLOAK_ADMIN_USER="admin"                # Keycloak admin username
-KEYCLOAK_ADMIN_PASSWORD="your-password"    # Keycloak admin password
-KEYCLOAK_REALM="netbird"                   # Realm to create
-
-# NetBird configuration
-NETBIRD_DOMAIN="netbird.example.com"       # Your NetBird domain
-NETBIRD_EMAIL="admin@example.com"          # For Let's Encrypt
-SERVER_PUBLIC_IP="1.2.3.4"                 # From curl command above
-```
 
 ### Set Variables in vars.yml
 
@@ -148,7 +146,7 @@ ansible-playbook -i inventory.yaml playbook.yaml
 ### Access NetBird
 Once the deployment is complete, access the NetBird dashboard at:
 ```
-http://localhost:53000
+https://<your-netbird-domain>
 ```
 You can then log in with your Keycloak credentials.
 
@@ -176,8 +174,9 @@ ansible-playbook -i inventory.yaml playbook.yaml --tags cleanup \
 **What this does:**
 1. Deletes the NetBird realm from your Keycloak instance
 2. Stops and removes all Docker containers
-3. Deletes the `/opt/netbird` deployment directory
-4. Removes the `key-netbird` Docker network
+3. **Removes all Docker volumes** associated with the project
+4. Deletes the `/opt/netbird` deployment directory
+5. Removes the `key-netbird` Docker network
 
 ## GitHub Actions Cleanup
 
@@ -187,17 +186,13 @@ ansible-playbook -i inventory.yaml playbook.yaml --tags cleanup \
 4. Select **cleanup** in the "Action to perform" dropdown.
 5. Click **Run workflow**.
 
-OR, Locally:
-
-``` # Replace <BRANCH_NAME> with your feature branch name                        
-gh workflow run "Ansible Deployment" \
-  --ref <BRANCH_NAME> \
-  -f action=cleanup \
-  -f deployment_target=<TARGET_OPTION> # ssh_remote/aws_ssm
-```
+OR, via GitHub CLI:
 
 ```bash
-ansible-playbook -i inventory.yaml playbook.
+gh workflow run "Ansible Deployment" \
+  -f action=cleanup \
+  -f deployment_target=aws_ssm # or ssh_remote
+```
 
 ---
 
@@ -209,21 +204,16 @@ ansible-playbook -i inventory.yaml playbook.
 |----------|----------|-------------|---------|
 | `netbird_domain` |  Yes | Your NetBird instance domain | `netbird.example.com` |
 | `netbird_caddy_email` |  Yes | Email for Let's Encrypt | `admin@example.com` |
-| `netbird_external_ip` |  Yes | Server public IP address | `1.2.3.4` |
+| `netbird_external_ip" |  Yes | Server public IP address | `1.2.3.4` |
 | `keycloak_domain` |  Yes | Your Keycloak server domain | `idp.example.com` |
 | `keycloak_port` |  Yes | Keycloak port | `8080` |
 | `keycloak_admin_password` |  Yes | Keycloak admin password | `admin-pass` |
 | `idp_service_name` |  Yes | Internal IdP service name | `keycloak` |
 | `netbird_realm` |  Yes | Realm name to create | `netbird` |
-| `netbird_management_secret` |  Yes | Management service secret (32+ chars) | `openssl rand -base64 32` |
-| `netbird_relay_secret` |  Yes | Relay service secret (32+ chars) | `openssl rand -base64 32` |
-| `netbird_turn_secret` |  Yes | TURN service secret (32+ chars) | `openssl rand -base64 32` |
-| `netbird_turn_password` |  Yes | TURN password (24+ chars) | `openssl rand -base64 24` |
-| `netbird_datastore_encryption_key` |  Yes | Database encryption key (32+ chars) | `openssl rand -base64 32` |
 
 ## Generate Random Secrets
 
-Use these commands to generate secure random values:
+The playbook automatically generates secrets if they are missing. However, you can manually generate them if needed:
 
 ```bash
 # Generate 32-character secret (for management, relay, datastore)
@@ -231,65 +221,6 @@ openssl rand -base64 32
 
 # Generate 24-character password (for TURN)
 openssl rand -base64 24
-```
-
----
-
-#  Deployment Method 2: Remote SSH Server
-
-**Best for:** Single server production deployments with full automation
-
-### Step 1: Configure SSH Access
-
-Edit `inventory.yaml`:
-
-```yaml
-all:
-  children:
-    netbird_servers:
-      hosts:
-        netbird-primary:
-          ansible_host: YOUR_SERVER_IP          # or domain
-          ansible_user: ubuntu
-          ansible_ssh_private_key_file: /path/to/ssh/key
-          ansible_connection: ssh
-```
-
-### Step 2: Deploy with Automated Keycloak
-
-```bash
-ansible-playbook -i inventory.yaml playbook.yaml --ask-become-pass
-```
-
----
-
-#  Deployment Method 3: GitHub Actions Pipeline
-
-**Best for:** CI/CD, automated deployments, multiple environments
-
-The workflow at `.github/workflows/ansible-deploy.yml` handles everything automatically.
-
-### Step 1: Configure GitHub Secrets
-
-Go to **Settings > Secrets and variables > Actions** and add:
-
-**Core Configuration:**
-```
-NETBIRD_DOMAIN: <YOUR_NETBIRD_DOMAIN>
-NETBIRD_CADDY_EMAIL: <YOUR_NETBIRD_CADDY_EMAIL>
-NETBIRD_DEFAULT_USER: <YOUR_NETBIRD_DEFAULT_USER>
-NETBIRD_DEFAULT_PASSWORD: <YOUR_NETBIRD_DEFAULT_PASSWORD>
-NETBIRD_REALM: <YOUR_NETBIRD_REALM_NAME>
-```
-
-**Keycloak Configuration (for automatic setup):**
-```
-KEYCLOAK_URL: <YOUR_KEYCLOAK_URL>
-KEYCLOAK_ADMIN_USER: <YOUR_KEYCLOAK_ADMIN_USER>
-KEYCLOAK_ADMIN_PASSWORD: <YOUR_KEYCLOAK_ADMIN_PASSWORD>
-```
-
-### Step
 ```
 
 ---

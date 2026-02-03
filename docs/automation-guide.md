@@ -8,8 +8,9 @@ This guide provides detailed documentation for the infrastructure automation too
 3. [Ansible Playbook Details](#ansible-playbook-details)
 4. [GitHub Actions Pipeline](#github-actions-pipeline)
 5. [Keycloak Automation](#keycloak-automation)
-6. [Cleanup and Reset](#cleanup-and-reset)
-7. [Troubleshooting](#troubleshooting)
+6. [Peer Provisioning](#peer-provisioning)
+7. [Cleanup and Reset](#cleanup-and-reset)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -51,10 +52,18 @@ The CI/CD pipeline supports two main deployment targets: **SSH Remote** and **AW
 
 ### Action Inputs:
 - `action`: Choose between `deploy` (default) or `cleanup`.
-- `deployment_target`: Choose between `ssh_remote` or `aws_ssm`.
+- `deployment_target`: Choose between `ssh_remote` or `aws_ssm`. Defaults to `vars.DEPLOY_TARGET` or `ssh_remote`.
+- `netbird_domain`: Override the default NetBird domain.
+- `keycloak_url`: Override the Keycloak auth URL.
+- `admin_password`: Set a custom password for the default admin user.
 
 ### Secrets Management:
 The pipeline pulls secrets from GitHub Repository Secrets and passes them securely to Ansible. If `KEYCLOAK_URL` is provided, it will first run the automated setup script to ensure the IdP is ready.
+
+### Configuration Toggles:
+You can set repository-wide defaults using GitHub Variables (`vars`):
+- `DEPLOY_ACTION`: Default action (deploy/cleanup).
+- `DEPLOY_TARGET`: Default target (ssh_remote/aws_ssm).
 
 ## Keycloak Automation
 
@@ -68,11 +77,29 @@ The automation ensures that:
 7. A **Default Admin User** is provisioned for immediate access.
 
 ### Custom Credentials:
-You can customize the default user and password by setting the following variables in `vars.yml` or GitHub Secrets:
-- `NETBIRD_DEFAULT_USER`: Defaults to `admin`.
-- `NETBIRD_DEFAULT_PASSWORD`: If set to `<YOUR_DEFAULT_USER_PASSWORD>` or left empty, a secure random password will be generated and printed in the logs.
+You can customize the default user and password by setting the following variables in GitHub Secrets or as manual inputs:
+- `KEYCLOAK_ADMIN_USER_SECRET`: Custom username (defaults to `admin`).
+- `KEYCLOAK_ADMIN_PASSWORD_SECRET`: Custom password. If left empty, a secure random password will be generated and printed in the GitHub Actions logs.
 
 **Note**: If you change the password in your configuration after a deployment, the automation will update the password for the existing user in Keycloak on the next run.
+
+## Peer Provisioning
+
+Beyond deploying the NetBird server, this project includes automation to provision users and their devices (peers) using the NetBird Management API.
+
+### Key Features:
+- **Automatic Group & Policy Creation**: Ensures all peers belonging to a specific user are placed in a common group with an access policy that allows them to communicate with each other.
+- **Dynamic Setup Keys**: Generates reusable setup keys on-the-fly to authorize new peers.
+- **Multi-Platform Support**: Installs the NetBird agent on Debian/Ubuntu, RHEL/CentOS, and Docker-enabled systems.
+- **Local & Remote Execution**: Can be run against remote fleets or to provision the local machine as a peer.
+
+### Usage:
+For detailed instructions, see the [Peer Provisioning Guide](infrastructure/ansible/PROVISIONING.md).
+
+```bash
+export NETBIRD_API_TOKEN="your_token"
+ansible-playbook -i inventory.yaml provision_peers.yaml -e "target_user=john-doe"
+```
 
 ## Cleanup and Reset
 

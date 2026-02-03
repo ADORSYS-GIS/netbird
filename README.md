@@ -36,10 +36,10 @@ For testing or specific manual configurations.
 
 ## 🔐 Custom Credentials
 
-You can easily customize the initial admin access by setting these variables (GitHub Secrets or Ansible vars):
+You can easily customize the initial admin access by setting these variables (GitHub Secrets or manual inputs):
 
-- `NETBIRD_DEFAULT_USER`: Admin username (defaults to `admin`).
-- `NETBIRD_DEFAULT_PASSWORD`: Custom password for the dashboard user. If left empty or set to `<YOUR_DEFAULT_USER_PASSWORD>`, a secure random password will be generated and displayed in the deployment logs.
+- `KEYCLOAK_ADMIN_USER_SECRET`: Admin username (defaults to `admin`).
+- `KEYCLOAK_ADMIN_PASSWORD_SECRET`: Custom password for the dashboard user. If left empty, a secure random password will be generated and displayed in the GitHub Actions deployment logs.
 
 *Note: If you update the password secret after deployment, the automation will automatically sync the new password to Keycloak on the next run.*
 
