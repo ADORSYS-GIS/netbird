@@ -472,6 +472,25 @@
                 status_code: 204
               when: keycloak_mgmt_client_uuid is not none
 
+            - name: Keycloak | Refresh admin token
+              ansible.builtin.uri:
+                url: "{{ keycloak_base_url }}/realms/master/protocol/openid-connect/token"
+                method: POST
+                validate_certs: "{{ keycloak_validate_certs }}"
+                body_format: form-urlencoded
+                body:
+                  username: "{{ keycloak_admin_user }}"
+                  password: "{{ keycloak_admin_password }}"
+                  grant_type: password
+                  client_id: admin-cli
+                status_code: 200
+              register: keycloak_admin_token_refresh
+              no_log: true
+
+            - name: Keycloak | Update admin token fact
+              ansible.builtin.set_fact:
+                keycloak_admin_token: "{{ keycloak_admin_token_refresh.json.access_token }}"
+
             - name: Keycloak | Check if default user exists
               ansible.builtin.uri:
                 url: "{{ keycloak_base_url }}/admin/realms/{{ keycloak_realm_name }}/users?username={{ netbird_default_user | default('admin') }}"
@@ -480,6 +499,7 @@
                 headers:
                   Authorization: "Bearer {{ keycloak_admin_token }}"
               register: keycloak_user_check
+              tags: [always]
 
             - name: Keycloak | Set default user password fact
               ansible.builtin.set_fact:
