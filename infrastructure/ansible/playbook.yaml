@@ -28,6 +28,7 @@
       changed_when: false
 
     - name: Pre-flight | Install Docker and dependencies
+      when: docker_installed.rc != 0
       block:
         - name: Install | Update apt cache
           ansible.builtin.apt:
@@ -84,11 +85,10 @@
       when: docker_installed.rc != 0
 
     - name: Pre-flight | Check if Docker is running
-      ansible.builtin.shell: docker info
+      ansible.builtin.command: docker info
       register: docker_check
       changed_when: false
       failed_when: docker_check.rc != 0
-      ignore_errors: false
 
     - name: Pre-flight | Check if Keycloak configuration is needed
       ansible.builtin.set_fact:
@@ -101,22 +101,40 @@
 
     - name: Pre-flight | Variable Sanitization and Finalization
       ansible.builtin.set_fact:
-        nb_management_secret: "{{ (netbird_management_secret | default('') == '' or netbird_management_secret.startswith('<YOUR_') or netbird_management_secret | length < 43 or not netbird_management_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_management_secret) }}"
-        nb_relay_secret: "{{ (netbird_relay_secret | default('') == '' or netbird_relay_secret.startswith('<YOUR_') or netbird_relay_secret | length < 43 or not netbird_relay_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_relay_secret) }}"
-        nb_turn_secret: "{{ (netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_') or netbird_turn_secret | length < 43 or not netbird_turn_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_turn_secret) }}"
-        nb_turn_password: "{{ (netbird_turn_password | default('') == '' or netbird_turn_password.startswith('<YOUR_') or netbird_turn_password | length < 12) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=24'), netbird_turn_password) }}"
-        nb_datastore_encryption_key: "{{ (netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_') or netbird_datastore_encryption_key | length < 43 or not netbird_datastore_encryption_key.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_datastore_encryption_key) }}"
-        nb_auth_authority: "{{ (netbird_auth_authority | default('') == '' or '<YOUR_' in netbird_auth_authority) | ternary('https://' + (keycloak_domain | default('')) + '/realms/' + (netbird_realm | default('netbird')), netbird_auth_authority) }}"
+        nb_management_secret: >-
+          {{ (netbird_management_secret | default('') == '' or netbird_management_secret.startswith('<YOUR_') or netbird_management_secret | length < 43 or
+          not netbird_management_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_management_secret) }}
+        nb_relay_secret: >-
+          {{ (netbird_relay_secret | default('') == '' or netbird_relay_secret.startswith('<YOUR_') or netbird_relay_secret | length < 43 or
+          not netbird_relay_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_relay_secret) }}
+        nb_turn_secret: >-
+          {{ (netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_') or netbird_turn_secret | length < 43 or
+          not netbird_turn_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_turn_secret) }}
+        nb_turn_password: >-
+          {{ (netbird_turn_password | default('') == '' or netbird_turn_password.startswith('<YOUR_') or
+          netbird_turn_password | length < 12) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=24'), netbird_turn_password) }}
+        nb_datastore_encryption_key: >-
+          {{ (netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_') or netbird_datastore_encryption_key | length < 43 or
+          not netbird_datastore_encryption_key.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_datastore_encryption_key) }}
+        nb_auth_authority: >-
+          {{ (netbird_auth_authority | default('') == '' or '<YOUR_' in netbird_auth_authority) |
+          ternary('https://' + (keycloak_domain | default('')) + '/realms/' + (netbird_realm | default('netbird')), netbird_auth_authority) }}
         nb_netbird_domain: "{{ (netbird_domain | default('')) | trim | regex_replace('/+$', '') }}"
-        nb_caddy_email: "{{ (netbird_caddy_email | default('') == '' or netbird_caddy_email.startswith('<YOUR_')) | ternary('admin@' + (netbird_domain | default('')), netbird_caddy_email) }}"
+        nb_caddy_email: >-
+          {{ (netbird_caddy_email | default('') == '' or netbird_caddy_email.startswith('<YOUR_')) |
+          ternary('admin@' + (netbird_domain | default('')), netbird_caddy_email) }}
         nb_auth_audience: "{{ netbird_auth_audience | default('netbird-client') }}"
         nb_auth_client_id: "{{ netbird_auth_client_id | default('netbird-client') }}"
         nb_idp_mgmt_client_id: "{{ netbird_idp_mgmt_client_id | default('netbird-management') }}"
         nb_idp_mgmt_client_secret: "{{ netbird_idp_mgmt_client_secret | default('') }}"
         nb_netbird_realm: "{{ (netbird_realm | default('netbird')) | trim | regex_replace('^/+', '') | regex_replace('/+$', '') }}"
         nb_keycloak_domain: "{{ (keycloak_domain | default('')) | trim | regex_replace('/+$', '') }}"
-        nb_keycloak_admin_user: "{{ (keycloak_admin_user | default('') == '' or keycloak_admin_user.startswith('<YOUR_')) | ternary('admin', keycloak_admin_user) }}"
-        nb_keycloak_admin_password: "{{ (keycloak_admin_password | default('') == '' or keycloak_admin_password.startswith('<YOUR_')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=16'), keycloak_admin_password) }}"
+        nb_keycloak_admin_user: >-
+          {{ (keycloak_admin_user | default('') == '' or keycloak_admin_user.startswith('<YOUR_')) |
+          ternary('admin', keycloak_admin_user) }}
+        nb_keycloak_admin_password: >-
+          {{ (keycloak_admin_password | default('') == '' or keycloak_admin_password.startswith('<YOUR_')) |
+          ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=16'), keycloak_admin_password) }}
       tags: [always]
 
     - name: Pre-flight | Debug Variable Lengths (Sensitive)
@@ -128,7 +146,7 @@
           - "TURN Password Length: {{ nb_turn_password | default('') | length }}"
           - "Datastore Encryption Key Length: {{ nb_datastore_encryption_key | default('') | length }}"
       tags: [debug]
-      when: 
+      when:
         - "'cleanup' not in ansible_run_tags"
         - "'always' not in ansible_run_tags"
 
@@ -142,12 +160,13 @@
           - nb_turn_password | length >= 12
           - nb_datastore_encryption_key | length >= 43 and nb_datastore_encryption_key.endswith('=')
         fail_msg: "One or more required variables are missing or contain placeholders, and finalization failed. Please check your vars.yml or GitHub Secrets."
-      when: 
+      when:
         - "'cleanup' not in ansible_run_tags"
         - "'always' not in ansible_run_tags"
 
     # Keycloak Configuration
     - name: Configure Keycloak realm and OAuth clients via API
+      when: run_keycloak_config | bool
       block:
         - name: Keycloak | Set normalized facts
           ansible.builtin.set_fact:
@@ -361,7 +380,7 @@
                     id.token.claim: "false"
                     access.token.claim: "true"
                 status_code: [201, 409]
-              when: 
+              when:
                 - keycloak_netbird_client_uuid is not none
                 - keycloak_client_mappers.json | selectattr('name', 'equalto', 'audience') | list | length == 0
 
@@ -385,7 +404,7 @@
                     claim.name: "groups"
                     userinfo.token.claim: "true"
                 status_code: [201, 409]
-              when: 
+              when:
                 - keycloak_netbird_client_uuid is not none
                 - keycloak_client_mappers.json | selectattr('name', 'equalto', 'groups') | list | length == 0
 
@@ -397,7 +416,7 @@
                 headers:
                   Authorization: "Bearer {{ keycloak_admin_token }}"
                 status_code: [204, 409]
-              when: 
+              when:
                 - keycloak_netbird_client_uuid is not none
                 - keycloak_api_scope_uuid is not none
 
@@ -496,7 +515,7 @@
                   value: "{{ nb_default_password }}"
                   temporary: false
                 status_code: 204
-              when: 
+              when:
                 - keycloak_user_check.json | length > 0
                 - netbird_default_password | default('') != ''
                 - netbird_default_password != '<YOUR_DEFAULT_USER_PASSWORD>'
@@ -513,7 +532,7 @@
                 msg: "Generated Password: {{ nb_default_password }}"
               when: (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>')
               tags: [always]
-        
+
         - name: Keycloak | Refresh admin token
           ansible.builtin.uri:
             url: "{{ keycloak_base_url }}/realms/master/protocol/openid-connect/token"
@@ -639,6 +658,7 @@
         KEYCLOAK_DOMAIN: "{{ keycloak_domain }}"
         NETBIRD_REALM: "{{ netbird_realm }}"
     - name: Cleanup | Stop and Remove NetBird Deployment
+      tags: [never, cleanup]
       block:
         - name: Cleanup | Get admin token for Keycloak cleanup
           ansible.builtin.uri:
@@ -665,14 +685,16 @@
               Authorization: "Bearer {{ cleanup_token_response.json.access_token }}"
             status_code: [204, 404]
           when: cleanup_token_response.status == 200
-          ignore_errors: true
+          register: cleanup_realm_result
+          failed_when: false
 
         - name: Cleanup | Stop NetBird services
           community.docker.docker_compose_v2:
             project_src: /opt/netbird
             state: absent
             remove_volumes: true
-          ignore_errors: true
+          register: cleanup_services_result
+          failed_when: false
 
         - name: Cleanup | Remove any remaining NetBird volumes
           ansible.builtin.shell: |
@@ -686,7 +708,8 @@
             docker volume prune -f --filter "label=com.docker.compose.project=netbird" || true
           args:
             executable: /bin/bash
-          ignore_errors: true
+          register: cleanup_volumes_result
+          failed_when: false
           changed_when: false
 
         - name: Cleanup | Remove deployment directory
