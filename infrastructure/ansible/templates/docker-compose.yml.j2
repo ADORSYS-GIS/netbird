@@ -24,7 +24,6 @@ services:
       - caddy_data:/data # Volume for Caddy's persistent data, including SSL certificates.
     networks:
       - netbird
-      - key-netbird
     depends_on:
       - management # Ensure management service is running before Caddy starts.
       - signal # Ensure signal service is running before Caddy starts.
@@ -38,7 +37,6 @@ services:
       - 8081:80 # Expose internal port 80 to host port 8081 (Caddy will proxy to internal 80).
     networks:
       - netbird
-      - key-netbird
     environment:
       # NetBird Management API and gRPC endpoints, configured to be accessed via Caddy.
       - NETBIRD_MGMT_API_ENDPOINT=https://{{ nb_netbird_domain }}
@@ -61,7 +59,6 @@ services:
     image: netbirdio/signal:latest
     networks:
       - netbird
-      - key-netbird
     volumes:
       - netbird-signal:/var/lib/netbird # Volume for signal service data.
     ports:
@@ -76,7 +73,6 @@ services:
       - dashboard # Dependency on dashboard (though typically management starts first).
     networks:
       - netbird
-      - key-netbird
     volumes:
       - netbird-mgmt:/var/lib/netbird # Volume for management service data.
       - netbird-letsencrypt:/etc/letsencrypt:ro # Read-only volume for Let's Encrypt certificates.
@@ -109,7 +105,6 @@ services:
     image: netbirdio/relay:latest
     networks:
       - netbird
-      - key-netbird
     environment:
       - NB_LOG_LEVEL=info # Set logging level to info.
       - NB_LISTEN_ADDRESS=:33080 # Listen on internal port 33080.
