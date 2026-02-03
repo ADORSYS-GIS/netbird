@@ -82,7 +82,6 @@
             name: docker
             state: started
             enabled: true
-      when: docker_installed.rc != 0
 
     - name: Pre-flight | Check if Docker is running
       ansible.builtin.command: docker info
@@ -102,20 +101,24 @@
     - name: Pre-flight | Variable Sanitization and Finalization
       ansible.builtin.set_fact:
         nb_management_secret: >-
-          {{ (netbird_management_secret | default('') == '' or netbird_management_secret.startswith('<YOUR_') or netbird_management_secret | length < 43 or
-          not netbird_management_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_management_secret) }}
+          {{ (netbird_management_secret | default('') == '' or netbird_management_secret.startswith('<YOUR_') or
+          netbird_management_secret | length < 43 or not netbird_management_secret.endswith('=')) |
+          ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_management_secret) }}
         nb_relay_secret: >-
-          {{ (netbird_relay_secret | default('') == '' or netbird_relay_secret.startswith('<YOUR_') or netbird_relay_secret | length < 43 or
-          not netbird_relay_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_relay_secret) }}
+          {{ (netbird_relay_secret | default('') == '' or netbird_relay_secret.startswith('<YOUR_') or
+          netbird_relay_secret | length < 43 or not netbird_relay_secret.endswith('=')) |
+          ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_relay_secret) }}
         nb_turn_secret: >-
-          {{ (netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_') or netbird_turn_secret | length < 43 or
-          not netbird_turn_secret.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_turn_secret) }}
+          {{ (netbird_turn_secret | default('') == '' or netbird_turn_secret.startswith('<YOUR_') or
+          netbird_turn_secret | length < 43 or not netbird_turn_secret.endswith('=')) |
+          ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_turn_secret) }}
         nb_turn_password: >-
           {{ (netbird_turn_password | default('') == '' or netbird_turn_password.startswith('<YOUR_') or
           netbird_turn_password | length < 12) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=24'), netbird_turn_password) }}
         nb_datastore_encryption_key: >-
-          {{ (netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_') or netbird_datastore_encryption_key | length < 43 or
-          not netbird_datastore_encryption_key.endswith('=')) | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_datastore_encryption_key) }}
+          {{ (netbird_datastore_encryption_key | default('') == '' or netbird_datastore_encryption_key.startswith('<YOUR_') or
+          netbird_datastore_encryption_key | length < 43 or not netbird_datastore_encryption_key.endswith('=')) |
+          ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=32') | b64encode, netbird_datastore_encryption_key) }}
         nb_auth_authority: >-
           {{ (netbird_auth_authority | default('') == '' or '<YOUR_' in netbird_auth_authority) |
           ternary('https://' + (keycloak_domain | default('')) + '/realms/' + (netbird_realm | default('netbird')), netbird_auth_authority) }}
@@ -160,9 +163,6 @@
           - nb_turn_password | length >= 12
           - nb_datastore_encryption_key | length >= 43 and nb_datastore_encryption_key.endswith('=')
         fail_msg: "One or more required variables are missing or contain placeholders, and finalization failed. Please check your vars.yml or GitHub Secrets."
-      when:
-        - "'cleanup' not in ansible_run_tags"
-        - "'always' not in ansible_run_tags"
 
     # Keycloak Configuration
     - name: Configure Keycloak realm and OAuth clients via API
@@ -242,7 +242,9 @@
 
             - name: Keycloak | Set 'api' scope UUID if exists
               ansible.builtin.set_fact:
-                keycloak_api_scope_uuid: "{{ (keycloak_scopes_check.json | selectattr('name', 'equalto', 'api') | list | first).id if keycloak_scopes_check.json | selectattr('name', 'equalto', 'api') | list | length > 0 else none }}"
+                keycloak_api_scope_uuid: >-
+                  {{ (keycloak_scopes_check.json | selectattr('name', 'equalto', 'api') | list | first).id if
+                  keycloak_scopes_check.json | selectattr('name', 'equalto', 'api') | list | length > 0 else none }}
 
             - name: Keycloak | Create 'api' scope
               ansible.builtin.uri:
@@ -289,7 +291,8 @@
 
             - name: Keycloak | Set client UUID if exists
               ansible.builtin.set_fact:
-                keycloak_netbird_client_uuid: "{{ keycloak_netbird_client_check.json[0].id if keycloak_netbird_client_check.json | length > 0 else none }}"
+                keycloak_netbird_client_uuid: >-
+                  {{ keycloak_netbird_client_check.json[0].id if keycloak_netbird_client_check.json | length > 0 else none }}
 
             - name: Keycloak | Create netbird-client
               ansible.builtin.uri:
@@ -478,7 +481,9 @@
 
             - name: Keycloak | Set default user password fact
               ansible.builtin.set_fact:
-                nb_default_password: "{{ (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>') | ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=12'), netbird_default_password) }}"
+                nb_default_password: >-
+                  {{ (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>') |
+                  ternary(lookup('password', '/dev/null chars=ascii_letters,digits length=12'), netbird_default_password) }}
 
             - name: Keycloak | Create default user
               ansible.builtin.uri:
@@ -524,7 +529,8 @@
               ansible.builtin.debug:
                 msg:
                   - "Default Admin User: {{ netbird_default_user | default('admin') }}"
-                  - "Password Status: {{ (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>') | ternary('GENERATED (Check logs below)', 'CUSTOM (From Secrets/Vars)') }}"
+                  - "Password Status: {{ (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>') |
+                    ternary('GENERATED (Check logs below)', 'CUSTOM (From Secrets/Vars)') }}"
               tags: [always]
 
             - name: Keycloak | Debug generated password
@@ -716,4 +722,3 @@
           ansible.builtin.file:
             path: /opt/netbird
             state: absent
-      tags: [never, cleanup]
