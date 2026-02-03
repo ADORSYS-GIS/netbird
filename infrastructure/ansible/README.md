@@ -66,7 +66,20 @@ For fully automated runs, configure these secrets in your repository:
 - `KEYCLOAK_ADMIN_PASSWORD_SECRET`: Keycloak API admin password.
 - `TARGET_HOST`: IP or Instance ID for deployment.
 - `TARGET_USER`: SSH user (for `ssh_remote`).
-- `SSH_PRIVATE_KEY`: Private key for authentication.
+- `SSH_PRIVATE_KEY`: Private key for authentication (for `ssh_remote`).
+- `AWS_ACCESS_KEY_ID`: AWS access key for `aws_ssm`.
+- `AWS_SECRET_ACCESS_KEY`: AWS secret key for `aws_ssm`.
+- `AWS_REGION`: AWS region for `aws_ssm`.
+- `AWS_INSTANCE_ID`: Target EC2 Instance ID for `aws_ssm`.
+- `AWS_S3_BUCKET`: **Required for `aws_ssm`**. Private S3 bucket used for staging file transfers via Session Manager.
+
+### AWS SSM Requirements
+When using `deployment_target: aws_ssm`, the following are required:
+1. **S3 Bucket**: A private S3 bucket in the same region as your instance.
+2. **IAM Permissions**: 
+   - The GitHub Runner needs `s3:PutObject` and `s3:GetObject` on the bucket.
+   - The Target EC2 instance needs an Instance Profile with `s3:GetObject` and `s3:PutObject` permissions.
+3. **Session Manager Plugin**: Automatically installed by the GitHub Action workflow.
 
 ### Repository Variables
 You can set default behaviors using GitHub Variables:
@@ -211,9 +224,16 @@ gh workflow run "Ansible Deployment" \
 | `idp_service_name` |  Yes | Internal IdP service name | `keycloak` |
 | `netbird_realm` |  Yes | Realm name to create | `netbird` |
 
-## Generate Random Secrets
+## Secure Auto-Generation
 
-The playbook automatically generates secrets if they are missing. However, you can manually generate them if needed:
+The playbook and GitHub pipeline are designed for **Zero-Config Security**. If you leave optional secrets (Management, Relay, TURN, Datastore) empty in GitHub Secrets or `vars.yml`, the pipeline will:
+1. **Automatically generate** secure, cryptographically strong random keys.
+2. **Sanitize and validate** the keys to ensure they meet NetBird's encoding requirements (Base64, 32/24 chars).
+3. **Persist** them to the target server's configuration files.
+
+You only *need* to provide your Domain and Keycloak credentials; the rest can be handled automatically.
+
+If you prefer to manually generate them:
 
 ```bash
 # Generate 32-character secret (for management, relay, datastore)

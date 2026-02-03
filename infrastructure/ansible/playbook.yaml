@@ -584,11 +584,6 @@
         state: directory
         mode: '0755'
 
-    - name: Ensure key-netbird network exists
-      community.docker.docker_network:
-        name: key-netbird
-        state: present
-
     # Task: Generate the Caddyfile from its Jinja2 template.
     - name: Generate Caddyfile
       ansible.builtin.template:
@@ -698,10 +693,4 @@
           ansible.builtin.file:
             path: /opt/netbird
             state: absent
-
-        - name: Cleanup | Remove Docker network
-          community.docker.docker_network:
-            name: key-netbird
-            state: absent
-          ignore_errors: true
       tags: [never, cleanup]

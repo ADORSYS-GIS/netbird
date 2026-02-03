@@ -98,10 +98,3 @@
         header_up X-Forwarded-Proto {scheme}
     }
 }
-
-
-keycloak.{{ netbird_domain }} {
-    reverse_proxy /* {
-        to keycloak:8080
-    }
-}

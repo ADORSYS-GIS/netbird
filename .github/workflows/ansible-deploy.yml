@@ -88,7 +88,11 @@ jobs:
       - name: Install Ansible and Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ansible botocore boto3
+          pip install ansible botocore boto3 ansible-lint
+
+      - name: Run Ansible Lint
+        run: |
+          ansible-lint infrastructure/ansible/playbook.yaml
 
       - name: Install Ansible Collections
         run: |
@@ -182,25 +186,36 @@ jobs:
           TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
           NETBIRD_DOMAIN: ${{ github.event.inputs.netbird_domain || secrets.NETBIRD_DOMAIN }}
         run: |
-          # Create a secure variables file, only including non-empty secrets
-          cat <<EOF > extra_vars.json
-          {
-            "netbird_domain": "$NETBIRD_DOMAIN",
-            "netbird_caddy_email": "${{ secrets.NETBIRD_CADDY_EMAIL }}",
-            "netbird_external_ip": "${{ secrets.NETBIRD_EXTERNAL_IP }}",
-            "idp_service_name": "${{ secrets.IDP_SERVICE_NAME || 'keycloak' }}",
-            "keycloak_port": "${{ secrets.KEYCLOAK_PORT || '8080' }}",
-            "keycloak_auth_url": "${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}",
-            "keycloak_admin_user": "${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}",
-            "keycloak_admin_password": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}",
-            "keycloak_domain": "${{ secrets.KEYCLOAK_DOMAIN }}",
-            "netbird_realm": "${{ secrets.NETBIRD_REALM || 'netbird' }}",
-            "netbird_default_password": "${{ github.event.inputs.netbird_default_password || secrets.NETBIRD_DEFAULT_PASSWORD }}",
-            "ansible_aws_ssm_bucket_name": "${{ secrets.AWS_S3_BUCKET }}",
-            "ansible_shell_type": "sh",
-            "ansible_remote_tmp": "/tmp"
-          }
-          EOF
+          # Create a secure variables file using jq to prevent shell injection
+          jq -n \
+            --arg domain "$NETBIRD_DOMAIN" \
+            --arg email "${{ secrets.NETBIRD_CADDY_EMAIL }}" \
+            --arg ip "${{ secrets.NETBIRD_EXTERNAL_IP }}" \
+            --arg idp "${{ secrets.IDP_SERVICE_NAME || 'keycloak' }}" \
+            --arg port "${{ secrets.KEYCLOAK_PORT || '8080' }}" \
+            --arg auth_url "${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}" \
+            --arg admin_user "${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}" \
+            --arg admin_pass "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}" \
+            --arg kc_domain "${{ secrets.KEYCLOAK_DOMAIN }}" \
+            --arg realm "${{ secrets.NETBIRD_REALM || 'netbird' }}" \
+            --arg def_pass "${{ github.event.inputs.netbird_default_password || secrets.NETBIRD_DEFAULT_PASSWORD }}" \
+            --arg s3_bucket "${{ secrets.AWS_S3_BUCKET }}" \
+            '{
+              netbird_domain: $domain,
+              netbird_caddy_email: $email,
+              netbird_external_ip: $ip,
+              idp_service_name: $idp,
+              keycloak_port: $port,
+              keycloak_auth_url: $auth_url,
+              keycloak_admin_user: $admin_user,
+              keycloak_admin_password: $admin_pass,
+              keycloak_domain: $kc_domain,
+              netbird_realm: $realm,
+              netbird_default_password: $def_pass,
+              ansible_aws_ssm_bucket_name: $s3_bucket,
+              ansible_shell_type: "sh",
+              ansible_remote_tmp: "/tmp"
+            }' > extra_vars.json
 
           # Function to add secret only if not empty
           add_secret() {

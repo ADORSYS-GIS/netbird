@@ -367,9 +367,19 @@ create_management_client() {
         exit 1
     fi
     
-    # Get the created client UUID
-    sleep 2
-    CLIENT_UUID=$(get_client_id "netbird-management")
+    # Get the created client UUID with retries
+    MAX_RETRIES=5
+    RETRY_COUNT=0
+    CLIENT_UUID=""
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        CLIENT_UUID=$(get_client_id "netbird-management")
+        if [ -n "$CLIENT_UUID" ] && [ "$CLIENT_UUID" != "null" ]; then
+            break
+        fi
+        print_info "Waiting for management client to be available (attempt $((RETRY_COUNT+1))/$MAX_RETRIES)..."
+        sleep 2
+        RETRY_COUNT=$((RETRY_COUNT+1))
+    done
     
     if [ -z "$CLIENT_UUID" ] || [ "$CLIENT_UUID" = "null" ]; then
         print_error "Failed to retrieve management client UUID"

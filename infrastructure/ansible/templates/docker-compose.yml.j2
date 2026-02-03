@@ -9,7 +9,6 @@ x-default-args: &default
   restart: unless-stopped
   networks:
     - netbird
-    - key-netbird
 services:
   # Caddy reverse proxy service.
   # Caddy handles SSL termination, serves the NetBird dashboard, and proxies requests to other NetBird services.
@@ -136,9 +135,7 @@ services:
 # Define Docker networks used by the services.
 networks:
   netbird: # Custom bridge network for all NetBird services to communicate internally.
-  key-netbird:
-    name: key-netbird
-    external: true
+
 # Define Docker volumes for persistent data storage.
 volumes:
   netbird-mgmt: # Volume for NetBird management service data.
