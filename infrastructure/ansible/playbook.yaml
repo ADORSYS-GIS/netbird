@@ -93,6 +93,7 @@
       ansible.builtin.set_fact:
         run_keycloak_config: >-
           {{
+            'cleanup' not in ansible_run_tags and
             keycloak_auto_setup | default(true) and
             (netbird_idp_mgmt_client_secret | default('') == '<YOUR_IDP_MGMT_CLIENT_SECRET>' or netbird_idp_mgmt_client_secret | default('') == '') and
             not keycloak_domain.startswith('<YOUR_')
@@ -204,12 +205,10 @@
           until: keycloak_admin_token_response.status is defined and keycloak_admin_token_response.status == 200
           retries: 5
           delay: 5
-          tags: [always]
 
         - name: Keycloak | Set admin token fact
           ansible.builtin.set_fact:
             keycloak_admin_token: "{{ keycloak_admin_token_response.json.access_token }}"
-          tags: [always]
 
         - name: Keycloak | Check if realm exists
           ansible.builtin.uri:
@@ -506,7 +505,6 @@
                 headers:
                   Authorization: "Bearer {{ keycloak_admin_token }}"
               register: keycloak_user_check
-              tags: [always]
 
             - name: Keycloak | Set default user password fact
               ansible.builtin.set_fact:
@@ -560,13 +558,11 @@
                   - "Default Admin User: {{ netbird_default_user | default('admin') }}"
                   - "Password Status: {{ (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>') |
                     ternary('GENERATED (Check logs below)', 'CUSTOM (From Secrets/Vars)') }}"
-              tags: [always]
 
             - name: Keycloak | Debug generated password
               ansible.builtin.debug:
                 msg: "Generated Password: {{ nb_default_password }}"
               when: (netbird_default_password | default('') == '' or netbird_default_password == '<YOUR_DEFAULT_USER_PASSWORD>')
-              tags: [always]
 
         - name: Keycloak | Refresh admin token
           ansible.builtin.uri:
@@ -582,12 +578,10 @@
             status_code: 200
           register: keycloak_admin_token_refresh
           no_log: true
-          tags: [always]
 
         - name: Keycloak | Update admin token fact
           ansible.builtin.set_fact:
             keycloak_admin_token: "{{ keycloak_admin_token_refresh.json.access_token }}"
-          tags: [always]
 
         - name: Keycloak | Get netbird-management client UUID
           ansible.builtin.uri:
