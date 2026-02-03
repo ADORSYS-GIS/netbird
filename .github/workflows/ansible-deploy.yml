@@ -251,7 +251,7 @@ jobs:
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
             INSTANCE_ID="${{ github.event.inputs.target_host || secrets.AWS_INSTANCE_ID }}"
-            REGION="${{ secrets.AWS_REGION }}"
+            REGION="${{ secrets.AWS_REGION || 'us-east-1' }}"
             USER_TO_USE="${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}"
             
             echo "Debugging AWS SSM Connection:"
@@ -318,12 +318,15 @@ jobs:
         env:
           TARGET_HOST: ${{ github.event.inputs.target_host || secrets.ANSIBLE_HOST }}
           TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
         run: |
           echo "[netbird_servers]" > inventory_gh.ini
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
             INSTANCE_ID="${{ github.event.inputs.target_host || secrets.AWS_INSTANCE_ID }}"
-            REGION="${{ secrets.AWS_REGION }}"
+            REGION="${{ secrets.AWS_REGION || 'us-east-1' }}"
             USER_TO_USE="${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}"
             
             echo "Debugging AWS SSM Connection (Cleanup):"
@@ -349,8 +352,10 @@ jobs:
           ansible-playbook -vvvv -i inventory_gh.ini infrastructure/ansible/playbook.yaml \
             --tags cleanup \
             -e "ansible_remote_tmp=/tmp" \
+            -e "ansible_shell_type=sh" \
             -e "keycloak_auth_url=${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}" \
             -e "keycloak_admin_user=${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}" \
             -e "keycloak_admin_password=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}" \
             -e "netbird_realm=${{ secrets.NETBIRD_REALM || 'netbird' }}" \
-            -e "keycloak_validate_certs=${{ secrets.KEYCLOAK_VALIDATE_CERTS || 'true' }}"
+            -e "keycloak_validate_certs=${{ secrets.KEYCLOAK_VALIDATE_CERTS || 'true' }}" \
+            -e "ansible_aws_ssm_bucket_name=${{ secrets.AWS_S3_BUCKET }}"
