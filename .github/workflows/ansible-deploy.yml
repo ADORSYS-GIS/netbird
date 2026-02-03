@@ -73,7 +73,7 @@ jobs:
       KEYCLOAK_URL_SECRET: ${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}
       KEYCLOAK_ADMIN_USER_SECRET: ${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}
       KEYCLOAK_ADMIN_PASSWORD_SECRET: ${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
-      ANSIBLE_AWS_SSM_PLUGIN_PATH: /usr/local/bin/session-manager-plugin
+      AWS_SESSION_MANAGER_PLUGIN: /usr/local/bin/session-manager-plugin
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     
     steps:
@@ -196,6 +196,8 @@ jobs:
             "keycloak_domain": "${{ secrets.KEYCLOAK_DOMAIN }}",
             "netbird_realm": "${{ secrets.NETBIRD_REALM || 'netbird' }}",
             "netbird_default_password": "${{ github.event.inputs.netbird_default_password || secrets.NETBIRD_DEFAULT_PASSWORD }}",
+            "ansible_aws_ssm_bucket_name": "${{ secrets.AWS_S3_BUCKET }}",
+            "ansible_shell_type": "sh",
             "ansible_remote_tmp": "/tmp"
           }
           EOF

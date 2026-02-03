@@ -12,6 +12,7 @@
     ansible_remote_tmp: /tmp
     ansible_system_tmpdirs: [/tmp]
     ansible_aws_ssm_shell: bash
+    ansible_shell_type: "{{ (ansible_connection == 'aws_ssm') | ternary('sh', 'sh') }}"
 
   tasks:
     - name: Gather facts if not cleanup

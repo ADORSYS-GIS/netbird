@@ -41,6 +41,11 @@ check_dependencies() {
         print_error "jq is not installed. Please install it first (e.g., sudo apt install jq)"
         exit 1
     fi
+
+    if ! command -v openssl &> /dev/null; then
+        print_error "openssl is not installed. Please install it first"
+        exit 1
+    fi
     
     print_info "All dependencies found"
 }
@@ -477,6 +482,7 @@ generate_secrets() {
 print_configuration() {
     if [ "${OUTPUT_FORMAT:-text}" = "json" ]; then
         # JSON output for CI/CD automation - using jq for safe generation
+        TEMP_CONFIG=$(mktemp)
         jq -n \
             --arg ncid "$NETBIRD_CLIENT_ID" \
             --arg mid "$MGMT_CLIENT_ID" \
@@ -505,8 +511,9 @@ print_configuration() {
                 netbird_auth_authority: $authority,
                 netbird_default_user: $du,
                 netbird_default_password: $dp
-            }' > /tmp/keycloak-config.json
-        cat /tmp/keycloak-config.json
+            }' > "$TEMP_CONFIG"
+        cat "$TEMP_CONFIG"
+        rm -f "$TEMP_CONFIG"
     else
         # Human-readable output
         echo ""
