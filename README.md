@@ -2,7 +2,7 @@
 
 Production-grade Infrastructure-as-Code (IaC) for NetBird deployments, featuring automated lifecycle management, Identity Provider (IdP) orchestration, and secure reverse proxy configuration.
 
-## 🚀 Key Features
+## Key Features
 
 - **Full Lifecycle Automation**: One-click deployment and complete environment destruction (Cleanup) via Ansible or GitHub Actions.
 - **Keycloak IdP Orchestration**: Automatic configuration of Keycloak realms, OIDC clients (Web & Management), API scopes, and protocol mappers.
@@ -10,7 +10,7 @@ Production-grade Infrastructure-as-Code (IaC) for NetBird deployments, featuring
 - **Flexible Provisioning**: Support for SSH Remote hosts and AWS SSM (Systems Manager).
 - **Security Hardening**: Automated secret generation, PKCE enforcement, and secure redirect policies.
 
-## 🛠 Deployment Options
+## Deployment Options
 
 ### 1. GitHub Actions (Production-Ready CI/CD)
 The recommended way to manage your NetBird infrastructure. Supports manual triggers and automated push-to-deploy.
@@ -34,7 +34,7 @@ For testing or specific manual configurations.
 - **Zitadel Quickstart**: [Setup Guide](./infrastructure/scripts/README.md)
 - **Manual Caddy**: [Manual Deployment](./docs/caddy-deployment.md)
 
-## 🔐 Custom Credentials
+## Custom Credentials
 
 You can easily customize the initial admin access by setting these variables (GitHub Secrets or manual inputs):
 
@@ -43,7 +43,7 @@ You can easily customize the initial admin access by setting these variables (Gi
 
 *Note: If you update the password secret after deployment, the automation will automatically sync the new password to Keycloak on the next run.*
 
-## 🧹 Cleanup and Reset
+## Cleanup and Reset
 
 The project includes a robust cleanup routine that performs a total reset:
 - Stops all containers and **removes all Docker volumes** (including persistent data).
@@ -53,7 +53,7 @@ The project includes a robust cleanup routine that performs a total reset:
 
 You can trigger this by running the workflow with the `cleanup` action.
 
-## 📚 Documentation
+## Documentation
 
 - [**Automation Guide**](./docs/automation-guide.md): Deep dive into the CI/CD and Ansible lifecycle.
 - [**Ansible README**](./infrastructure/ansible/README.md): Variable definitions and local usage.

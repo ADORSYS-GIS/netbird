@@ -2,7 +2,7 @@
 
 Complete automation for deploying NetBird with Caddy reverse proxy and Keycloak OpenID Connect authentication. **All methods automatically configure Keycloak realm and OAuth clients.**
 
-##  Features
+## Features
 
 - **Fully Automated Keycloak Setup** - Realm, OAuth clients, and default admin user created automatically
 - **Three Deployment Methods** - Local, SSH, or GitHub Actions pipeline
@@ -61,7 +61,7 @@ Ensure the following ports are open on your target server:
 ### Additional for GitHub Actions:
 - GitHub repository with write access to repository secrets
 
-##  GitHub Actions Pipeline Details
+## GitHub Actions Pipeline Details
 
 The CI/CD pipeline at `.github/workflows/ansible-deploy.yml` is the recommended way to manage your infrastructure.
 
@@ -122,7 +122,7 @@ For advanced users who want to provide their own keys instead of using auto-gene
 
 ---
 
-#  QuickStart: Local Docker Deployment
+# QuickStart: Local Docker Deployment
 
 This guide will walk you through deploying a full NetBird stack on your local machine for testing and development.
 
@@ -188,7 +188,7 @@ docker compose -f /opt/netbird/docker-compose.yml ps
 
 ---
 
-#  Manual Remote SSH Deployment
+# Manual Remote SSH Deployment
 
 Use this method to deploy NetBird to a remote server using a standard SSH connection.
 
@@ -229,7 +229,7 @@ If you encounter SSH errors:
 
 ---
 
-#  Cleanup & Teardown
+# Cleanup & Teardown
 
 If you need to completely remove the NetBird deployment and reset your environment, you can use the cleanup routine.
 
@@ -268,7 +268,7 @@ gh workflow run "Ansible Deployment" \
 
 ---
 
-#  Variable Reference Guide
+# Variable Reference Guide
 
 ## vars.yml - Configuration
 
@@ -304,7 +304,7 @@ openssl rand -base64 24
 
 ---
 
-#  Services Deployed
+# Services Deployed
 
 | Service | Purpose | Port | Container |
 |---------|---------|------|-----------|
@@ -317,7 +317,7 @@ openssl rand -base64 24
 
 ---
 
-#  Troubleshooting
+# Troubleshooting
 
 ### Keycloak Connectivity
 If the playbook fails at "Get admin token", ensure:
@@ -338,7 +338,7 @@ docker network create key-netbird
 
 ---
 
-#  Security Best Practices
+# Security Best Practices
 
 - **GitHub Secrets**: Store sensitive values only in GitHub, not in repo
 - **SSH Keys**: Use strong keys, `chmod 600`, never commit them

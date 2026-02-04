@@ -34,8 +34,11 @@
         transport http {
             versions h2c
         }
+        header_up Host {host}
+        header_up X-Real-IP {remote_ip}
+        header_up X-Forwarded-For {remote_ip}
+        header_up X-Forwarded-Proto {scheme}
     }
- 
 
     # Reverse proxy for NetBird Signal gRPC service.
     # Uses HTTP/2 cleartext (h2c) for internal communication.
@@ -44,6 +47,10 @@
         transport http {
             versions h2c
         }
+        header_up Host {host}
+        header_up X-Real-IP {remote_ip}
+        header_up X-Forwarded-For {remote_ip}
+        header_up X-Forwarded-Proto {scheme}
     }
 
     # Reverse proxy for NetBird Signal WebSocket.
@@ -53,8 +60,6 @@
         header_up X-Real-IP {remote_ip}
         header_up X-Forwarded-For {remote_ip}
         header_up X-Forwarded-Proto {scheme}
-        header_up Upgrade {>Upgrade}
-        header_up Connection {>Connection}
     }
 
     # Reverse proxy for NetBird Management WebSocket.
@@ -64,8 +69,6 @@
         header_up X-Real-IP {remote_ip}
         header_up X-Forwarded-For {remote_ip}
         header_up X-Forwarded-Proto {scheme}
-        header_up Connection {>Connection}
-        header_up Upgrade {>Upgrade}
     }
 
     # Reverse proxy for NetBird Relay WebSocket.
@@ -75,8 +78,6 @@
         header_up X-Real-IP {remote_ip}
         header_up X-Forwarded-For {remote_ip}
         header_up X-Forwarded-Proto {scheme}
-        header_up Upgrade {>Upgrade}
-        header_up Connection {>Connection}
     }
 
     # Reverse proxy for NetBird Management REST API.
