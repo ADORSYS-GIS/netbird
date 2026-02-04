@@ -1,0 +1,33 @@
+controller:
+  # High Availability for the Ingress Controller itself
+  replicaCount: 3
+  minAvailable: 2
+
+  # This section is the FIX for your error
+  ingressClassResource:
+    name: argocd-nginx              # This MUST be different from "nginx"
+    enabled: true
+    default: false
+    controllerValue: "k8s.io/argocd-ingress-nginx"
+  
+  fullnameOverride: "argocd-ingress-nginx"
+  
+  # Resource limits to prevent OOM kills in production
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  # Service configuration (The actual GCP Load Balancer)
+  service:
+    type: LoadBalancer
+    # Preserves the client source IP (Important for logs/security)
+    externalTrafficPolicy: Local
+    annotations:
+    
+      networking.gke.io/load-balancer-type: "External"
+      # Optional: If you want an internal-only LB, uncomment below
+      # cloud.google.com/load-balancer-type: "Internal"
