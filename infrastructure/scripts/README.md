@@ -38,6 +38,11 @@ For local HTTP testing, some browsers block authentication. Workaround:
 Configures an existing Keycloak instance for NetBird integration. Creates realm, clients, and generates secrets.
 
 **Prerequisites**: `curl`, `jq`
+```bash
+# Install dependencies
+sudo apt install jq curl # Debian/Ubuntu
+brew install jq curl    # macOS
+```
 
 **Usage:**
 ```bash
