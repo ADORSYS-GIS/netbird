@@ -44,10 +44,10 @@ Ensure the following ports are open on your target server:
   ```bash
   ansible-galaxy collection install community.docker
   ```
-- **jq & curl:** Required for automated Keycloak configuration.
+- **jq, curl & openssl:** Required for automated Keycloak configuration and secret generation.
   ```bash
-  sudo apt install jq curl # Debian/Ubuntu
-  brew install jq curl    # macOS
+  sudo apt install jq curl openssl # Debian/Ubuntu
+  brew install jq curl openssl    # macOS
   ```
 - **External Docker Network:** Create the network that Keycloak and NetBird will share.
   ```bash

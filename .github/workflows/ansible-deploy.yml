@@ -208,6 +208,7 @@ jobs:
             --arg realm "${{ secrets.NETBIRD_REALM || 'netbird' }}" \
             --arg def_pass "${{ github.event.inputs.netbird_default_password || secrets.NETBIRD_DEFAULT_PASSWORD }}" \
             --arg s3_bucket "${{ secrets.AWS_S3_BUCKET }}" \
+            --arg aws_region "${{ secrets.AWS_REGION || 'us-east-1' }}" \
             '{
               netbird_domain: $domain,
               netbird_caddy_email: $email,
@@ -221,13 +222,16 @@ jobs:
               netbird_realm: $realm,
               netbird_default_password: $def_pass,
               ansible_aws_ssm_s3_bucket: $s3_bucket,
-              ansible_shell_type: "sh",
+              ansible_aws_ssm_bucket_name: $s3_bucket,
+              ansible_aws_ssm_region: $aws_region,
+              ansible_aws_ssm_s3_region: $aws_region,
+              ansible_shell_type: "bash",
               ansible_remote_tmp: "/tmp"
             }' > extra_vars.json
 
           # Remove S3 bucket from vars if empty to prevent SSM plugin errors
           if [ -z "${{ secrets.AWS_S3_BUCKET }}" ]; then
-            jq 'del(.ansible_aws_ssm_s3_bucket)' extra_vars.json > extra_vars.json.tmp && mv extra_vars.json.tmp extra_vars.json
+            jq 'del(.ansible_aws_ssm_s3_bucket) | del(.ansible_aws_ssm_bucket_name) | del(.ansible_aws_ssm_s3_region) | del(.ansible_aws_ssm_region)' extra_vars.json > extra_vars.json.tmp && mv extra_vars.json.tmp extra_vars.json
           fi
 
           # Function to add secret only if not empty

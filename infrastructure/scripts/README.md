@@ -54,6 +54,19 @@ NETBIRD_REALM=netbird \
 ./infrastructure/scripts/keycloak-setup.sh
 ```
 
+**Environment Variables:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `KEYCLOAK_URL` | (Required) | Full URL to Keycloak (e.g., https://idp.example.com) |
+| `KEYCLOAK_ADMIN_USER` | `admin` | Keycloak admin username |
+| `KEYCLOAK_ADMIN_PASSWORD` | (Required) | Keycloak admin password |
+| `NETBIRD_DOMAIN` | (Required) | Your NetBird instance domain |
+| `NETBIRD_REALM` | `netbird` | Name of the realm to create/configure |
+| `NETBIRD_DEFAULT_USER` | `admin` | Initial dashboard user to create |
+| `NETBIRD_DEFAULT_PASSWORD` | (Optional) | Initial dashboard user password |
+| `OUTPUT_FORMAT` | `text` | Set to `json` for machine-readable output |
+
 **What it does:**
 1. Authenticates to Keycloak admin API
 2. Creates NetBird realm
