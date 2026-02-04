@@ -30,7 +30,7 @@ graph TD
         C
         D
         E
-        F[PostgreSQL Database]
+        F[PostgreSQL Database] 
     end
 
     C --> F
