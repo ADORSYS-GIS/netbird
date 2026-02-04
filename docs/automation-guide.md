@@ -43,7 +43,11 @@ The playbook is designed to be **idempotent**, **self-healing**, and supports bo
 
 ### Usage:
 ```bash
+# Local Deployment
 ansible-playbook -i inventory.yaml playbook.yaml
+
+# Remote SSH Deployment
+ansible-playbook -i inventory.yaml playbook.yaml --ask-become-pass
 ```
 
 ## GitHub Actions Pipeline
@@ -60,7 +64,17 @@ The CI/CD pipeline supports two main deployment targets: **SSH Remote** and **AW
 ### Secrets Management:
 The pipeline pulls secrets from GitHub Repository Secrets and passes them securely to Ansible. If `KEYCLOAK_URL` is provided, it will first run the automated setup script to ensure the IdP is ready.
 
-### Configuration Toggles:
+**Zero-Config Security:**
+If service secrets (Management, Relay, TURN, Datastore) are left empty in GitHub Secrets or `vars.yml`, the automation will:
+1. **Automatically generate** cryptographically strong random keys.
+2. **Sanitize** them to meet NetBird's requirements (e.g., Base64 encoding).
+3. **Persist** them to the target server.
+
+### AWS SSM Requirements:
+When deploying to AWS via SSM, the following additional configuration is required:
+1. **S3 Bucket**: A private S3 bucket is used for staging files. Set the `AWS_S3_BUCKET` secret in GitHub.
+2. **IAM Instance Profile**: The EC2 instance must have an IAM role with `AmazonSSMManagedInstanceCore` and `s3:GetObject`/`s3:PutObject` permissions on the staging bucket.
+3. **IAM User/Role for GitHub**: The credentials used by the GitHub Action must have `ssm:StartSession`, `ssm:SendCommand`, and `s3:PutObject` permissions.
 You can set repository-wide defaults using GitHub Variables (`vars`):
 - `DEPLOY_ACTION`: Default action (deploy/cleanup).
 - `DEPLOY_TARGET`: Default target (ssh_remote/aws_ssm).

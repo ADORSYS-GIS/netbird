@@ -33,6 +33,11 @@ Three deployment methods, all with automated Keycloak setup:
 ### Additional for Local/SSH:
 - Ansible installed
 - Docker & Docker Compose v2
+- **jq & curl:** Required for automated Keycloak configuration.
+  ```bash
+  sudo apt install jq curl # Debian/Ubuntu
+  brew install jq curl    # macOS
+  ```
 - **External Docker Network:** Create the network that Keycloak and NetBird will share.
   ```bash
   docker network create key-netbird
@@ -86,22 +91,23 @@ You can set default behaviors using GitHub Variables:
 - `DEPLOY_ACTION`: Default to `deploy` or `cleanup`.
 - `DEPLOY_TARGET`: Default to `ssh_remote` or `aws_ssm`.
 
-##  Directory Structure
+### Full Secret Reference (GitHub Secrets)
 
-```
-infrastructure/ansible/
- playbook.yaml                    # Main Ansible playbook
- inventory.yaml                   # Host configuration
- ansible.cfg                      # Ansible settings
- group_vars/netbird_servers/
-    vars.yml                    # Variables & Placeholders
- templates/
-    Caddyfile.j2               # Reverse proxy
-    docker-compose.yml.j2       # Services
-    management.json.j2          # Management config
-    turnserver.conf.j2          # TURN/STUN config
- README.md                        # This file
-```
+For advanced users who want to provide their own keys instead of using auto-generation:
+
+| Secret Name | Description |
+|-------------|-------------|
+| `NETBIRD_MANAGEMENT_SECRET` | 32-char Base64 secret for Management service |
+| `NETBIRD_RELAY_SECRET` | 32-char Base64 secret for Relay service |
+| `NETBIRD_TURN_SECRET` | 32-char Base64 secret for TURN server |
+| `NETBIRD_TURN_PASSWORD` | Secure password for TURN server |
+| `NETBIRD_DATASTORE_ENCRYPTION_KEY` | 32-char Base64 key for datastore encryption |
+| `NETBIRD_AUTH_CLIENT_ID` | OIDC Client ID (default: `netbird-client`) |
+| `NETBIRD_AUTH_AUDIENCE` | OIDC Audience (default: `netbird-client`) |
+| `NETBIRD_IDP_MGMT_CLIENT_ID` | Management Client ID (default: `netbird-management`) |
+| `NETBIRD_IDP_MGMT_CLIENT_SECRET` | Secret for the Management Client |
+| `NETBIRD_DEFAULT_USER` | Initial dashboard user (default: `admin`) |
+| `NETBIRD_DEFAULT_PASSWORD` | Initial dashboard user password |
 
 ---
 
@@ -171,6 +177,47 @@ docker compose -f /opt/netbird/docker-compose.yml ps
 
 ---
 
+#  Manual Remote SSH Deployment
+
+Use this method to deploy NetBird to a remote server using a standard SSH connection.
+
+## Step 1: Configure Variables
+
+Follow the same steps as in the QuickStart guide to configure `group_vars/netbird_servers/vars.yml`.
+
+## Step 2: Configure Inventory for Remote SSH
+
+Edit `inventory.yaml` and update the host details:
+
+```yaml
+all:
+  children:
+    netbird_servers:
+      hosts:
+        netbird-primary:
+          ansible_host: 1.2.3.4            # Replace with your server's public IP
+          ansible_user: ubuntu             # Your SSH username (e.g., ubuntu, root)
+          ansible_connection: ssh
+          ansible_ssh_private_key_file: ~/.ssh/id_rsa  # Path to your private key
+```
+
+## Step 3: Run Deployment
+
+Execute the Ansible playbook. Use `--ask-become-pass` if your user requires a password for `sudo`.
+
+```bash
+ansible-playbook -i inventory.yaml playbook.yaml --ask-become-pass
+```
+
+## Step 4: Troubleshooting Connection
+
+If you encounter SSH errors:
+- Ensure you can SSH into the server manually: `ssh -i ~/.ssh/id_rsa ubuntu@1.2.3.4`
+- Check that the `ansible_user` has `sudo` privileges.
+- Ensure the server is running a supported OS (Ubuntu 20.04+ or Debian 11+).
+
+---
+
 #  Cleanup & Teardown
 
 If you need to completely remove the NetBird deployment and reset your environment, you can use the cleanup routine.
@@ -217,7 +264,7 @@ gh workflow run "Ansible Deployment" \
 |----------|----------|-------------|---------|
 | `netbird_domain` |  Yes | Your NetBird instance domain | `netbird.example.com` |
 | `netbird_caddy_email` |  Yes | Email for Let's Encrypt | `admin@example.com` |
-| `netbird_external_ip" |  Yes | Server public IP address | `1.2.3.4` |
+| `netbird_external_ip` |  Yes | Server public IP address (Required for TURN) | `1.2.3.4` |
 | `keycloak_domain` |  Yes | Your Keycloak server domain | `idp.example.com` |
 | `keycloak_port` |  Yes | Keycloak port | `8080` |
 | `keycloak_admin_password` |  Yes | Keycloak admin password | `admin-pass` |
@@ -255,6 +302,27 @@ openssl rand -base64 24
 | **TURN/STUN** | NAT traversal | 3478/UDP | `coturn/coturn` |
 | **Caddy** | Reverse proxy + TLS | 80, 443 | `caddy:latest` |
 | **Dashboard** | Web UI | 443 (Caddy) | `netbird/dashboard` |
+
+---
+
+#  Troubleshooting
+
+### Keycloak Connectivity
+If the playbook fails at "Get admin token", ensure:
+1. `keycloak_domain` or `keycloak_auth_url` is correctly set.
+2. The Keycloak server is reachable from the machine running Ansible.
+3. If using self-signed certificates, set `keycloak_validate_certs: false` in `vars.yml`.
+
+### Docker Network Issues
+If you see "network key-netbird not found", ensure you ran:
+```bash
+docker network create key-netbird
+```
+
+### AWS SSM Failures
+- Ensure the target instance has the **SSM Agent** running.
+- Ensure the instance has an IAM Role with `AmazonSSMManagedInstanceCore`.
+- Ensure the `AWS_S3_BUCKET` secret is set and the instance has access to it.
 
 ---
 
