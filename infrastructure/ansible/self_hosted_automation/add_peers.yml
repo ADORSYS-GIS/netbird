@@ -1,0 +1,108 @@
+---
+- name: Peer Enrollment and Netbird Installation
+  hosts: all
+  become: true
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Generate Dynamic Setup Key from Management API
+      ansible.builtin.uri:
+        url: "{{ netbird_mgmt_url }}/api/setup-keys"
+        method: POST
+        headers:
+          Authorization: "Token {{ netbird_api_token }}"
+          Content-Type: "application/json"
+        body_format: json
+        body:
+          name: "Ansible-{{ inventory_hostname }}-{{ 1000 | random }}"
+          type: "one-off"
+          expires_in: 3600 # 1 hour for registration
+          ephemeral: true
+          auto_groups: "{{ netbird_auto_groups | default([]) }}"
+        status_code: 201
+      register: setup_key_resp
+      delegate_to: localhost
+      no_log: true
+
+    - name: Set Setup Key fact
+      ansible.builtin.set_fact:
+        netbird_setup_key: "{{ setup_key_resp.json.key }}"
+      no_log: true
+
+    # Native Installation Logic
+    - name: Native Installation and Registration
+      when: not netbird_docker_enabled | default(false)
+      block:
+        - name: Install Netbird on Debian/Ubuntu
+          when: ansible_os_family == "Debian"
+          block:
+            - name: Install gnupg and curl
+              ansible.builtin.apt:
+                name: [gnupg, curl]
+                state: present
+
+            - name: Add Netbird GPG key
+              ansible.builtin.apt_key:
+                url: https://pkgs.netbird.io/debian/public.key
+                keyring: /usr/share/keyrings/netbird-archive-keyring.gpg
+                state: present
+
+            - name: Add Netbird repository
+              ansible.builtin.apt_repository:
+                repo: "deb [signed-by=/usr/share/keyrings/netbird-archive-keyring.gpg] https://pkgs.netbird.io/debian stable main"
+                state: present
+                filename: netbird
+
+            - name: Update apt and install Netbird
+              ansible.builtin.apt:
+                name: netbird
+                update_cache: yes
+                state: present
+
+        - name: Install Netbird on RHEL/CentOS
+          when: ansible_os_family == "RedHat"
+          block:
+            - name: Add Netbird repository
+              ansible.builtin.yum_repository:
+                name: netbird
+                description: Netbird Official Repository
+                baseurl: https://pkgs.netbird.io/yum/
+                enabled: yes
+                gpgcheck: no
+
+            - name: Install Netbird via yum/dnf
+              ansible.builtin.package:
+                name: netbird
+                state: present
+
+        - name: Register and Up Netbird agent
+          ansible.builtin.command:
+            cmd: "netbird up --management-url {{ netbird_mgmt_url }} --setup-key {{ netbird_setup_key }}"
+          register: netbird_up_result
+          changed_when: "'Connected' in netbird_up_result.stdout or 'Already' not in netbird_up_result.stdout"
+
+    # Docker Installation Logic
+    - name: Docker Installation and Registration
+      when: netbird_docker_enabled | default(false)
+      block:
+        - name: Ensure Netbird configuration directory exists
+          ansible.builtin.file:
+            path: /var/lib/netbird
+            state: directory
+            mode: '0755'
+
+        - name: Deploy Netbird as a Docker Container
+          community.docker.docker_container:
+            name: netbird
+            image: "netbirdio/netbird:{{ netbird_version | default('latest') }}"
+            state: started
+            restart_policy: always
+            network_mode: host
+            capabilities:
+              - NET_ADMIN
+            volumes:
+              - /var/lib/netbird:/var/lib/netbird
+            command: >
+              up --management-url {{ netbird_mgmt_url }} --setup-key {{ netbird_setup_key }}
+          register: docker_result

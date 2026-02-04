@@ -1,0 +1,34 @@
+---
+- name: Add Users to Keycloak for Netbird Auth
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Ensure users exist in Keycloak
+      community.general.keycloak_user:
+        auth_keycloak_url: "{{ keycloak_url }}"
+        auth_realm: "{{ keycloak_realm }}"
+        auth_username: "{{ keycloak_admin_user }}"
+        auth_password: "{{ keycloak_admin_password }}"
+        realm: "{{ keycloak_realm }}"
+        state: present
+        username: "{{ item.username }}"
+        email: "{{ item.email }}"
+        firstName: "{{ item.first_name | default(omit) }}"
+        lastName: "{{ item.last_name | default(omit) }}"
+        enabled: true
+        credentials:
+          - type: password
+            value: "{{ item.password }}"
+            temporary: false
+      loop: "{{ netbird_users }}"
+      no_log: true
+      register: keycloak_result
+
+    - name: Summary of users created
+      debug:
+        msg: "User {{ item.item.username }} processed successfully"
+      loop: "{{ keycloak_result.results }}"
+      when: not item.failed
