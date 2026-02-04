@@ -14,6 +14,16 @@ This guide explains how to securely access your applications over NetBird while 
 
 ---
 
+## Prerequisites
+
+Before you begin, ensure you have the following:
+
+- **A NetBird Account**: You should have an active NetBird account and a network created.
+- **Enrolled Client Peer**: You need at least one client device (e.g., your laptop) enrolled in your NetBird network to access the application.
+- **Running Application**: An application must be running on a server that is reachable through your NetBird network (e.g., as a NetBird peer or via a routing peer).
+
+---
+
 ## Step 1: Create Groups
 
 Groups help you coordinate and manage who can access what in your NetBird network, creating isolation and privacy between different teams and resources.
@@ -66,3 +76,13 @@ Test your configuration:
 
 > [!IMPORTANT]
 > **NetBird Network Requirement**: Client devices must be connected to NetBird with the agent installed and running. DNS resolution only works for devices in the assigned distribution group.
+
+---
+
+## Conclusion
+
+By following this guide, you have successfully configured a private DNS zone within your NetBird network. This setup allows you to:
+
+- **Enhance Security**: Expose applications only to authorized users without a public IP address.
+- **Simplify Access**: Use memorable, human-readable names instead of IP addresses.
+- **Improve Management**: Control access to resources centrally through NetBird's group-based policies.
