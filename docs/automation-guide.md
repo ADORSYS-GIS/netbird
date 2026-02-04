@@ -87,7 +87,7 @@ The automation ensures that:
 4. **Protocol Mappers** for `audience` and `groups` are added to the tokens.
 5. The **`api` client scope** is automatically created and assigned to ensure dashboard access.
 6. **Logout Redirects** are configured to prevent redirect loops during session expiration.
-7. A **Default Admin User** is provisioned for immediate access.
+7. A **Default Admin User** is created for immediate access.
 
 ### Custom Credentials:
 You can customize the default user and password by setting the following variables in GitHub Secrets or as manual inputs:
@@ -103,7 +103,7 @@ The cleanup routine is designed for a total environment reset.
 ### What is removed:
 - All Docker containers and volumes associated with the project (using `remove_volumes: true`).
 - The `/opt/netbird` deployment directory.
-- The custom Docker network `key-netbird`.
+- The custom Docker network `netbird`.
 - The entire **Keycloak Realm** created for NetBird.
 
 ### How to trigger:
@@ -132,4 +132,4 @@ If the pipeline fails with `expected string or bytes-like object, got 'NoneType'
 5. The connection now uses `ansible_aws_ssm_shell: bash` and `ansible_shell_type: sh` for maximum compatibility.
 
 ### Docker Network Conflicts
-If the `key-netbird` network already exists with a different driver, the playbook might fail. The cleanup routine will remove it, allowing for a fresh start.
+If the `netbird` network already exists with a different driver, the playbook might fail. The cleanup routine will remove it, allowing for a fresh start.

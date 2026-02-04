@@ -49,7 +49,7 @@ The project includes a robust cleanup routine that performs a total reset:
 - Stops all containers and **removes all Docker volumes** (including persistent data).
 - Deletes the entire Keycloak Realm and associated clients.
 - Removes all configuration directories (`/opt/netbird`).
-- Resets the `key-netbird` Docker network.
+- Resets the `netbird` Docker network.
 
 You can trigger this by running the workflow with the `cleanup` action.
 

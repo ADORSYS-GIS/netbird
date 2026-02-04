@@ -248,8 +248,6 @@ your-domain.com {
         header_up X-Real-IP {remote_ip}
         header_up X-Forwarded-For {remote_ip}
         header_up X-Forwarded-Proto {scheme}
-        header_up Upgrade {>Upgrade}
-        header_up Connection {>Connection}
     }
 
     # Management WebSocket
@@ -259,8 +257,6 @@ your-domain.com {
         header_up X-Real-IP {remote_ip}
         header_up X-Forwarded-For {remote_ip}
         header_up X-Forwarded-Proto {scheme}
-        header_up Connection {>Connection}
-        header_up Upgrade {>Upgrade}
     }
 
     # Relay WebSocket
@@ -270,8 +266,6 @@ your-domain.com {
         header_up X-Real-IP {remote_ip}
         header_up X-Forwarded-For {remote_ip}
         header_up X-Forwarded-Proto {scheme}
-        header_up Upgrade {>Upgrade}
-        header_up Connection {>Connection}
     }
 
     # Management REST API

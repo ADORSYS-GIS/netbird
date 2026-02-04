@@ -51,7 +51,7 @@ Ensure the following ports are open on your target server:
   ```
 - **External Docker Network:** Create the network that Keycloak and NetBird will share.
   ```bash
-  docker network create key-netbird
+  docker network create netbird
   ```
 
 ### Additional for Remote SSH:
@@ -247,7 +247,7 @@ ansible-playbook -i inventory.yaml playbook.yaml --tags cleanup \
 2. Stops and removes all Docker containers
 3. **Removes all Docker volumes** associated with the project
 4. Deletes the `/opt/netbird` deployment directory
-5. Removes the `key-netbird` Docker network
+5. Removes the `netbird` Docker network
 
 ## GitHub Actions Cleanup
 
@@ -326,9 +326,9 @@ If the playbook fails at "Get admin token", ensure:
 3. If using self-signed certificates, set `keycloak_validate_certs: false` in `vars.yml`.
 
 ### Docker Network Issues
-If you see "network key-netbird not found", ensure you ran:
+If you see "network netbird not found", ensure you ran:
 ```bash
-docker network create key-netbird
+docker network create netbird
 ```
 
 ### AWS SSM Failures
