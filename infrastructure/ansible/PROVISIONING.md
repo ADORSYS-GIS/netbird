@@ -15,7 +15,11 @@ This playbook automates the process of creating NetBird groups, policies, and se
 
 1. **NetBird API Token**: A Personal Access Token (PAT) from your NetBird dashboard (Settings > Tokens).
 2. **Management URL**: The URL of your NetBird management service (e.g., `https://netbird.example.com`).
-3. **Ansible**: Installed on your control node.
+3. **Ansible Collections**:
+   ```bash
+   ansible-galaxy collection install community.docker community.general community.crypto
+   ```
+4. **Ansible**: Installed on your control node.
 
 ## Environment Variables
 

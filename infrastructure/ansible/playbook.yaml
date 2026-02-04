@@ -11,8 +11,9 @@
     # Force remote temp directory to /tmp to avoid issues with restricted home directories (especially on AWS SSM)
     ansible_remote_tmp: /tmp
     ansible_system_tmpdirs: [/tmp]
-    ansible_aws_ssm_shell: sh
+    ansible_aws_ssm_shell: bash
     ansible_shell_type: sh
+    ansible_aws_ssm_s3_bucket: "{{ ansible_aws_ssm_s3_bucket | default(omit) }}"
 
   tasks:
     - name: Gather facts if not cleanup

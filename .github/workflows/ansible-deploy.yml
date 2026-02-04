@@ -220,10 +220,15 @@ jobs:
               keycloak_domain: $kc_domain,
               netbird_realm: $realm,
               netbird_default_password: $def_pass,
-              ansible_aws_ssm_bucket_name: $s3_bucket,
+              ansible_aws_ssm_s3_bucket: $s3_bucket,
               ansible_shell_type: "sh",
               ansible_remote_tmp: "/tmp"
             }' > extra_vars.json
+
+          # Remove S3 bucket from vars if empty to prevent SSM plugin errors
+          if [ -z "${{ secrets.AWS_S3_BUCKET }}" ]; then
+            jq 'del(.ansible_aws_ssm_s3_bucket)' extra_vars.json > extra_vars.json.tmp && mv extra_vars.json.tmp extra_vars.json
+          fi
 
           # Function to add secret only if not empty
           add_secret() {
@@ -318,10 +323,31 @@ jobs:
         env:
           TARGET_HOST: ${{ github.event.inputs.target_host || secrets.ANSIBLE_HOST }}
           TARGET_USER: ${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
         run: |
+          # Create a secure variables file for cleanup
+          jq -n \
+            --arg auth_url "${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}" \
+            --arg admin_user "${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}" \
+            --arg admin_pass "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}" \
+            --arg realm "${{ secrets.NETBIRD_REALM || 'netbird' }}" \
+            --arg validate_certs "${{ secrets.KEYCLOAK_VALIDATE_CERTS || 'true' }}" \
+            --arg s3_bucket "${{ secrets.AWS_S3_BUCKET }}" \
+            '{
+              keycloak_auth_url: $auth_url,
+              keycloak_admin_user: $admin_user,
+              keycloak_admin_password: $admin_pass,
+              netbird_realm: $realm,
+              keycloak_validate_certs: ($validate_certs == "true"),
+              ansible_aws_ssm_s3_bucket: $s3_bucket,
+              ansible_remote_tmp: "/tmp",
+              ansible_shell_type: "sh"
+            }' > cleanup_vars.json
+
+          # Remove S3 bucket from vars if empty to prevent SSM plugin errors
+          if [ -z "${{ secrets.AWS_S3_BUCKET }}" ]; then
+            jq 'del(.ansible_aws_ssm_s3_bucket)' cleanup_vars.json > cleanup_vars.json.tmp && mv cleanup_vars.json.tmp cleanup_vars.json
+          fi
+
           echo "[netbird_servers]" > inventory_gh.ini
           
           if [ "$DEPLOY_TARGET" == "aws_ssm" ]; then
@@ -329,33 +355,9 @@ jobs:
             REGION="${{ secrets.AWS_REGION || 'us-east-1' }}"
             USER_TO_USE="${{ github.event.inputs.target_user || secrets.ANSIBLE_USER || 'ubuntu' }}"
             
-            echo "Debugging AWS SSM Connection (Cleanup):"
-            echo "Target Instance ID: $INSTANCE_ID"
-            echo "Target Region: $REGION"
-            echo "Target User: $USER_TO_USE"
-            
-            if [ -z "$INSTANCE_ID" ]; then
-              echo "::error::AWS Instance ID is missing. Provide it via 'target_host' input or AWS_INSTANCE_ID secret."
-              exit 1
-            fi
-            
-            if [ -z "$REGION" ]; then
-              echo "::error::AWS Region is missing. Ensure AWS_REGION secret is set."
-              exit 1
-            fi
-
             echo "netbird-primary ansible_host=$INSTANCE_ID ansible_connection=aws_ssm ansible_aws_ssm_region=$REGION ansible_user=$USER_TO_USE ansible_aws_ssm_timeout=120" >> inventory_gh.ini
           else
             echo "netbird-primary ansible_host=$TARGET_HOST ansible_user=$TARGET_USER ansible_ssh_common_args='-o StrictHostKeyChecking=no'" >> inventory_gh.ini
           fi
           
-          ansible-playbook -vvvv -i inventory_gh.ini infrastructure/ansible/playbook.yaml \
-            --tags cleanup \
-            -e "ansible_remote_tmp=/tmp" \
-            -e "ansible_shell_type=sh" \
-            -e "keycloak_auth_url=${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}" \
-            -e "keycloak_admin_user=${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}" \
-            -e "keycloak_admin_password=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}" \
-            -e "netbird_realm=${{ secrets.NETBIRD_REALM || 'netbird' }}" \
-            -e "keycloak_validate_certs=${{ secrets.KEYCLOAK_VALIDATE_CERTS || 'true' }}" \
-            -e "ansible_aws_ssm_bucket_name=${{ secrets.AWS_S3_BUCKET }}"
+          ansible-playbook -vvvv -i inventory_gh.ini infrastructure/ansible/playbook.yaml --tags cleanup -e @cleanup_vars.json

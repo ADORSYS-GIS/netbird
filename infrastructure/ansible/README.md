@@ -30,9 +30,25 @@ Three deployment methods, all with automated Keycloak setup:
 - **Registered domain name** (pointing to server IP)
 - **Email address** (for Let's Encrypt certificates)
 
+### Firewall Requirements:
+Ensure the following ports are open on your target server:
+- `80/TCP`: HTTP (ACME challenges)
+- `443/TCP`: HTTPS (Management, Signal, Dashboard)
+- `3478/UDP`: STUN/TURN traffic
+- `33080/TCP`: Relay traffic (if not using Caddy for relay)
+
 ### Additional for Local/SSH:
 - Ansible installed
 - Docker & Docker Compose v2
+- **Ansible Collections:**
+  ```bash
+  ansible-galaxy collection install community.docker
+  ```
+- **jq & curl:** Required for automated Keycloak configuration.
+  ```bash
+  sudo apt install jq curl # Debian/Ubuntu
+  brew install jq curl    # macOS
+  ```
 - **External Docker Network:** Create the network that Keycloak and NetBird will share.
   ```bash
   docker network create key-netbird
@@ -203,6 +219,7 @@ OR, via GitHub CLI:
 
 ```bash
 gh workflow run "Ansible Deployment" \
+  -ref <BRANCH_NAME> \
   -f action=cleanup \
   -f deployment_target=aws_ssm # or ssh_remote
 ```
