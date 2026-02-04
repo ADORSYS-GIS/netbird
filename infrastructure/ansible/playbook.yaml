@@ -12,7 +12,7 @@
     ansible_remote_tmp: /tmp
     ansible_system_tmpdirs: [/tmp]
     ansible_aws_ssm_shell: /bin/bash
-    ansible_shell_type: bash
+    ansible_shell_type: sh
     # These are typically provided via extra-vars in the pipeline
 
   tasks:
