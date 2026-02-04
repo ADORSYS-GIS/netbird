@@ -82,6 +82,12 @@ validate_inputs() {
         KEYCLOAK_URL="${KEYCLOAK_URL%/}"
     done
     
+    # Auto-extract KEYCLOAK_DOMAIN from KEYCLOAK_URL if not provided
+    if [ -z "$KEYCLOAK_DOMAIN" ]; then
+        KEYCLOAK_DOMAIN=$(echo "$KEYCLOAK_URL" | awk -F[/:] '{print $4}')
+        print_info "Extracted Keycloak Domain: $KEYCLOAK_DOMAIN"
+    fi
+
     # Normalize Realm Name
     NETBIRD_REALM=$(echo "$NETBIRD_REALM" | sed 's|^/||;s|/$||')
     

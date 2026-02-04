@@ -103,6 +103,38 @@ jobs:
           which session-manager-plugin
           session-manager-plugin --version
 
+      - name: Diagnostic - Verify Required Secrets
+        run: |
+          MISSING=()
+          [ -z "${{ secrets.NETBIRD_DOMAIN }}" ] && MISSING+=("NETBIRD_DOMAIN")
+          [ -z "${{ secrets.KEYCLOAK_URL }}" ] && MISSING+=("KEYCLOAK_URL")
+          [ -z "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}" ] && MISSING+=("KEYCLOAK_ADMIN_PASSWORD")
+          
+          # Auto-extract KEYCLOAK_DOMAIN if missing
+          KC_URL="${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}"
+          KC_DOMAIN="${{ secrets.KEYCLOAK_DOMAIN }}"
+          if [ -z "$KC_DOMAIN" ] && [ -n "$KC_URL" ]; then
+            KC_DOMAIN=$(echo "$KC_URL" | awk -F[/:] '{print $4}')
+            echo "KC_DOMAIN_EXTRACTED=$KC_DOMAIN" >> $GITHUB_ENV
+            echo "Extracted KEYCLOAK_DOMAIN: $KC_DOMAIN"
+          else
+            echo "KC_DOMAIN_EXTRACTED=$KC_DOMAIN" >> $GITHUB_ENV
+          fi
+
+          if [ ${#MISSING[@]} -ne 0 ]; then
+            for var in "${MISSING[@]}"; do
+              echo "::error::Missing required secret: $var"
+            done
+            exit 1
+          fi
+          
+          if [ -z "$KC_DOMAIN" ] && [ -z "$KC_URL" ]; then
+             echo "::error::Missing required secret: KEYCLOAK_DOMAIN (or KEYCLOAK_URL for extraction)"
+             exit 1
+          fi
+          
+          echo "All core deployment secrets are present."
+
       - name: Diagnostic - Verify AWS Secrets Presence
         if: env.DEPLOY_TARGET == 'aws_ssm'
         run: |
@@ -204,7 +236,7 @@ jobs:
             --arg auth_url "${{ github.event.inputs.keycloak_url || secrets.KEYCLOAK_URL }}" \
             --arg admin_user "${{ secrets.KEYCLOAK_ADMIN_USER || 'admin' }}" \
             --arg admin_pass "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}" \
-            --arg kc_domain "${{ secrets.KEYCLOAK_DOMAIN }}" \
+            --arg kc_domain "${{ env.KC_DOMAIN_EXTRACTED }}" \
             --arg realm "${{ secrets.NETBIRD_REALM || 'netbird' }}" \
             --arg def_pass "${{ github.event.inputs.netbird_default_password || secrets.NETBIRD_DEFAULT_PASSWORD }}" \
             --arg s3_bucket "${{ secrets.AWS_S3_BUCKET }}" \
