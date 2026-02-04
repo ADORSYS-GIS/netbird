@@ -10,6 +10,7 @@ This directory contains detailed documentation for determining the architecture 
 - [**Manual Caddy Deployment**](caddy-deployment.md)
   A step-by-step specific guide for manually deploying NetBird behind a Caddy reverse proxy, including required modifications to the official NetBird configuration.
 
+
 ## Infrastructure Documentation
 
 - [**Ansible Deployment**](../infrastructure/ansible/README.md)

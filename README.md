@@ -26,6 +26,12 @@ Manually deploy NetBird with Caddy reverse proxy on a single host.
 
 - **Guide**: [Manual Caddy Deployment Guide](docs/caddy-deployment.md)
 
+## Securing Your Applications
+
+Leverage NetBird to secure access to your private applications and services. This guide covers common use cases and provides step-by-step instructions to help you implement robust, zero-trust access controls.
+
+- **Guide**: [Secure Application Access with NetBird](docs/netbird-secure-access-guide.md)
+
 ## Support and Contributions
 
 - Documentation: [docs/](docs/)
