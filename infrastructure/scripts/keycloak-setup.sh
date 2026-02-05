@@ -241,6 +241,13 @@ create_netbird_client() {
             -H "Authorization: Bearer $ADMIN_TOKEN" > /dev/null
     fi
 
+    # Assign 'groups' scope if UUID is available
+    if [ -n "$GROUPS_SCOPE_UUID" ]; then
+        print_info "Assigning 'groups' scope to netbird-client..."
+        curl -sS -X PUT "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$CLIENT_UUID/default-client-scopes/$GROUPS_SCOPE_UUID" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" > /dev/null
+    fi
+
     configure_client_mappers "$CLIENT_UUID" "netbird-client"
 }
 
@@ -269,28 +276,6 @@ configure_client_mappers() {
                     "included.client.audience": "'"$CLIENT_ID"'",
                     "id.token.claim": "false",
                     "access.token.claim": "true"
-                }
-            }' > /dev/null
-    fi
-
-    if echo "$MAPPERS" | jq -e '.[] | select(.name=="groups")' > /dev/null; then
-        print_info "Groups mapper already exists"
-    else
-        print_info "Adding groups mapper..."
-        curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$CLIENT_UUID/protocol-mappers/models" \
-            -H "Authorization: Bearer $ADMIN_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-                "name": "groups",
-                "protocol": "openid-connect",
-                "protocolMapper": "oidc-group-membership-mapper",
-                "consentRequired": false,
-                "config": {
-                    "full.path": "false",
-                    "id.token.claim": "true",
-                    "access.token.claim": "true",
-                    "claim.name": "groups",
-                    "userinfo.token.claim": "true"
                 }
             }' > /dev/null
     fi
@@ -339,6 +324,94 @@ create_api_scope() {
     fi
     
     API_SCOPE_UUID="$SCOPE_UUID"
+}
+
+create_groups_scope() {
+    print_info "Creating 'groups' client scope..."
+    
+    # Check if scope already exists
+    local SCOPES=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/client-scopes" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null)
+    
+    local SCOPE_UUID=$(echo "$SCOPES" | jq -r '.[] | select(.name=="groups") | .id // empty' 2>/dev/null)
+    
+    if [ -n "$SCOPE_UUID" ]; then
+        print_info "Client scope 'groups' already exists (ID: $SCOPE_UUID)"
+    else
+        print_info "Creating new client scope 'groups'..."
+        RESPONSE=$(curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/client-scopes" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                "name": "groups",
+                "protocol": "openid-connect",
+                "attributes": {
+                    "include.in.token.scope": "true",
+                    "display.on.consent.screen": "true"
+                }
+            }')
+        
+        # Get the created scope UUID
+        SCOPE_UUID=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/client-scopes" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" 2>/dev/null | jq -r '.[] | select(.name=="groups") | .id // empty' 2>/dev/null)
+
+        # Add group membership mapper to the scope
+        print_info "Adding groups mapper to 'groups' scope..."
+        curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/client-scopes/$SCOPE_UUID/protocol-mappers/models" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                "name": "groups",
+                "protocol": "openid-connect",
+                "protocolMapper": "oidc-group-membership-mapper",
+                "consentRequired": false,
+                "config": {
+                    "full.path": "false",
+                    "id.token.claim": "true",
+                    "access.token.claim": "true",
+                    "claim.name": "groups",
+                    "userinfo.token.claim": "true"
+                }
+            }' > /dev/null
+    fi
+    
+    GROUPS_SCOPE_UUID="$SCOPE_UUID"
+}
+
+assign_service_account_roles() {
+    local CLIENT_UUID=$1
+    print_info "Assigning realm management roles to management service account..."
+
+    # Get the realm-management client ID
+    local REALM_MGMT_CLIENT_ID=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients?clientId=realm-management" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.[0].id')
+
+    # Get available roles from realm-management
+    local ROLES=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$REALM_MGMT_CLIENT_ID/roles" \
+        -H "Authorization: Bearer $ADMIN_TOKEN")
+
+    # Roles needed for IdP sync
+    local NEEDED_ROLES=("view-users" "query-users" "view-groups" "query-groups")
+    local ROLE_PAYLOAD="[]"
+
+    for ROLE_NAME in "${NEEDED_ROLES[@]}"; do
+        local ROLE_DATA=$(echo "$ROLES" | jq -c ".[] | select(.name==\"$ROLE_NAME\")")
+        if [ -n "$ROLE_DATA" ]; then
+            ROLE_PAYLOAD=$(echo "$ROLE_PAYLOAD" | jq -c ". + [$ROLE_DATA]")
+        fi
+    done
+
+    # Get the service account user ID for the client
+    local SERVICE_ACCOUNT_ID=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/clients/$CLIENT_UUID/service-account-user" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r '.id')
+
+    # Assign roles
+    curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/users/$SERVICE_ACCOUNT_ID/role-mappings/clients/$REALM_MGMT_CLIENT_ID" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "$ROLE_PAYLOAD" > /dev/null
+
+    print_info "Roles assigned successfully"
 }
 
 create_management_client() {
@@ -416,6 +489,9 @@ create_management_client() {
     
     MGMT_CLIENT_ID="netbird-management"
     print_info "Management service account created successfully"
+    
+    # Assign necessary roles for IdP sync
+    assign_service_account_roles "$CLIENT_UUID"
 }
 
 configure_realm_settings() {
@@ -610,6 +686,7 @@ main() {
     get_admin_token
     create_realm
     create_api_scope
+    create_groups_scope
     create_netbird_client
     create_management_client
     create_default_user

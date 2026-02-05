@@ -52,5 +52,13 @@
     "AuthKeysLocation": "{{ nb_auth_authority }}/protocol/openid-connect/certs",
     "OIDCConfigEndpoint": "{{ nb_auth_authority }}/.well-known/openid-configuration",
     "IdpSignKeyRefreshEnabled": false
+  },
+
+  "IdpConfig": {
+    "Issuer": "{{ nb_auth_authority }}",
+    "ClientID": "{{ nb_idp_mgmt_client_id }}",
+    "ClientSecret": "{{ nb_idp_mgmt_client_secret }}",
+    "AppClientID": "{{ nb_auth_client_id }}",
+    "AppClientSecret": ""
   }
 }
