@@ -24,6 +24,7 @@ NETBIRD_DOMAIN="${NETBIRD_DOMAIN:-}"
 NETBIRD_REALM="${NETBIRD_REALM:-netbird}"
 NETBIRD_DEFAULT_USER="${NETBIRD_DEFAULT_USER:-admin}"
 NETBIRD_DEFAULT_PASSWORD="${NETBIRD_DEFAULT_PASSWORD:-}"
+NETBIRD_DEFAULT_GROUPS="${NETBIRD_DEFAULT_GROUPS:-vpn-users}"
 
 print_info() {
     echo -e "${GREEN}[INFO]${NC} $1" >&2
@@ -577,6 +578,51 @@ create_default_user() {
     print_info "Default user '$NETBIRD_DEFAULT_USER' created successfully"
 }
 
+create_default_groups() {
+    print_info "Creating default NetBird groups..."
+    
+    # Split comma-separated groups
+    IFS=',' read -ra ADDR <<< "$NETBIRD_DEFAULT_GROUPS"
+    for GROUP_NAME in "${ADDR[@]}"; do
+        GROUP_NAME=$(echo "$GROUP_NAME" | xargs) # trim whitespace
+        
+        # Check if group already exists
+        RESPONSE=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/groups?search=$GROUP_NAME" \
+            -H "Authorization: Bearer $ADMIN_TOKEN" \
+            -H "Content-Type: application/json" 2>/dev/null)
+        
+        GROUP_EXISTS=$(echo "$RESPONSE" | jq -r ".[] | select(.name==\"$GROUP_NAME\") | .name // empty" 2>/dev/null)
+        
+        if [ "$GROUP_EXISTS" = "$GROUP_NAME" ]; then
+            print_info "Group '$GROUP_NAME' already exists, skipping creation"
+        else
+            print_info "Creating group '$GROUP_NAME'..."
+            RESPONSE=$(curl -sS -X POST "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/groups" \
+                -H "Authorization: Bearer $ADMIN_TOKEN" \
+                -H "Content-Type: application/json" \
+                -d "{\"name\": \"$GROUP_NAME\"}")
+                
+            if [ $? -ne 0 ]; then
+                print_error "Failed to create group '$GROUP_NAME'"
+                echo "Response: $RESPONSE"
+            else
+                print_info "Group '$GROUP_NAME' created successfully"
+            fi
+        fi
+
+        # Assign default user to group if USER_UUID is set
+        if [ -n "$USER_UUID" ] && [ "$USER_UUID" != "null" ]; then
+             # Get group UUID
+             local GROUP_UUID=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/groups?search=$GROUP_NAME" \
+                -H "Authorization: Bearer $ADMIN_TOKEN" | jq -r ".[] | select(.name==\"$GROUP_NAME\") | .id")
+             
+             print_info "Adding user '$NETBIRD_DEFAULT_USER' to group '$GROUP_NAME'..."
+             curl -sS -X PUT "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/users/$USER_UUID/groups/$GROUP_UUID" \
+                -H "Authorization: Bearer $ADMIN_TOKEN" > /dev/null
+        fi
+    done
+}
+
 generate_secrets() {
     print_info "Checking/Generating secrets for NetBird services..."
     
@@ -690,6 +736,7 @@ main() {
     create_netbird_client
     create_management_client
     create_default_user
+    create_default_groups
     configure_realm_settings
     generate_secrets
     print_configuration
