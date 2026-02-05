@@ -574,8 +574,13 @@ create_default_user() {
         echo "Response: $RESPONSE"
         exit 1
     fi
+
+    # Fetch the newly created user's UUID
+    USER_UUID=$(curl -sS -X GET "$KEYCLOAK_URL/admin/realms/$NETBIRD_REALM/users?username=$NETBIRD_DEFAULT_USER" \
+        -H "Authorization: Bearer $ADMIN_TOKEN" \
+        -H "Content-Type: application/json" 2>/dev/null | jq -r '.[0].id // empty')
     
-    print_info "Default user '$NETBIRD_DEFAULT_USER' created successfully"
+    print_info "Default user '$NETBIRD_DEFAULT_USER' created successfully (ID: $USER_UUID)"
 }
 
 create_default_groups() {
