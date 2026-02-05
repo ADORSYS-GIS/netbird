@@ -54,11 +54,44 @@
     "IdpSignKeyRefreshEnabled": false
   },
 
-  "IdpConfig": {
-    "Issuer": "{{ nb_auth_authority }}",
-    "ClientID": "{{ nb_idp_mgmt_client_id }}",
-    "ClientSecret": "{{ nb_idp_mgmt_client_secret }}",
-    "AppClientID": "{{ nb_auth_client_id }}",
-    "AppClientSecret": ""
+  "IdpManagerConfig": {
+    "ManagerType": "keycloak",
+    "ClientConfig": {
+      "Issuer": "{{ nb_auth_authority }}",
+      "TokenEndpoint": "{{ nb_auth_authority }}/protocol/openid-connect/token",
+      "ClientID": "{{ nb_idp_mgmt_client_id }}",
+      "ClientSecret": "{{ nb_idp_mgmt_client_secret }}",
+      "GrantType": "client_credentials"
+    },
+    "ExtraConfig": {
+      "AdminEndpoint": "{{ nb_auth_authority | replace('/realms/', '/admin/realms/') }}"
+    }
+  },
+
+  "DeviceAuthorizationFlow": {
+    "Provider": "integrated",
+    "ProviderConfig": {
+      "Audience": "{{ nb_auth_audience }}",
+      "ClientID": "{{ nb_auth_client_id }}",
+      "TokenEndpoint": "{{ nb_auth_authority }}/protocol/openid-connect/token",
+      "DeviceAuthEndpoint": "{{ nb_auth_authority }}/protocol/openid-connect/auth/device",
+      "Scope": "openid",
+      "UseIDToken": false
+    }
+  },
+
+  "PKCEAuthorizationFlow": {
+    "ProviderConfig": {
+      "Audience": "{{ nb_auth_audience }}",
+      "ClientID": "{{ nb_auth_client_id }}",
+      "AuthorizationEndpoint": "{{ nb_auth_authority }}/protocol/openid-connect/auth",
+      "TokenEndpoint": "{{ nb_auth_authority }}/protocol/openid-connect/token",
+      "Scope": "openid profile email groups",
+      "RedirectURLs": [
+        "https://{{ nb_netbird_domain }}",
+        "https://{{ nb_netbird_domain }}/*"
+      ],
+      "UseIDToken": false
+    }
   }
 }
