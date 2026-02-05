@@ -31,3 +31,4 @@ Manually deploy NetBird with Caddy reverse proxy on a single host.
 - Documentation: [docs/](docs/)
 - Issues: GitHub issue tracker
 - NetBird: [Official documentation](https://docs.netbird.io/)
+
