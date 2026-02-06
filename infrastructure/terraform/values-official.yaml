@@ -1,0 +1,149 @@
+# --- Global Settings ---
+global:
+  namespace: "${namespace}"
+
+# --- NetBird Management ---
+management:
+  enabled: true
+  replicaCount: ${replica_count}
+  
+  # Inject management.json configuration
+  configmap: |-
+    {
+      "HttpConfig": {
+        "BaseURL": "https://netbird-mgmt.${netbird_domain}",
+        "AuthIssuer": "${keycloak_url}/realms/${keycloak_realm}",
+        "AuthAudience": "${mgmt_client_id}",
+        "IdpManagerConfig": {
+          "ManagerType": "keycloak",
+          "Config": {
+            "URL": "${keycloak_url}",
+            "Realm": "${keycloak_realm}",
+            "ClientID": "${mgmt_client_id}",
+            "ClientSecret": "${mgmt_client_secret}"
+          }
+        },
+        "DeviceAuthorizationFlow": {
+          "Provider": "hosted",
+          "ProviderConfig": {
+            "Audience": "${mgmt_client_id}",
+            "ClientID": "${mgmt_client_id}",
+            "TokenEndpoint": "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/token",
+            "DeviceAuthorizationEndpoint": "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/auth/device"
+          }
+        }
+      },
+      "DatastoreConfig": {
+        "Engine": "${db_engine}"
+        %{ if db_engine == "postgres" },
+        "PostgresConfig": {
+          "DSN": "${db_dsn}"
+        }
+        %{ endif }
+      },
+      "SignalConfig": {
+        "URI": "netbird-signal.${netbird_domain}:443",
+        "Protocol": "https"
+      },
+      "EncryptionKey": "${encryption_key}"
+    }
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+  service:
+    type: ClusterIP
+
+  ingress:
+    enabled: true
+    className: "${ingress_class_name}"
+    annotations:
+      cert-manager.io/cluster-issuer: "${cert_issuer_name}"
+    hosts:
+      - host: "netbird-mgmt.${netbird_domain}"
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls:
+      - secretName: netbird-mgmt-tls
+        hosts:
+          - "netbird-mgmt.${netbird_domain}"
+
+  ingressGrpc:
+    enabled: true
+    className: "${ingress_class_name}"
+    annotations:
+      cert-manager.io/cluster-issuer: "${cert_issuer_name}"
+      nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+    hosts:
+      - host: "netbird-signal.${netbird_domain}"
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls:
+      - secretName: netbird-signal-tls
+        hosts:
+          - "netbird-signal.${netbird_domain}"
+
+# --- NetBird Signal ---
+signal:
+  enabled: true
+  replicaCount: ${replica_count}
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# --- NetBird Relay (Coturn) ---
+relay:
+  enabled: true
+  replicaCount: ${replica_count}
+  service:
+    type: LoadBalancer
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+# --- NetBird Dashboard ---
+dashboard:
+  enabled: true
+  replicaCount: ${replica_count}
+  image:
+    tag: "v2.13.1"
+  
+  # Dashboard configuration is often passed via env vars or a config file
+  # For this official chart, it uses env vars for OIDC
+  env:
+    NETBIRD_MGMT_API_ENDPOINT: "https://netbird-mgmt.${netbird_domain}"
+    NETBIRD_MGMT_GRPC_API_ENDPOINT: "https://netbird-signal.${netbird_domain}"
+    NETBIRD_AUTH_AUTHORITY: "${keycloak_url}/realms/${keycloak_realm}"
+    NETBIRD_AUTH_CLIENT_ID: "${dashboard_client_id}"
+    NETBIRD_AUTH_AUDIENCE: "${dashboard_client_id}"
+    NETBIRD_AUTH_SUPPORTED_SCOPES: "openid profile email offline_access api"
+
+  ingress:
+    enabled: true
+    className: "${ingress_class_name}"
+    annotations:
+      cert-manager.io/cluster-issuer: "${cert_issuer_name}"
+    hosts:
+      - host: "netbird.${netbird_domain}"
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+    tls:
+      - secretName: netbird-dashboard-tls
+        hosts:
+          - "netbird.${netbird_domain}"

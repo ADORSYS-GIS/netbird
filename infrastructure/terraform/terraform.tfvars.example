@@ -1,0 +1,27 @@
+project_id         = "your-gcp-project-id"
+region             = "us-central1"
+cluster_name       = "your-gke-cluster-name"
+netbird_domain     = "netbird.example.com"
+keycloak_url       = "https://keycloak.example.com"
+keycloak_realm     = "netbird3"
+letsencrypt_email   = "admin@example.com"
+
+# Keycloak Admin Credentials
+keycloak_admin_user     = "admin"
+keycloak_admin_password = "your-keycloak-admin-password"
+
+# Production Database
+db_password      = "highly-secure-db-password"
+db_instance_tier = "db-f1-micro" # Use db-custom-2-7680 for production
+
+# High Availability
+replica_count = 3
+
+namespace = "netbird"
+
+management_database_encryption_key = "your-secure-random-encryption-key"
+
+# Infrastructure Toggles
+install_cert_manager  = true
+install_ingress_nginx = true
+use_external_db       = true
