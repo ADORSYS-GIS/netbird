@@ -28,7 +28,7 @@ Before you begin, ensure you have the following:
 
 Groups help you coordinate and manage who can access what in your NetBird network, creating isolation and privacy between different teams and resources.
 
-![Create NetBird Group](img/netbird-create-group.png)
+![Create NetBird Group](../img/netbird-create-group.png)
 
 **To create a group:**
 1. Navigate to **Access Control** > **Groups**
@@ -41,7 +41,7 @@ Groups help you coordinate and manage who can access what in your NetBird networ
 
 ### Navigate to DNS Zones
 
-![NetBird DNS Zones Navigation](img/netbird-dns-zones-navigation.png)
+![NetBird DNS Zones Navigation](../img/netbird-dns-zones-navigation.png)
 
 ### Create a Zone
 
@@ -49,11 +49,11 @@ Groups help you coordinate and manage who can access what in your NetBird networ
 2. **Domain**: Enter your private domain (e.g., `mycompany.local`)
 3. **Distribution Groups**: Select which groups can resolve this domain
 
-![NetBird Distribution Groups](img/netbird-distribution-groups.png)
+![NetBird Distribution Groups](../img/netbird-distribution-groups.png)
 
 4. **Add DNS Record**:
 
-![NetBird Add DNS Record](img/netbird-add-dns-record.png)
+![NetBird Add DNS Record](../img/netbird-add-dns-record.png)
 
 5. Click **Save**
 
