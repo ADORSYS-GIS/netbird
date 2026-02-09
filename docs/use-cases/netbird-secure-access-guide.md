@@ -12,6 +12,18 @@ This guide explains how to securely access your applications over NetBird while 
 | **Access Control** | Group-based distribution | No built-in access control |
 | **Setup Time** | Minutes | Hours to days (domain registration) |
 
+### NetBird DNS Zones vs Default NetBird Peer Names
+
+When you add a peer to NetBird, it gets an auto-generated hostname (e.g., `wiki-server-7f3a2b.netbird.cloud`). While accessible only within your network, **these default names lack access control** - all NetBird peers can resolve them.
+
+**The Traditional Problem**: Using public DNS providers (like Cloudflare) to point domains at NetBird IPs means your domain remains publicly visible in DNS records, even though the IP itself is only accessible via NetBird. Anyone can see what services you're running.
+
+**NetBird DNS Zones Solution**: Create custom domains (e.g., `wiki.mycompany.local`) that are:
+- ✅ **Completely private** - Not visible in any public DNS records
+- ✅ **Access-controlled** - Only specific NetBird groups can resolve them
+- ✅ **Easy to remember** - Use your own naming conventions
+- ✅ **Flexible** - Point to any IP, change targets without DNS propagation delays
+
 ---
 
 ## Prerequisites
