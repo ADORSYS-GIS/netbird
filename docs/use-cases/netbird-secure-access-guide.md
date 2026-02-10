@@ -21,7 +21,8 @@ When you add a peer to NetBird, it gets an auto-generated hostname (e.g., `wiki-
 **NetBird DNS Zones Solution**: Create custom domains (e.g., `wiki.mycompany.local`) that are:
 - ✅ **Completely private** - Not visible in any public DNS records
 - ✅ **Access-controlled** - Only specific NetBird groups can resolve them
-- ✅ **Easy to remember** - Use your own naming conventions
+- ✅ **Agentless Target Support** - Point to services on devices without the NetBird agent (e.g., legacy servers, printers, applica) reachable via Zones
+- ✅ **Standard Naming** - Use your own company domain standards
 - ✅ **Flexible** - Point to any IP, change targets without DNS propagation delays
 
 ---
