@@ -50,6 +50,11 @@ monitor-netbird/kubernetes/helm/monitoring-stack/charts/_loki/
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+
+# Ignore Terraform variable files (contain secrets!)
+terraform.tfvars
+terraform.tfvars.*
+!terraform.tfvars.example
 .env
 .quodo
 .vivus
