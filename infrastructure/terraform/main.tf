@@ -3,15 +3,15 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 4.0"
+      version = "~> 5.0"
     }
     kubernetes = {
       source  = "hashicorp/kubernetes"
-      version = "~> 2.0"
+      version = "~> 2.23"
     }
     helm = {
       source  = "hashicorp/helm"
-      version = "~> 2.0"
+      version = "~> 2.11"
     }
     kubectl = {
       source  = "gavinbunney/kubectl"
@@ -19,7 +19,11 @@ terraform {
     }
     keycloak = {
       source  = "mrparkers/keycloak"
-      version = ">= 4.0.0"
+      version = ">= 4.4.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.5"
     }
   }
 }
@@ -62,4 +66,21 @@ provider "keycloak" {
   username  = var.keycloak_admin_user
   password  = var.keycloak_admin_password
   url       = var.keycloak_url
+}
+
+# Generate random secrets if not provided
+resource "random_password" "relay_password" {
+  length  = 32
+  special = false
+}
+
+resource "random_password" "encryption_key" {
+  count   = var.management_database_encryption_key == "" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+locals {
+  encryption_key = var.management_database_encryption_key != "" ? var.management_database_encryption_key : random_password.encryption_key[0].result
+  relay_password = random_password.relay_password.result
 }

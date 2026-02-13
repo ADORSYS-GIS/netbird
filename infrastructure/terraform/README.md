@@ -1,102 +1,165 @@
-# NetBird GKE Deployment (Production Grade)
+# NetBird Infrastructure Terraform
 
-This configuration provides a highly available, production-ready NetBird deployment on GKE.
+This Terraform configuration deploys NetBird on Google Kubernetes Engine (GKE) with Keycloak as the identity provider.
 
-## High Availability Architecture
-- **State Management**: Terraform state is stored in a GCS bucket.
-- **Database**: Regional Cloud SQL (PostgreSQL) with automated backups and HA failover.
-- **Application**: Multi-replica deployment (3 nodes by default) for Management and Dashboard.
-- **Scalability**: Configured with resource requests/limits and compatible with Horizontal Pod Autoscaler.
+## Architecture
 
-## Prerequisites
-1. **GCS Bucket**: Create a bucket for Terraform state (see `backend.tf`).
-2. **GKE Cluster**: A regional GKE cluster is recommended for production.
-3. **APIs Enabled**: Ensure `sqladmin.googleapis.com` is enabled in your GCP project.
-
-## Configuration
-Update `terraform.tfvars` with production values:
-```hcl
-replica_count    = 3
-db_instance_tier = "db-custom-2-7680" # Production-grade tier
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         GKE Cluster                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │  Dashboard  │  │  Management │  │   Signal    │             │
+│  │   (nginx)   │  │    (API)    │  │   (gRPC)    │             │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘             │
+│         │                │                │                     │
+│         └────────────────┼────────────────┘                     │
+│                          │                                      │
+│                    ┌─────┴─────┐                                │
+│                    │  Ingress  │                                │
+│                    │  (nginx)  │                                │
+│                    └─────┬─────┘                                │
+│                          │                                      │
+│  ┌───────────────────────┼───────────────────────┐             │
+│  │                       │                       │             │
+│  │  ┌─────────────┐  ┌───┴───┐  ┌─────────────┐ │             │
+│  │  │    Relay    │  │  TLS  │  │   Secrets   │ │             │
+│  │  │   (TURN)    │  │(cert- │  │ (k8s secret)│ │             │
+│  │  └─────────────┘  │manager│  └─────────────┘ │             │
+│  │                   └───────┘                   │             │
+│  └───────────────────────────────────────────────┘             │
+└─────────────────────────────────────────────────────────────────┘
+         │                                    │
+         ▼                                    ▼
+┌─────────────────┐                ┌─────────────────┐
+│    Keycloak     │                │   Cloud SQL     │
+│  (External IdP) │                │  (PostgreSQL)   │
+└─────────────────┘                │   or SQLite     │
+                                   └─────────────────┘
 ```
 
-## Infrastructure Toggles
+## Prerequisites
 
-The project is highly modular. You can toggle the following components in `terraform.tfvars`:
+1. **GKE Cluster** - Running Kubernetes cluster
+2. **Keycloak** - External Keycloak instance accessible from the cluster
+3. **DNS** - Domain configured to point to your ingress controller
+4. **Cert-Manager** - For automatic TLS certificates (optional, can be installed by this config)
+5. **Ingress Controller** - nginx-ingress recommended (optional, can be installed by this config)
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `install_cert_manager` | Installs cert-manager and a Let's Encrypt ClusterIssuer | `false` |
-| `install_ingress_nginx` | Installs the Nginx Ingress Controller | `false` |
-| `use_external_db` | Uses Regional Cloud SQL (PostgreSQL). If `false`, fallbacks to **SQLite**. | `true` |
+## Quick Start
 
-> **Note**: For production, it is highly recommended to keep `use_external_db = true` to ensure data persistence and high availability.
+1. **Copy and configure variables:**
+   ```bash
+   cp terraform.tfvars.example terraform.tfvars
+   # Edit terraform.tfvars with your values
+   ```
 
-## Configuration
+2. **Initialize Terraform:**
+   ```bash
+   terraform init
+   ```
 
-1.  **Terraform Variables**:
-    Copy `terraform.tfvars.example` to `terraform.tfvars` and fill in the required values:
-    ```bash
-    cp terraform.tfvars.example terraform.tfvars
-    ```
+3. **Plan the deployment:**
+   ```bash
+   terraform plan
+   ```
 
-2.  **Official Helm Chart**:
-    This project uses the official NetBird Helm chart from `https://netbirdio.github.io/helms`. It consolidates Management, Signal, Relay, and Dashboard into a single deployment.
+4. **Apply the configuration:**
+   ```bash
+   terraform apply
+   ```
 
-3.  **Keycloak Automation**:
-    The Terraform script now automatically creates:
-    -   The `netbird` realm.
-    -   The `netbird-management` client (confidential) with service account roles.
-    -   The `netbird-dashboard` client (public).
-    -   Necessary OIDC scopes and role mappings.
+## Configuration Options
 
-    You only need to provide the Keycloak admin credentials in your `terraform.tfvars`.
+### Database Options
 
-## Deployment
+**SQLite (Development/Testing):**
+```hcl
+use_external_db = false
+replica_count   = 1  # Must be 1 for SQLite
+```
 
-1.  **Initialize**:
-    ```bash
-    terraform init
-    ```
+**Cloud SQL PostgreSQL (Production):**
+```hcl
+use_external_db  = true
+db_password      = "secure-password"
+db_instance_tier = "db-custom-2-7680"
+replica_count    = 3
+```
 
-2.  **Plan**:
-    ```bash
-    terraform plan
-    ```
+### Keycloak Integration
 
-3.  **Apply**:
-    ```bash
-    terraform apply
-    ```
+This configuration automatically creates:
+- NetBird Realm
+- Dashboard Client (Public)
+- Backend Client (Confidential with service account)
+- Required scopes (api, groups)
+- Audience mapper for proper token validation
+- Service account roles for user management
 
-## Components Deployed
+### High Availability
 
--   **NetBird Management**: API and GRPC server.
--   **NetBird Signal**: Coordination server for peer connections.
--   **NetBird Dashboard**: Web UI.
--   **Coturn**: TURN/STUN server for NAT traversal (LoadBalancer provided).
--   **Cert-Manager** (Optional): Manages TLS certificates via Let's Encrypt.
--   **Ingress-Nginx** (Optional): Routes traffic to NetBird services.
+For production deployments:
+```hcl
+use_external_db = true
+replica_count   = 3
+```
 
-## Post-Deployment Steps
+## Files
 
-### 1. DNS Configuration
-Point your domain names to the external IP of the Ingress controller and Coturn LoadBalancer:
-- `netbird.example.com` -> Ingress IP
-- `netbird-mgmt.example.com` -> Ingress IP
-- `netbird-signal.example.com` -> Ingress IP
+| File | Description |
+|------|-------------|
+| `main.tf` | Provider configuration and random resources |
+| `variables.tf` | Input variable definitions |
+| `terraform.tfvars` | Your configuration values |
+| `keycloak.tf` | Keycloak realm, clients, and roles |
+| `database.tf` | Cloud SQL and Kubernetes secrets |
+| `helm_netbird.tf` | Helm release for NetBird |
+| `values-official.yaml` | Helm values template |
+| `outputs.tf` | Output values |
 
-### 2. Keycloak Verification
-The Terraform script automatically configures Keycloak. Verify:
-- Realm `netbird` exists.
-- Client `netbird-management` is Confidential with Service Accounts enabled.
-- Client `netbird-dashboard` is Public.
-- Client Scopes include `api`.
+## Connecting Clients
 
-## Accessing NetBird
+After deployment, connect NetBird clients using:
 
-Once the deployment is complete and DNS records are updated, you can access your NetBird instance at:
+```bash
+# Install NetBird client
+curl -fsSL https://pkgs.netbird.io/install.sh | sh
 
--   **Dashboard**: `https://netbird.example.com`
--   **Management API**: `https://netbird-mgmt.example.com`
--   **Signal Server**: `https://netbird-signal.example.com`
+# Connect to your management server
+netbird up --management-url https://your-netbird-domain.com
+```
+
+## Troubleshooting
+
+### Check pod status
+```bash
+kubectl get pods -n netbird
+```
+
+### View logs
+```bash
+# Management logs
+kubectl logs -n netbird -l app.kubernetes.io/component=management
+
+# Dashboard logs
+kubectl logs -n netbird -l app.kubernetes.io/component=dashboard
+```
+
+### Verify Keycloak configuration
+1. Log into Keycloak admin console
+2. Navigate to the NetBird realm
+3. Verify clients are created with correct redirect URIs
+4. Check that the backend service account has required roles
+
+## Security Considerations
+
+1. **Secrets Management**: Store sensitive values in a secure location (e.g., GCP Secret Manager)
+2. **Network Policies**: Consider implementing Kubernetes network policies
+3. **RBAC**: Review and restrict Kubernetes RBAC permissions
+4. **Database**: Use private IP and VPC peering for Cloud SQL in production
+
+## References
+
+- [NetBird Documentation](https://docs.netbird.io/)
+- [NetBird Helm Chart](https://artifacthub.io/packages/helm/netbird/netbird)
+- [Keycloak IdP Guide](https://docs.netbird.io/selfhosted/identity-providers/keycloak)

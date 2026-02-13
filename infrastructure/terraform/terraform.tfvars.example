@@ -1,27 +1,69 @@
-project_id         = "your-gcp-project-id"
-region             = "us-central1"
-cluster_name       = "your-gke-cluster-name"
-netbird_domain     = "netbird.example.com"
-keycloak_url       = "https://keycloak.example.com"
-keycloak_realm     = "netbird3"
-letsencrypt_email   = "admin@example.com"
+# =============================================================================
+# NetBird Terraform Configuration - Example
+# Copy this file to terraform.tfvars and fill in your values
+# =============================================================================
 
-# Keycloak Admin Credentials
+# GCP Configuration
+project_id   = "your-gcp-project-id"
+region       = "us-central1"
+cluster_name = "your-gke-cluster-name"
+
+# NetBird Domain (must be a valid domain you control)
+netbird_domain = "netbird.example.com"
+
+# Keycloak Configuration
+keycloak_url            = "https://keycloak.example.com"
+keycloak_realm          = "netbird"
 keycloak_admin_user     = "admin"
 keycloak_admin_password = "your-keycloak-admin-password"
 
-# Production Database
-db_password      = "highly-secure-db-password"
-db_instance_tier = "db-f1-micro" # Use db-custom-2-7680 for production
+# Keycloak Client IDs (as per official docs)
+keycloak_client_id      = "netbird-dashboard"
+keycloak_mgmt_client_id = "netbird-backend"
+
+# Let's Encrypt Configuration
+letsencrypt_email = "admin@example.com"
+
+# Database Configuration
+# For development/testing: use_external_db = false (SQLite)
+# For production: use_external_db = true (Cloud SQL PostgreSQL)
+use_external_db  = false
+db_password      = "secure-database-password"
+db_instance_tier = "db-f1-micro"  # Use db-custom-2-7680 for production
 
 # High Availability
-replica_count = 3
+# SQLite: must be 1
+# PostgreSQL: 3+ recommended for production
+replica_count = 1
 
+# Namespace
 namespace = "netbird"
 
-management_database_encryption_key = "your-secure-random-encryption-key"
+# Encryption key (32 characters, leave empty for auto-generation)
+management_database_encryption_key = ""
+
+# Helm Chart Version
+netbird_chart_version = "1.9.0"
 
 # Infrastructure Toggles
-install_cert_manager  = true
-install_ingress_nginx = true
-use_external_db       = true
+# Set to true if you need Terraform to install these components
+install_cert_manager  = false
+install_ingress_nginx = false
+create_cert_issuer    = true
+ingress_class_name    = "nginx"
+cert_issuer_name      = "letsencrypt-prod"
+
+# Logging (debug, info, warn, error)
+log_level = "info"
+
+# Metrics (enable if you have Prometheus installed)
+enable_metrics = false
+
+# Relay/TURN Configuration
+enable_relay = true
+stun_servers = ["stun:stun.l.google.com:19302"]
+
+# Optional: Initial Admin User
+# Leave email empty to skip creating an admin user
+netbird_admin_email    = ""
+netbird_admin_password = "ChangeMe123!"

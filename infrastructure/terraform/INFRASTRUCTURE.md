@@ -40,7 +40,7 @@ All core services are deployed via the official NetBird Helm chart and scaled fo
 
 ### Identity Provider (Keycloak)
 - **Integration**: NetBird uses OpenID Connect (OIDC) for user authentication.
-- **Automation**: Terraform automatically provisions the `netbird` realm, OIDC clients, and the `view-users` service account roles required by the Management server.
+- **Automation**: Terraform automatically provisions the `netbird` realm, OIDC clients (Dashboard and Management), audience mappers, group mappers, and the `view-users`/`query-users` service account roles required by the Management server. It also creates an initial admin user.
 
 ## 4. Networking & Security
 

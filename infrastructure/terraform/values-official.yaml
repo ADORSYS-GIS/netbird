@@ -1,149 +1,385 @@
-# --- Global Settings ---
-global:
-  namespace: "${namespace}"
+# =============================================================================
+# NetBird Helm Values - Official Chart v1.9.0
+# https://artifacthub.io/packages/helm/netbird/netbird
+# =============================================================================
 
-# --- NetBird Management ---
+# =============================================================================
+# Management Component
+# =============================================================================
 management:
   enabled: true
-  replicaCount: ${replica_count}
+  replicaCount: ${db_engine == "sqlite" ? 1 : replica_count}
   
-  # Inject management.json configuration
-  configmap: |-
-    {
-      "HttpConfig": {
-        "BaseURL": "https://netbird-mgmt.${netbird_domain}",
-        "AuthIssuer": "${keycloak_url}/realms/${keycloak_realm}",
-        "AuthAudience": "${mgmt_client_id}",
-        "IdpManagerConfig": {
-          "ManagerType": "keycloak",
-          "Config": {
-            "URL": "${keycloak_url}",
-            "Realm": "${keycloak_realm}",
-            "ClientID": "${mgmt_client_id}",
-            "ClientSecret": "${mgmt_client_secret}"
-          }
-        },
-        "DeviceAuthorizationFlow": {
-          "Provider": "hosted",
-          "ProviderConfig": {
-            "Audience": "${mgmt_client_id}",
-            "ClientID": "${mgmt_client_id}",
-            "TokenEndpoint": "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/token",
-            "DeviceAuthorizationEndpoint": "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/auth/device"
-          }
-        }
-      },
-      "DatastoreConfig": {
-        "Engine": "${db_engine}"
-        %{ if db_engine == "postgres" },
-        "PostgresConfig": {
-          "DSN": "${db_dsn}"
-        }
-        %{ endif }
-      },
-      "SignalConfig": {
-        "URI": "netbird-signal.${netbird_domain}:443",
-        "Protocol": "https"
-      },
-      "EncryptionKey": "${encryption_key}"
-    }
+  image:
+    pullPolicy: IfNotPresent
 
+  # Pod-level security context
+  podSecurityContext:
+    fsGroup: 1000
+  
+  # Container-level security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+
+  # Environment variables from secrets
+  envFromSecrets:
+    NB_DATASTORE_ENCRYPTION_KEY: netbird-secrets/datastore_encryption_key
+    NB_IDP_MANAGER_CONFIG_CLIENT_SECRET: netbird-secrets/idp_client_secret
+    %{ if db_engine == "postgres" }
+    NB_DATASTORE_ENGINE_POSTGRES_DSN: netbird-secrets/dsn
+    %{ endif }
+
+  # Plain environment variables
+  env:
+    # HTTP Configuration
+    NB_HTTP_BASE_URL: "https://${netbird_domain}"
+    
+    # Authentication/OIDC Configuration
+    NB_AUTH_OIDC_CONFIG_ENDPOINT: "${keycloak_url}/realms/${keycloak_realm}/.well-known/openid-configuration"
+    NB_AUTH_AUDIENCE: "${backend_client_id}"
+    NB_AUTH_DEVICE_AUTH_PROVIDER: "hosted"
+    NB_AUTH_DEVICE_AUTH_CLIENT_ID: "${dashboard_client_id}"
+    NB_AUTH_DEVICE_AUTH_AUDIENCE: "${backend_client_id}"
+    NB_AUTH_DEVICE_AUTH_SCOPE: "openid profile email offline_access api"
+    NB_AUTH_DEVICE_AUTH_USE_ID_TOKEN: "false"
+    NB_AUTH_PKCE_AUTHORIZATION_ENDPOINT: "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/auth"
+    NB_AUTH_USER_ID_CLAIM: "sub"
+    
+    # IDP Manager Configuration (Keycloak)
+    NB_IDP_MANAGER_TYPE: "keycloak"
+    NB_IDP_MANAGER_CONFIG_CLIENT_ID: "${backend_client_id}"
+    NB_IDP_MANAGER_CONFIG_TOKEN_ENDPOINT: "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/token"
+    NB_IDP_MANAGER_CONFIG_GRANT_TYPE: "client_credentials"
+    NB_IDP_MANAGER_CONFIG_ADMIN_ENDPOINT: "${keycloak_url}/admin/realms/${keycloak_realm}"
+    
+    # Datastore Configuration
+    NB_DATASTORE_ENGINE: "${db_engine}"
+    %{ if db_engine == "sqlite" }
+    NB_DATADIR: "/var/lib/netbird"
+    %{ endif }
+    
+    # Signal Server
+    NB_SIGNAL_PROTOCOL: "https"
+    NB_SIGNAL_URI: "${netbird_domain}:443"
+    
+    # Relay/TURN Configuration
+    %{ if enable_relay }
+    NB_TURN_PROVIDER: "self-hosted"
+    NB_TURN_TURNS_URI: "turns:${netbird_domain}:443"
+    NB_TURN_URI: "turn:${netbird_domain}:443"
+    NB_TURN_SECRET: "netbird-secrets/turn_secret"
+    %{ endif }
+    
+    # STUN Servers
+    NB_STUNS_URI: ${stun_servers}
+    
+    # Logging
+    NB_LOG_LEVEL: "${log_level}"
+    NB_LOG_FILE: "console"
+
+  # Persistence for SQLite (required if not using external DB)
+  persistence:
+    enabled: ${db_engine == "sqlite" ? true : false}
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+    storageClass: ""
+
+  # Resources
   resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 1000m
+      memory: 1Gi
     requests:
       cpu: 200m
       memory: 256Mi
 
+  # Service configuration
   service:
     type: ClusterIP
+    port: 80
+    grpcPort: 443
 
+  # HTTP Ingress
   ingress:
     enabled: true
     className: "${ingress_class_name}"
     annotations:
       cert-manager.io/cluster-issuer: "${cert_issuer_name}"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "100m"
     hosts:
-      - host: "netbird-mgmt.${netbird_domain}"
+      - host: "${netbird_domain}"
         paths:
-          - path: /
-            pathType: ImplementationSpecific
+          - path: /api
+            pathType: Prefix
+          - path: /.well-known/netbird
+            pathType: Prefix
     tls:
-      - secretName: netbird-mgmt-tls
+      - secretName: netbird-tls
         hosts:
-          - "netbird-mgmt.${netbird_domain}"
+          - "${netbird_domain}"
 
+  # gRPC Ingress
   ingressGrpc:
     enabled: true
     className: "${ingress_class_name}"
     annotations:
       cert-manager.io/cluster-issuer: "${cert_issuer_name}"
       nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     hosts:
-      - host: "netbird-signal.${netbird_domain}"
+      - host: "${netbird_domain}"
         paths:
-          - path: /
-            pathType: ImplementationSpecific
+          - path: /management.ManagementService
+            pathType: Prefix
     tls:
-      - secretName: netbird-signal-tls
+      - secretName: netbird-tls
         hosts:
-          - "netbird-signal.${netbird_domain}"
+          - "${netbird_domain}"
 
-# --- NetBird Signal ---
+  # Probes
+  livenessProbe:
+    httpGet:
+      path: /api/healthz
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /api/healthz
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# =============================================================================
+# Signal Component
+# =============================================================================
 signal:
   enabled: true
   replicaCount: ${replica_count}
+  
+  image:
+    pullPolicy: IfNotPresent
+
+  podSecurityContext:
+    fsGroup: 1000
+  
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+
+  env:
+    NB_LOG_LEVEL: "${log_level}"
+    NB_LOG_FILE: "console"
+
   resources:
     limits:
-      cpu: 200m
+      cpu: 500m
       memory: 256Mi
     requests:
       cpu: 100m
       memory: 128Mi
 
-# --- NetBird Relay (Coturn) ---
-relay:
-  enabled: true
-  replicaCount: ${replica_count}
   service:
-    type: LoadBalancer
-  resources:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 200m
-      memory: 256Mi
-
-# --- NetBird Dashboard ---
-dashboard:
-  enabled: true
-  replicaCount: ${replica_count}
-  image:
-    tag: "v2.13.1"
-  
-  # Dashboard configuration is often passed via env vars or a config file
-  # For this official chart, it uses env vars for OIDC
-  env:
-    NETBIRD_MGMT_API_ENDPOINT: "https://netbird-mgmt.${netbird_domain}"
-    NETBIRD_MGMT_GRPC_API_ENDPOINT: "https://netbird-signal.${netbird_domain}"
-    NETBIRD_AUTH_AUTHORITY: "${keycloak_url}/realms/${keycloak_realm}"
-    NETBIRD_AUTH_CLIENT_ID: "${dashboard_client_id}"
-    NETBIRD_AUTH_AUDIENCE: "${dashboard_client_id}"
-    NETBIRD_AUTH_SUPPORTED_SCOPES: "openid profile email offline_access api"
+    type: ClusterIP
+    port: 80
 
   ingress:
     enabled: true
     className: "${ingress_class_name}"
     annotations:
       cert-manager.io/cluster-issuer: "${cert_issuer_name}"
+      nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
     hosts:
-      - host: "netbird.${netbird_domain}"
+      - host: "${netbird_domain}"
+        paths:
+          - path: /signalexchange.SignalExchange
+            pathType: Prefix
+    tls:
+      - secretName: netbird-tls
+        hosts:
+          - "${netbird_domain}"
+
+  livenessProbe:
+    grpc:
+      port: 80
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+  readinessProbe:
+    grpc:
+      port: 80
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# =============================================================================
+# Relay Component
+# =============================================================================
+relay:
+  enabled: ${enable_relay}
+  replicaCount: ${replica_count}
+  
+  image:
+    pullPolicy: IfNotPresent
+
+  podSecurityContext:
+    fsGroup: 1000
+  
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+
+  envFromSecrets:
+    NB_AUTH_SECRET: netbird-secrets/relay_password
+
+  env:
+    NB_LOG_LEVEL: "${log_level}"
+    NB_LISTEN_ADDRESS: ":33080"
+    NB_EXPOSED_ADDRESS: "rels://${netbird_domain}:443"
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  service:
+    type: ClusterIP
+    port: 33080
+
+  ingress:
+    enabled: true
+    className: "${ingress_class_name}"
+    annotations:
+      cert-manager.io/cluster-issuer: "${cert_issuer_name}"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+      nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    hosts:
+      - host: "${netbird_domain}"
+        paths:
+          - path: /relay
+            pathType: Prefix
+    tls:
+      - secretName: netbird-tls
+        hosts:
+          - "${netbird_domain}"
+
+# =============================================================================
+# Dashboard Component
+# =============================================================================
+dashboard:
+  enabled: true
+  replicaCount: ${replica_count}
+  
+  image:
+    pullPolicy: IfNotPresent
+
+  podSecurityContext:
+    fsGroup: 101
+  
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 101
+    runAsGroup: 101
+
+  env:
+    # Management API Endpoints
+    NETBIRD_MGMT_API_ENDPOINT: "https://${netbird_domain}"
+    NETBIRD_MGMT_GRPC_API_ENDPOINT: "https://${netbird_domain}"
+    
+    # OIDC Configuration
+    NETBIRD_AUTH_AUTHORITY: "${keycloak_url}/realms/${keycloak_realm}"
+    NETBIRD_AUTH_CLIENT_ID: "${dashboard_client_id}"
+    NETBIRD_AUTH_AUDIENCE: "${backend_client_id}"
+    NETBIRD_AUTH_REDIRECT_URI: ""
+    NETBIRD_AUTH_SILENT_REDIRECT_URI: ""
+    NETBIRD_AUTH_SUPPORTED_SCOPES: "openid profile email offline_access api"
+    
+    # Feature Flags
+    NETBIRD_TOKEN_SOURCE: "accessToken"
+    NETBIRD_DRAG_QUERY_PARAMS: "true"
+    NETBIRD_DISABLE_IPV6: "false"
+    
+    # Legacy env vars (for backwards compatibility)
+    AUTH_AUTHORITY: "${keycloak_url}/realms/${keycloak_realm}"
+    AUTH_CLIENT_ID: "${dashboard_client_id}"
+    AUTH_AUDIENCE: "${backend_client_id}"
+    AUTH_SUPPORTED_SCOPES: "openid profile email offline_access api"
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  ingress:
+    enabled: true
+    className: "${ingress_class_name}"
+    annotations:
+      cert-manager.io/cluster-issuer: "${cert_issuer_name}"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    hosts:
+      - host: "${netbird_domain}"
         paths:
           - path: /
-            pathType: ImplementationSpecific
+            pathType: Prefix
     tls:
-      - secretName: netbird-dashboard-tls
+      - secretName: netbird-tls
         hosts:
-          - "netbird.${netbird_domain}"
+          - "${netbird_domain}"
+
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 10
+
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+# =============================================================================
+# Metrics (Optional)
+# =============================================================================
+metrics:
+  enabled: ${enable_metrics}
+  serviceMonitor:
+    enabled: ${enable_metrics}
+    namespace: ""
+    labels: {}
+    interval: 30s
+    scrapeTimeout: 10s
+
+# =============================================================================
+# Extra Manifests (Optional)
+# =============================================================================
+extraManifests: {}
