@@ -63,7 +63,6 @@ enable_metrics = false
 enable_relay = true
 stun_servers = ["stun:stun.l.google.com:19302"]
 
-# Optional: Initial Admin User
-# Leave email empty to skip creating an admin user
-netbird_admin_email    = ""
-netbird_admin_password = "ChangeMe123!"
+# Initial Admin User (required — user is always created)
+netbird_admin_email    = "admin@example.com"
+netbird_admin_password = "ChangeMeN0w!!"  # Min 12 chars, upper+lower+digit+special

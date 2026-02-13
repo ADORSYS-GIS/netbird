@@ -148,16 +148,14 @@ variable "netbird_chart_version" {
 }
 
 variable "netbird_admin_email" {
-  description = "Email for the initial NetBird admin user"
+  description = "Email for the initial NetBird admin user (required — user is always created)"
   type        = string
-  default     = ""
 }
 
 variable "netbird_admin_password" {
-  description = "Password for the initial NetBird admin user (temporary, should be changed)"
+  description = "Password for the initial NetBird admin user (temporary, must be changed on first login)"
   type        = string
   sensitive   = true
-  default     = "ChangeMe123!"
 }
 
 variable "enable_metrics" {

@@ -50,10 +50,8 @@ output "important_notes" {
     - Database: ${var.use_external_db ? "PostgreSQL (Cloud SQL)" : "SQLite"}
     - Replicas: ${var.replica_count}
     
-    %{if var.netbird_admin_email != ""}
     Initial Admin User: ${var.netbird_admin_email}
-    (Password should be changed on first login)
-    %{endif}
+    (Password must be changed on first login)
     
     ============================================================
   EOT

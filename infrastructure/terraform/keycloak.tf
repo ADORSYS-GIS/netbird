@@ -11,9 +11,23 @@ resource "keycloak_realm" "netbird" {
   display_name_html        = "<b>NetBird</b>"
   login_with_email_allowed = true
   duplicate_emails_allowed = false
+  reset_password_allowed   = true
+  remember_me              = true
+  verify_email             = false
   
   # Security settings
-  password_policy = "upperCase(1) and length(8) and forceExpiredPasswordChange(365) and notUsername"
+  password_policy = "upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and length(12) and forceExpiredPasswordChange(365) and notUsername"
+  
+  # Brute-force protection
+  brute_force_detection {
+    permanent_lockout                = false
+    max_login_failures               = 5
+    wait_increment_seconds           = 60
+    quick_login_check_milli_seconds  = 1000
+    minimum_quick_login_wait_seconds = 60
+    max_failure_wait_seconds         = 900
+    failure_reset_time_seconds       = 43200
+  }
   
   # Token settings
   access_token_lifespan         = "5m"
@@ -237,7 +251,6 @@ resource "keycloak_openid_client_service_account_role" "backend_service_account_
 # =============================================================================
 
 resource "keycloak_user" "netbird_admin" {
-  count    = var.netbird_admin_email != "" ? 1 : 0
   realm_id = keycloak_realm.netbird.id
   username = "netbird-admin"
   enabled  = true
@@ -264,12 +277,11 @@ resource "keycloak_group" "netbird_admins" {
 
 # Add admin user to admin group
 resource "keycloak_group_memberships" "netbird_admin_membership" {
-  count    = var.netbird_admin_email != "" ? 1 : 0
   realm_id = keycloak_realm.netbird.id
   group_id = keycloak_group.netbird_admins.id
 
   members = [
-    keycloak_user.netbird_admin[0].username
+    keycloak_user.netbird_admin.username
   ]
 }
 

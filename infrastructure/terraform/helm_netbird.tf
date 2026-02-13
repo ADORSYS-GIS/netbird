@@ -54,6 +54,12 @@ resource "helm_release" "ingress_nginx" {
     name  = "controller.service.type"
     value = "LoadBalancer"
   }
+
+  # Enable HTTP/2 for gRPC support (required by NetBird signal and management gRPC)
+  set {
+    name  = "controller.config.use-http2"
+    value = "true"
+  }
 }
 
 # Optional ClusterIssuer for Let's Encrypt
