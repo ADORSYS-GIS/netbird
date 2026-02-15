@@ -1,0 +1,34 @@
+---
+# Firewall configuration using UFW
+
+- name: Install UFW
+  ansible.builtin.apt:
+    name: ufw
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Reset UFW to default
+  community.general.ufw:
+    state: reset
+  notify: Reload UFW
+
+- name: Set UFW default policies
+  community.general.ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: 'incoming', policy: 'deny' }
+    - { direction: 'outgoing', policy: 'allow' }
+  notify: Reload UFW
+
+- name: Allow firewall ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.split('/')[0] }}"
+    proto: "{{ item.split('/')[1] }}"
+  loop: "{{ firewall_allowed_ports }}"
+  notify: Reload UFW
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled

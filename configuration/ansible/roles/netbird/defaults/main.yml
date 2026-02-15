@@ -1,0 +1,38 @@
+---
+# NetBird role default variables
+
+# Database backend: "sqlite" or "postgres"
+netbird_database_backend: "sqlite"
+
+# SQLite configuration
+netbird_sqlite_datadir: "/var/lib/netbird"
+
+# PostgreSQL configuration (used when netbird_database_backend: "postgres")
+netbird_postgres_host: "postgres"
+netbird_postgres_port: 5432
+netbird_postgres_database: "netbird"
+netbird_postgres_user: "netbird"
+netbird_postgres_password: ""  # Should be overridden in group_vars and encrypted
+netbird_postgres_sslmode: "disable"
+
+# NetBird container images
+netbird_images:
+  caddy: "caddy:2-alpine"
+  dashboard: "netbirdio/dashboard:latest"
+  management: "netbirdio/management:latest"
+  signal: "netbirdio/signal:latest"
+  relay: "netbirdio/relay:latest"
+  coturn: "coturn/coturn:4.6.2-alpine"
+  postgres: "postgres:16-alpine"
+
+# NetBird domain configuration
+netbird_domain: "netbird.example.com"
+netbird_caddy_email: "admin@example.com"
+
+# NetBird secrets (should be overridden in group_vars and encrypted)
+netbird_management_secret: ""
+netbird_relay_secret: ""
+netbird_turn_secret: ""
+
+# Authentication configuration
+netbird_auth_method: "none"  # Options: none, oidc, auth0

@@ -1,0 +1,15 @@
+---
+# Common role default variables
+
+# Firewall configuration
+firewall_allowed_ports:
+  - "22/tcp"
+
+# SSH configuration
+ssh_disable_root_login: true
+ssh_disable_password_auth: true
+ssh_port: 22
+
+# NTP configuration
+ntp_enabled: true
+ntp_timezone: "UTC"

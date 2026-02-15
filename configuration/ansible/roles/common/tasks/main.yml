@@ -1,0 +1,31 @@
+---
+# Common role: System hardening and base configuration
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: Install base packages
+  ansible.builtin.apt:
+    name:
+      - ufw
+      - chrony
+      - curl
+      - wget
+      - git
+      - vim
+      - htop
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Configure firewall
+  ansible.builtin.include_tasks: firewall.yml
+
+- name: Configure SSH hardening
+  ansible.builtin.include_tasks: ssh_hardening.yml
+
+- name: Configure NTP
+  ansible.builtin.include_tasks: ntp.yml
+  when: ntp_enabled | default(true)

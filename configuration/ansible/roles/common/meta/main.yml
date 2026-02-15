@@ -1,0 +1,20 @@
+---
+# Common role metadata
+
+galaxy_info:
+  role_name: common
+  author: NetBird Infrastructure Team
+  description: System hardening and base configuration for NetBird hosts
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+  galaxy_tags:
+    - system
+    - hardening
+    - security
+
+dependencies: []

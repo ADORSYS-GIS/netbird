@@ -53,3 +53,4 @@ monitor-netbird/kubernetes/helm/monitoring-stack/charts/_loki/
 .env
 .quodo
 .vivus
+.agent

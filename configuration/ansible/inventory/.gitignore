@@ -1,0 +1,5 @@
+# Ansible configuration
+terraform_inventory.yaml
+*.retry
+*.log
+.vault_pass
