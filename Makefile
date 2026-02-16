@@ -93,7 +93,7 @@ clean:
 	@find . -type d -name ".terraform" -exec rm -rf {} + 2>/dev/null || true
 	@find . -type f -name "*.tfstate*" -exec rm -f {} + 2>/dev/null || true
 	@find . -type f -name ".terraform.lock.hcl" -exec rm -f {} + 2>/dev/null || true
-	@rm -rf configuration/inventory/terraform_inventory.yaml 2>/dev/null || true
+	@rm -rf configuration/ansible/inventory/terraform_inventory.yaml 2>/dev/null || true
 	@echo "✓ Cleanup completed"
 
 # Quick validation (fast checks before commit)

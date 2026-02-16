@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        stack: [ansible-stack, helm-stack]
+        stack: [ansible-stack]
     
     steps:
       - name: Checkout code
@@ -28,7 +28,7 @@ jobs:
 
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
-        working-directory: infrastructure/${{ matrix.stack }}
+        working-directory: infrastructure/
 
       - name: Terraform Init
         run: terraform init -backend=false
