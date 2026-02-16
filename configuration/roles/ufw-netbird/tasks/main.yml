@@ -1,0 +1,11 @@
+---
+- name: Detect existing rules
+  include_tasks: detect-existing.yml
+
+- name: Apply Load Balancer Rules
+  include_tasks: loadbalancer.yml
+  when: "'reverse_proxy' in group_names"
+
+- name: Apply Management Rules
+  include_tasks: management.yml
+  when: "'management' in group_names"

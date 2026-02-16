@@ -1,0 +1,27 @@
+{{ netbird_domain }} {
+    # Management API
+    reverse_proxy /api/* {% for host in groups['management'] %}{{ hostvars[host].private_ip }}:80{% if not loop.last %} {% endif %}{% endfor %} {
+        lb_policy round_robin
+        health_uri /api/health
+        health_interval 10s
+        health_timeout 5s
+    }
+    
+    # WebSocket - Signal
+    reverse_proxy /ws-proxy/signal* {% for host in groups['management'] %}{{ hostvars[host].private_ip }}:80{% if not loop.last %} {% endif %}{% endfor %}
+    
+    # gRPC - Signal (h2c = HTTP/2 cleartext)
+    reverse_proxy /signalexchange.SignalExchange/* {% for host in groups['management'] %}h2c://{{ hostvars[host].private_ip }}:10000{% if not loop.last %} {% endif %}{% endfor %}
+    
+    # WebSocket - Management
+    reverse_proxy /ws-proxy/management* {% for host in groups['management'] %}{{ hostvars[host].private_ip }}:80{% if not loop.last %} {% endif %}{% endfor %}
+    
+    # gRPC - Management
+    reverse_proxy /management.ManagementService/* {% for host in groups['management'] %}h2c://{{ hostvars[host].private_ip }}:80{% if not loop.last %} {% endif %}{% endfor %}
+    
+    # Relay
+    reverse_proxy /relay* {% for host in groups['management'] %}{{ hostvars[host].private_ip }}:80{% if not loop.last %} {% endif %}{% endfor %}
+    
+    # Dashboard (catch-all)
+    reverse_proxy /* {% for host in groups['management'] %}{{ hostvars[host].private_ip }}:8080{% if not loop.last %} {% endif %}{% endfor %}
+}

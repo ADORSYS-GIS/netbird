@@ -1,0 +1,25 @@
+---
+- name: Upgrade NetBird with Rolling Update
+  hosts: management
+  serial: 1 # Upgrade one by one
+  become: yes
+  
+  tasks:
+    - name: Pull new images
+      command: docker compose pull
+      args:
+        chdir: /opt/netbird
+
+    - name: Restart services
+      community.docker.docker_compose_v2:
+        project_src: /opt/netbird
+        state: restarted
+
+    - name: Wait for health check
+      uri:
+        url: "http://localhost:80/api/health" # Assuming health endpoint
+        status_code: 200
+      register: result
+      until: result.status == 200
+      retries: 12
+      delay: 5

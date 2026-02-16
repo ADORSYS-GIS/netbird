@@ -1,0 +1,16 @@
+---
+- name: Install PostgreSQL client (Debian/Ubuntu)
+  apt:
+    name:
+      - postgresql-client
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Test PostgreSQL connection
+  shell: |
+    psql "{{ database_dsn }}" -c "SELECT version();"
+  register: pg_test
+  failed_when: pg_test.rc != 0
+  changed_when: false
+  # Mask password in logs
+  no_log: true 

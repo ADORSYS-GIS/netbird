@@ -1,47 +1,61 @@
-# NetBird Infrastructure
+# NetBird Production Infrastructure (High Availability & High Security)
 
-## Overview
+A production-grade Terraform + Ansible framework for deploying a highly available NetBird cluster on AWS, GCP, or Azure with a "Secure by Default" architecture.
 
-Production-grade infrastructure automation for NetBird deployments.
+## 🚀 Key Features
 
-This repository provides comprehensive deployment solutions for NetBird with Caddy setup as reverse proxy.
+*   **Database Flexibility**: Choice of **SQLite** (Default), **PostgreSQL** (Managed/Existing), or **MySQL**.
+*   **Security First**:
+    *   **UFW Preservation**: Respects existing firewall rules; adds NetBird rules incrementally.
+    *   **Private Isolation**: Management services bind to Private IPs only.
+    *   **Cloud Security Groups**: Strict Inbound/Outbound rules managed by Terraform.
+*   **Automated Identity**: Terraform automatically configures **Keycloak** Realms and Clients.
+*   **Multi-Cloud**: Unified inventory for AWS, GCP, Azure, and Hybrid environments.
 
-## NetBird Features
+## 📚 Documentation
 
-Explore the core functionalities and security benefits of NetBird.
+The full documentation is available in the `docs/` directory:
 
-- **Use Cases**: Discover the primary use cases for NetBird, from creating a simple point-to-site VPN to establishing a complex mesh network for your entire infrastructure. [Learn more...](docs/use-cases/netbird-use-cases.md)
+1.  [**Prerequisites**](docs/01-prerequisites.md): Cloud accounts, CLI tools, and quotas.
+2.  [**Deployment Guide**](docs/02-deployment-guide.md): Step-by-step installation instructions.
+3.  [**Configuration Reference**](docs/03-configuration-reference.md): Variables and file locations.
+4.  [**Troubleshooting**](docs/04-troubleshooting.md): Diagnosis decision trees and logs.
+5.  [**Upgrade Guide**](docs/05-upgrade-guide.md): How to update NetBird versions safely.
+6.  [**Disaster Recovery**](docs/06-disaster-recovery.md): Backups and restoration procedures.
+7.  [**Security Hardening**](docs/07-security-hardening.md): network segmentation and UFW details.
+8.  [**Monitoring & Alerting**](docs/08-monitoring-alerting.md): Prometheus/Grafana setup.
+9.  [**Architecture Decisions**](docs/09-architecture-decisions.md): Why we built it this way.
+10. [**Glossary**](docs/10-glossary.md): Terminology.
+11. [**Database Migration**](docs/11-database-migration-guide.md): Moving from SQLite to PostgreSQL.
 
-- **Secure Application Access**: A step-by-step guide to leveraging NetBird for secure, zero-trust access to your private applications. [Learn more...](docs/use-cases/netbird-secure-access-guide.md)
+## 🚀 Quick Start
 
-## Deployment Options
+### 1. Provision Infrastructure
+```bash
+cd infrastructure
+cp terraform.tfvars.example terraform.tfvars
+# Select your database backend in terraform.tfvars!
+terraform init
+terraform apply
+```
 
-### 1. Automated Deployment (Recommended)
+### 2. Configure Servers
+```bash
+cd ../configuration
+ansible-playbook -i inventory/terraform_inventory.yaml playbooks/site.yml
+```
 
-Use Ansible to automatically provision NetBird with Caddy, Keycloak, and all required configurations.
+### 3. Verify Security
+```bash
+ansible-playbook -i inventory/terraform_inventory.yaml playbooks/validate-security.yml
+```
 
-- **Guide**: [Ansible Deployment Guide](infrastructure/ansible/README.md)
+## 🔒 Security Architecture
 
-### 2. Quickstart (Test/Dev)
+This project implements a **Defense-in-Depth** strategy:
 
-Quickly bootstrap a full stack including Zitadel IdP using the setup script.
+*   **Cloud Security Groups**: Block all traffic except necessary ports.
+*   **Host Firewalls (UFW)**: Allow only specific internal IPs.
+*   **Private Binding**: Services listen strictly on Private IPs.
 
-- **Guide**: [Quickstart with Zitadel](infrastructure/scripts/README.md)
-
-### 3. Manual Deployment
-
-Manually deploy NetBird with Caddy reverse proxy on a single host.
-
-- **Guide**: [Manual Caddy Deployment Guide](docs/caddy-deployment.md)
-
-## Securing Your Applications
-
-Leverage NetBird to secure access to your private applications and services. This guide covers common use cases and provides step-by-step instructions to help you implement robust, zero-trust access controls.
-
-- **Guide**: [Secure Application Access with NetBird](docs/netbird-secure-access-guide.md)
-
-## Support and Contributions
-
-- Documentation: [docs/](docs/)
-- Issues: GitHub issue tracker
-- NetBird: [Official documentation](https://docs.netbird.io/)
+See [07-security-hardening.md](docs/07-security-hardening.md) for details.

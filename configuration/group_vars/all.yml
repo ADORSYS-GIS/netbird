@@ -1,0 +1,21 @@
+---
+# Default configurations
+# Specific secrets should be provided via Terraform inventory or Vault
+
+# Docker
+docker_compose_version: "v2.24.0"
+
+# NetBird defaults
+netbird_log_level: "info"
+netbird_encryption_key: "CHANGE_ME_IN_VAULT_OR_INVENTORY" 
+# Note: config.yaml requires an encryption key for local file store or similar? 
+# Actually checking config ref, `EncryptionKey` is for "Peer config encryption" etc.
+
+# Coturn
+# Defaults
+netbird_log_level: "info"
+coturn_password: "CHANGE_ME_IF_NOT_IN_INVENTORY"
+
+# Database defaults (overridden by inventory)
+database_engine: "sqlite"
+sqlite_database_path: "/var/lib/netbird/store.db"

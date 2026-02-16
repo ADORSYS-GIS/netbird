@@ -1,7 +1,0 @@
----
-# NetBird role handlers
-
-- name: Restart NetBird
-  community.docker.docker_compose_v2:
-    project_src: /opt/netbird
-    state: restarted

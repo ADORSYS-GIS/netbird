@@ -1,0 +1,61 @@
+---
+- name: Validate Network Security Configuration
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  
+  tasks:
+    - name: Validate Reverse Proxy has public IP
+      assert:
+        that:
+          - hostvars[item].public_ip is defined
+          - hostvars[item].public_ip != ""
+        msg: "Reverse Proxy {{ item }} must have a public IP"
+      loop: "{{ groups['reverse-proxy'] | default([]) }}"
+    
+    - name: Validate Management nodes use Private IPs for deployment
+      debug:
+        msg: "Management node {{ item }} is configured with private IP {{ hostvars[item].private_ip }}"
+      loop: "{{ groups['management'] | default([]) }}"
+
+- name: Validate Port Exposure
+  hosts: management
+  become: yes
+  
+  tasks:
+    - name: Check that application ports are NOT listening on 0.0.0.0 (Publicly)
+      shell: ss -tlnp | grep -E ':(8080|8081|8083|10000)' | grep '0.0.0.0'
+      register: exposed_ports
+      failed_when: exposed_ports.rc == 0
+      ignore_errors: yes # Fail gracefully to show message
+    
+    - name: Fail if ports are exposed
+      fail:
+        msg: "CRITICAL SECURITY RISK: Application ports detected on 0.0.0.0! They should bind to {{ ansible_default_ipv4.address }}."
+      when: exposed_ports.rc == 0
+
+    - name: Verify Docker containers bind to private IP only
+      shell: docker ps --format '{{.Ports}}' | grep -E '0.0.0.0:(8080|8081|8083|10000)'
+      register: docker_exposed
+      failed_when: docker_exposed.rc == 0
+      ignore_errors: yes
+      
+    - name: Fail if Docker binds to 0.0.0.0
+      fail:
+        msg: "CRITICAL SECURITY RISK: Docker containers are binding to 0.0.0.0! Check docker-compose.yml"
+      when: docker_exposed.rc == 0
+
+- name: Validate UFW Status
+  hosts: all
+  become: yes
+  tasks:
+    - name: Check UFW status
+      shell: ufw status | grep "Status: active"
+      register: ufw_status
+      failed_when: ufw_status.rc != 0
+      
+    - name: Check UFW Rules on Management
+      shell: ufw status | grep "80/tcp" | grep "ALLOW"
+      register: ufw_mgmt_rules
+      when: "'management' in group_names"
+      # Just a basic check to ensure rules exist

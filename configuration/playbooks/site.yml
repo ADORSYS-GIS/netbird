@@ -1,0 +1,37 @@
+---
+- name: Deploy Production NetBird Infrastructure
+  hosts: all
+  become: yes
+  
+  pre_tasks:
+    - name: Validate Keycloak configuration from Terraform
+      assert:
+        that:
+          - keycloak_client_id is defined
+          - keycloak_client_secret is defined
+          - postgres_dsn is defined
+        msg: "Keycloak and PostgreSQL must be configured by Terraform first (check inventory variables)"
+  
+  roles:
+    - common
+    - docker
+    - postgres-client
+
+- name: Deploy NetBird Management Servers
+  hosts: management
+  become: yes
+  roles:
+    - role: ufw-netbird
+      tags: [firewall]
+    - role: database-client
+      tags: [database]
+    - netbird-server
+
+- name: Deploy Load Balancer (for HA)
+  hosts: reverse-proxy
+  become: yes
+  # Only run if reverse-proxy group has hosts
+  when: groups['reverse-proxy'] is defined and groups['reverse-proxy'] | length > 0
+  roles:
+    - reverse-proxy
+```

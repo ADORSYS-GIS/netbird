@@ -1,0 +1,12 @@
+---
+- name: Include SQLite Setup
+  include_tasks: sqlite-setup.yml
+  when: database_engine == "sqlite"
+
+- name: Include PostgreSQL Client
+  include_tasks: postgresql-client.yml
+  when: database_engine == "postgres"
+
+- name: Include MySQL Client
+  include_tasks: mysql-client.yml
+  when: database_engine == "mysql"

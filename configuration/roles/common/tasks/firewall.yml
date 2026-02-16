@@ -1,0 +1,64 @@
+---
+- name: Install UFW
+  apt:
+    name: ufw
+    state: present
+    update_cache: yes
+
+- name: Set UFW default policies
+  ufw:
+    policy: deny
+    direction: incoming
+    state: enabled
+
+- name: Allow SSH
+  ufw:
+    rule: allow
+    port: 22
+    proto: tcp
+
+# Reverse Proxy Rules
+- name: Allow HTTP/HTTPS on Reverse Proxy
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - 80
+    - 443
+  when: "'reverse-proxy' in group_names"
+
+- name: Allow STUN/TURN on Reverse Proxy (UDP)
+  ufw:
+    rule: allow
+    port: 3478
+    proto: udp
+  when: "'reverse-proxy' in group_names"
+
+# Management Node Rules
+- name: Allow API/Signal (80) from Reverse Proxy
+  ufw:
+    rule: allow
+    src: "{{ hostvars[item].ansible_default_ipv4.address }}"
+    port: 80
+    proto: tcp
+  loop: "{{ groups['reverse-proxy'] | default([]) }}"
+  when: "'management' in group_names"
+
+- name: Allow Dashboard (8080) from Reverse Proxy
+  ufw:
+    rule: allow
+    src: "{{ hostvars[item].ansible_default_ipv4.address }}"
+    port: 8080
+    proto: tcp
+  loop: "{{ groups['reverse-proxy'] | default([]) }}"
+  when: "'management' in group_names"
+
+- name: Allow gRPC (10000) from Reverse Proxy
+  ufw:
+    rule: allow
+    src: "{{ hostvars[item].ansible_default_ipv4.address }}"
+    port: 10000
+    proto: tcp
+  loop: "{{ groups['reverse-proxy'] | default([]) }}"
+  when: "'management' in group_names"
