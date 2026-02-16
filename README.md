@@ -1,55 +1,37 @@
 # NetBird Infrastructure Automation
 
-Production-grade Terraform + Ansible framework for deploying NetBird on existing VMs across AWS, GCP, Azure, or on-premises environments.
+Production-grade automation framework for deploying NetBird on any infrastructure.
+
+## 🚀 Deployment Guide
+
+Choose the deployment method that matches your infrastructure:
+
+### [Option A: VM Deployment (Recommended)](./infrastructure/ansible-stack/docs/getting-started.md)
+Deploy on standard Virtual Machines (AWS EC2, Google Compute Engine, Azure VMs, or On-Prem) using **Terraform** for discovery and **Ansible** for configuration.
+
+*   [**Start VM Deployment**](./infrastructure/ansible-stack/docs/getting-started.md)
+*   [**AWS Guide**](./infrastructure/ansible-stack/docs/aws.md)
+*   [**GCP Guide**](./infrastructure/ansible-stack/docs/google-cloud.md)
+*   [**Azure Guide**](./infrastructure/ansible-stack/docs/azure.md)
+
+### [Option B: Kubernetes Deployment](./infrastructure/helm-stack/docs/README.md)
+Deploy on a Kubernetes cluster using **Terraform** and **Helm**.
+
+*   [**Kubernetes Guide**](./infrastructure/helm-stack/docs/README.md) *(Coming Soon)*
+
+## 📚 Documentation
+
+*   [**Architecture Overview**](./docs/architecture.md)
+*   [**Security Hardening**](./docs/operations/security-hardening.md)
+*   [**Configuration Reference**](./infrastructure/ansible-stack/docs/configuration-reference.md)
+*   [**Troubleshooting**](./infrastructure/ansible-stack/docs/troubleshooting.md)
 
 ## Features
 
-- **Multi-Cloud Discovery**: Automatically discovers existing VMs via tags/labels
-- **Database Flexibility**: SQLite, PostgreSQL, or MySQL support
-- **Security First**: Private IP binding, UFW firewall, defense-in-depth architecture
-- **Automated Identity**: Terraform configures Keycloak realms and clients
-- **Hybrid Ready**: Supports AWS, GCP, Azure, and manual/on-premises hosts
-
-## Getting Started
-
-See the [Getting Started Guide](infrastructure/ansible-stack/docs/getting-started.md) for complete deployment instructions. Deployment requires careful configuration of cloud discovery, database selection, and security settings.
-
-## Documentation
-
-### Deployment
-- [Getting Started](infrastructure/ansible-stack/docs/getting-started.md) - Complete deployment guide
-- [Configuration Reference](infrastructure/ansible-stack/docs/configuration-reference.md) - All variables and options
-- [Troubleshooting](infrastructure/ansible-stack/docs/troubleshooting.md) - Common issues and solutions
-
-### Architecture & Operations
-- [Architecture](docs/architecture.md) - System design and components
-- [Security Hardening](docs/operations/security-hardening.md) - Security best practices
-- [Monitoring & Alerting](docs/operations/monitoring-alerting.md) - Observability setup
-- [Disaster Recovery](docs/operations/disaster-recovery.md) - Backup and restore procedures
-
-### Maintenance
-- [Upgrade Guide](infrastructure/ansible-stack/docs/upgrade-guide.md) - Version upgrades
-- [Database Migration](infrastructure/ansible-stack/docs/database-migration.md) - Switching database backends
-
-## Security Architecture
-
-This project implements defense-in-depth security:
-
-- Cloud security groups block unnecessary traffic
-- Host firewalls (UFW) allow only specific internal IPs
-- Services bind strictly to private IPs
-- Automatic HTTPS via Let's Encrypt/Caddy
-
-See [Security Hardening](docs/operations/security-hardening.md) for details.
-
-## Requirements
-
-- Terraform >= 1.0
-- Ansible >= 2.10
-- Existing VMs with SSH access
-- Cloud provider CLI (AWS/GCP/Azure) or manual host list
-- Domain name for HTTPS
-- Keycloak or Zitadel instance for SSO
+-   **Multi-Cloud Discovery**: Automatically discovers existing VMs via tags/labels
+-   **Security First**: Private IP binding, UFW firewall, defense-in-depth architecture
+-   **Automated Identity**: Terraform configures Keycloak realms and clients
+-   **Hybrid Ready**: Supports AWS, GCP, Azure, and manual/on-premises hosts
 
 ## Acknowledgments
 
