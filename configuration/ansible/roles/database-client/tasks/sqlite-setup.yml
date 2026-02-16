@@ -1,6 +1,6 @@
 ---
 - name: Create SQLite database directory
-  file:
+  ansible.builtin.file:
     path: "{{ sqlite_database_path | dirname }}"
     state: directory
     owner: root
@@ -8,12 +8,12 @@
     mode: '0755'
 
 - name: Check if SQLite database exists
-  stat:
+  ansible.builtin.stat:
     path: "{{ sqlite_database_path }}"
   register: sqlite_db_file
 
 - name: Create empty SQLite database if not exists
-  file:
+  ansible.builtin.file:
     path: "{{ sqlite_database_path }}"
     state: touch
     owner: root
@@ -22,7 +22,7 @@
   when: not sqlite_db_file.stat.exists
 
 - name: Install SQLite tools (Debian)
-  apt:
+  ansible.builtin.apt:
     name: sqlite3
     state: present
   when: ansible_os_family == "Debian"

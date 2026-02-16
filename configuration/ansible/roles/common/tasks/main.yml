@@ -1,11 +1,11 @@
 ---
 - name: Update apt cache
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     cache_valid_time: 3600
 
 - name: Install common packages
-  apt:
+  ansible.builtin.apt:
     name:
       - curl
       - wget
@@ -16,4 +16,5 @@
     state: present
 
 # Include detailed firewall rules
-- include_tasks: firewall.yml
+- name: Configure firewall
+  ansible.builtin.include_tasks: firewall.yml

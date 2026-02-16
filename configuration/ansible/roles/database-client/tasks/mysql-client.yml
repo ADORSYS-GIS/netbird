@@ -1,6 +1,6 @@
 ---
 - name: Install MySQL client (Debian/Ubuntu)
-  apt:
+  ansible.builtin.apt:
     name:
       - default-mysql-client
     state: present
@@ -10,7 +10,7 @@
 # We need to parse this for the mysql command line or use a python script
 # For simplicity in shell, we'll try to extract args or assume we can just ping the host
 - name: Test MySQL Host Reachability
-  wait_for:
+  ansible.builtin.wait_for:
     host: "{{ database_endpoint }}"
     port: 3306
     timeout: 10

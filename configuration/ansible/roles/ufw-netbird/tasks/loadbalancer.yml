@@ -2,13 +2,13 @@
 # Add NetBird load balancer rules to existing UFW config
 
 - name: Check if HTTP rule already exists
-  shell: ufw status | grep '80/tcp.*ALLOW.*Anywhere'
+  ansible.builtin.shell: ufw status | grep '80/tcp.*ALLOW.*Anywhere'
   register: http_exists
-  ignore_errors: yes
+  ignore_errors: true
   changed_when: false
 
 - name: Add HTTP rule if not exists
-  ufw:
+  community.general.ufw:
     rule: allow
     port: '80'
     proto: tcp
@@ -16,13 +16,13 @@
   when: http_exists.rc != 0
 
 - name: Check if HTTPS rule already exists
-  shell: ufw status | grep '443/tcp.*ALLOW.*Anywhere'
+  ansible.builtin.shell: ufw status | grep '443/tcp.*ALLOW.*Anywhere'
   register: https_exists
-  ignore_errors: yes
+  ignore_errors: true
   changed_when: false
 
 - name: Add HTTPS rule if not exists
-  ufw:
+  community.general.ufw:
     rule: allow
     port: '443'
     proto: tcp
@@ -30,13 +30,13 @@
   when: https_exists.rc != 0
 
 - name: Check if STUN/TURN rule already exists
-  shell: ufw status | grep '3478/udp.*ALLOW.*Anywhere'
+  ansible.builtin.shell: ufw status | grep '3478/udp.*ALLOW.*Anywhere'
   register: stun_exists
-  ignore_errors: yes
+  ignore_errors: true
   changed_when: false
 
 - name: Add STUN/TURN rule if not exists
-  ufw:
+  community.general.ufw:
     rule: allow
     port: '3478'
     proto: udp
@@ -44,15 +44,15 @@
   when: stun_exists.rc != 0
 
 - name: Enable UFW (if not already enabled)
-  ufw:
+  community.general.ufw:
     state: enabled
   when: not ufw_already_enabled
 
 - name: Display load balancer UFW status
-  command: ufw status verbose
+  ansible.builtin.command: ufw status verbose
   register: lb_final_status
   changed_when: false
 
 - name: Show final load balancer UFW configuration
-  debug:
+  ansible.builtin.debug:
     var: lb_final_status.stdout_lines

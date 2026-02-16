@@ -1,12 +1,12 @@
 ---
 - name: Create NetBird directory
-  file:
+  ansible.builtin.file:
     path: /opt/netbird
     state: directory
     mode: '0755'
 
 - name: Create NetBird configuration directory
-  file:
+  ansible.builtin.file:
     path: /etc/netbird
     state: directory
     owner: root
@@ -14,11 +14,11 @@
     mode: '0755'
 
 - name: Determine config template based on engine
-  set_fact:
+  ansible.builtin.set_fact:
     config_template: "config-{{ database_engine }}.yaml.j2"
 
 - name: Deploy NetBird configuration
-  template:
+  ansible.builtin.template:
     src: "{{ config_template }}"
     dest: /etc/netbird/management.json
     owner: root
@@ -27,7 +27,7 @@
   notify: restart netbird
 
 - name: Deploy docker-compose configuration
-  template:
+  ansible.builtin.template:
     src: docker-compose.yml.j2
     dest: /etc/netbird/docker-compose.yml
     owner: root

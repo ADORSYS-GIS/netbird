@@ -2,34 +2,34 @@
 # Detect existing UFW configuration and preserve it
 
 - name: Check if UFW is installed
-  command: which ufw
+  ansible.builtin.command: which ufw
   register: ufw_installed
-  ignore_errors: yes
+  ignore_errors: true
   changed_when: false
 
 - name: Install UFW if not present
-  apt:
+  ansible.builtin.apt:
     name: ufw
     state: present
   when: ufw_installed.rc != 0 and ansible_os_family == "Debian"
 
 - name: Check if UFW is enabled
-  command: ufw status
+  ansible.builtin.command: ufw status
   register: ufw_status
   changed_when: false
 
 - name: Set fact for UFW state
-  set_fact:
+  ansible.builtin.set_fact:
     ufw_already_enabled: "{{ 'Status: active' in ufw_status.stdout }}"
 
 - name: Get existing UFW rules
-  command: ufw status numbered
+  ansible.builtin.command: ufw status numbered
   register: existing_rules
   changed_when: false
   when: ufw_already_enabled
 
 - name: Display existing UFW configuration
-  debug:
+  ansible.builtin.debug:
     msg:
       - "UFW is already enabled with existing rules"
       - "NetBird rules will be added WITHOUT resetting existing configuration"
@@ -38,26 +38,27 @@
   when: ufw_already_enabled
 
 - name: Backup existing UFW rules
-  copy:
+  ansible.builtin.copy:
     content: "{{ existing_rules.stdout }}"
     dest: "/root/ufw-backup-{{ ansible_date_time.epoch }}.txt"
+    mode: '0600'
   when: ufw_already_enabled
 
 - name: Check for SSH rule
-  shell: ufw status | grep -E '22/tcp.*ALLOW'
+  ansible.builtin.shell: ufw status | grep -E '22/tcp.*ALLOW'
   register: ssh_rule_exists
-  ignore_errors: yes
+  ignore_errors: true
   changed_when: false
 
 - name: Warn if no SSH rule exists
-  debug:
+  ansible.builtin.debug:
     msg:
       - "WARNING: No SSH rule detected in UFW"
       - "Adding SSH rule to prevent lockout"
   when: ssh_rule_exists.rc != 0
 
 - name: Ensure SSH is allowed before proceeding
-  ufw:
+  community.general.ufw:
     rule: allow
     port: '22'
     proto: tcp

@@ -1,14 +1,15 @@
 ---
 - name: Create Caddy directory
-  file:
+  ansible.builtin.file:
     path: /opt/caddy
     state: directory
     mode: '0755'
 
 - name: Template Caddyfile
-  template:
+  ansible.builtin.template:
     src: Caddyfile.j2
     dest: /opt/caddy/Caddyfile
+    mode: '0644'
   notify: Reload Caddy
 
 - name: Run Caddy
@@ -27,5 +28,6 @@
       - caddy_config:/config
 
 - name: Reload Caddy
-  command: docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+  ansible.builtin.command: docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+  changed_when: true
   when: false # Triggered by handler

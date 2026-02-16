@@ -38,33 +38,8 @@ jobs:
         run: terraform validate
         working-directory: infrastructure/${{ matrix.stack }}
 
-  terraform-security:
-    name: Terraform Security Scan
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: tfsec
-        uses: aquasecurity/tfsec-action@v1
-        with:
-          working_directory: infrastructure/
-          format: sarif
-          sarif_file: tfsec-results.sarif
-
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: tfsec-results.sarif
-        if: always()
-
-      - name: Checkov
-        uses: bridgecrewio/checkov-action@master
-        with:
-          directory: infrastructure/
-          framework: terraform
-          soft_fail: false
+  # terraform-security job removed as requested
+  # Security checks are handled in security-scanning job via Trivy.
 
   ansible-validation:
     name: Ansible Validation
@@ -108,10 +83,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Secret Scanning (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Gitleaks removed as requested
+      # - name: Secret Scanning (Gitleaks)
+      #   ...
 
       - name: IaC Scanning (Trivy)
         uses: aquasecurity/trivy-action@master

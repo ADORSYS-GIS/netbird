@@ -2,11 +2,11 @@
 # Add NetBird management node rules (restrict to load balancer IP)
 
 - name: Get load balancer IPs
-  set_fact:
+  ansible.builtin.set_fact:
     loadbalancer_ips: "{{ groups['reverse_proxy'] | map('extract', hostvars, 'private_ip') | list }}"
 
 - name: Define NetBird application ports
-  set_fact:
+  ansible.builtin.set_fact:
     netbird_app_ports:
       - { port: '8080', comment: 'NetBird Dashboard' }
       - { port: '8081', comment: 'NetBird Management API' }
@@ -15,16 +15,16 @@
       - { port: '8084', comment: 'NetBird Relay' }
 
 - name: Check for existing NetBird rules
-  shell: ufw status | grep -E '{{ item.0.port }}.*{{ item.1 }}'
+  ansible.builtin.shell: ufw status | grep -E '{{ item.0.port }}.*{{ item.1 }}'
   loop: "{{ netbird_app_ports | product(loadbalancer_ips) | list }}"
   loop_control:
     loop_var: item
   register: existing_netbird_rules
-  ignore_errors: yes
+  ignore_errors: true
   changed_when: false
 
 - name: Add rules to allow application ports from load balancer ONLY
-  ufw:
+  community.general.ufw:
     rule: allow
     port: "{{ item.item.0.port }}"
     proto: tcp
@@ -34,14 +34,14 @@
   when: item.rc != 0
 
 - name: Check if application ports are exposed to internet
-  shell: ufw status | grep -E '{{ item.port }}.*ALLOW.*Anywhere'
+  ansible.builtin.shell: ufw status | grep -E '{{ item.port }}.*ALLOW.*Anywhere'
   loop: "{{ netbird_app_ports }}"
   register: exposed_ports
-  ignore_errors: yes
+  ignore_errors: true
   changed_when: false
 
 - name: Warn about exposed application ports
-  debug:
+  ansible.builtin.debug:
     msg:
       - "WARNING: Port {{ item.item.port }} is exposed to internet"
       - "This is a security risk - NetBird application ports should only be accessible from load balancer"
@@ -50,14 +50,14 @@
   when: item.rc == 0
 
 - name: Enable UFW
-  ufw:
+  community.general.ufw:
     state: enabled
 
 - name: Display management node UFW status
-  command: ufw status verbose
+  ansible.builtin.command: ufw status verbose
   register: mgmt_final_status
   changed_when: false
 
 - name: Show final management UFW configuration
-  debug:
+  ansible.builtin.debug:
     var: mgmt_final_status.stdout_lines
