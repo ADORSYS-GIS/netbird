@@ -1,61 +1,56 @@
-# NetBird Production Infrastructure (High Availability & High Security)
+# NetBird Infrastructure Automation
 
-A production-grade Terraform + Ansible framework for deploying a highly available NetBird cluster on AWS, GCP, or Azure with a "Secure by Default" architecture.
+Production-grade Terraform + Ansible framework for deploying NetBird on existing VMs across AWS, GCP, Azure, or on-premises environments.
 
-## 🚀 Key Features
+## Features
 
-*   **Database Flexibility**: Choice of **SQLite** (Default), **PostgreSQL** (Managed/Existing), or **MySQL**.
-*   **Security First**:
-    *   **UFW Preservation**: Respects existing firewall rules; adds NetBird rules incrementally.
-    *   **Private Isolation**: Management services bind to Private IPs only.
-    *   **Cloud Security Groups**: Strict Inbound/Outbound rules managed by Terraform.
-*   **Automated Identity**: Terraform automatically configures **Keycloak** Realms and Clients.
-*   **Multi-Cloud**: Unified inventory for AWS, GCP, Azure, and Hybrid environments.
+- **Multi-Cloud Discovery**: Automatically discovers existing VMs via tags/labels
+- **Database Flexibility**: SQLite, PostgreSQL, or MySQL support
+- **Security First**: Private IP binding, UFW firewall, defense-in-depth architecture
+- **Automated Identity**: Terraform configures Keycloak realms and clients
+- **Hybrid Ready**: Supports AWS, GCP, Azure, and manual/on-premises hosts
 
-## 📚 Documentation
+## Getting Started
 
-The full documentation is available in the `docs/` directory:
+See the [Getting Started Guide](infrastructure/ansible-stack/docs/getting-started.md) for complete deployment instructions. Deployment requires careful configuration of cloud discovery, database selection, and security settings.
 
-1.  [**Prerequisites**](docs/01-prerequisites.md): Cloud accounts, CLI tools, and quotas.
-2.  [**Deployment Guide**](docs/02-deployment-guide.md): Step-by-step installation instructions.
-3.  [**Configuration Reference**](docs/03-configuration-reference.md): Variables and file locations.
-4.  [**Troubleshooting**](docs/04-troubleshooting.md): Diagnosis decision trees and logs.
-5.  [**Upgrade Guide**](docs/05-upgrade-guide.md): How to update NetBird versions safely.
-6.  [**Disaster Recovery**](docs/06-disaster-recovery.md): Backups and restoration procedures.
-7.  [**Security Hardening**](docs/07-security-hardening.md): network segmentation and UFW details.
-8.  [**Monitoring & Alerting**](docs/08-monitoring-alerting.md): Prometheus/Grafana setup.
-9.  [**Architecture Decisions**](docs/09-architecture-decisions.md): Why we built it this way.
-10. [**Glossary**](docs/10-glossary.md): Terminology.
-11. [**Database Migration**](docs/11-database-migration-guide.md): Moving from SQLite to PostgreSQL.
+## Documentation
 
-## 🚀 Quick Start
+### Deployment
+- [Getting Started](infrastructure/ansible-stack/docs/getting-started.md) - Complete deployment guide
+- [Configuration Reference](infrastructure/ansible-stack/docs/configuration-reference.md) - All variables and options
+- [Troubleshooting](infrastructure/ansible-stack/docs/troubleshooting.md) - Common issues and solutions
 
-### 1. Provision Infrastructure
-```bash
-cd infrastructure
-cp terraform.tfvars.example terraform.tfvars
-# Select your database backend in terraform.tfvars!
-terraform init
-terraform apply
-```
+### Architecture & Operations
+- [Architecture](docs/architecture.md) - System design and components
+- [Security Hardening](docs/operations/security-hardening.md) - Security best practices
+- [Monitoring & Alerting](docs/operations/monitoring-alerting.md) - Observability setup
+- [Disaster Recovery](docs/operations/disaster-recovery.md) - Backup and restore procedures
 
-### 2. Configure Servers
-```bash
-cd ../configuration
-ansible-playbook -i inventory/terraform_inventory.yaml playbooks/site.yml
-```
+### Maintenance
+- [Upgrade Guide](infrastructure/ansible-stack/docs/upgrade-guide.md) - Version upgrades
+- [Database Migration](infrastructure/ansible-stack/docs/database-migration.md) - Switching database backends
 
-### 3. Verify Security
-```bash
-ansible-playbook -i inventory/terraform_inventory.yaml playbooks/validate-security.yml
-```
+## Security Architecture
 
-## 🔒 Security Architecture
+This project implements defense-in-depth security:
 
-This project implements a **Defense-in-Depth** strategy:
+- Cloud security groups block unnecessary traffic
+- Host firewalls (UFW) allow only specific internal IPs
+- Services bind strictly to private IPs
+- Automatic HTTPS via Let's Encrypt/Caddy
 
-*   **Cloud Security Groups**: Block all traffic except necessary ports.
-*   **Host Firewalls (UFW)**: Allow only specific internal IPs.
-*   **Private Binding**: Services listen strictly on Private IPs.
+See [Security Hardening](docs/operations/security-hardening.md) for details.
 
-See [07-security-hardening.md](docs/07-security-hardening.md) for details.
+## Requirements
+
+- Terraform >= 1.0
+- Ansible >= 2.10
+- Existing VMs with SSH access
+- Cloud provider CLI (AWS/GCP/Azure) or manual host list
+- Domain name for HTTPS
+- Keycloak or Zitadel instance for SSO
+
+## Acknowledgments
+
+Built with [NetBird](https://netbird.io) - Open-source VPN management platform.

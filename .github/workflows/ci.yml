@@ -1,0 +1,156 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feat/**
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly security scan
+
+jobs:
+  terraform-validation:
+    name: Terraform Validation
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        stack: [ansible-stack, helm-stack]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: infrastructure/${{ matrix.stack }}
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: infrastructure/${{ matrix.stack }}
+
+      - name: Terraform Validate
+        run: terraform validate
+        working-directory: infrastructure/${{ matrix.stack }}
+
+  terraform-security:
+    name: Terraform Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1
+        with:
+          working_directory: infrastructure/
+          format: sarif
+          sarif_file: tfsec-results.sarif
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tfsec-results.sarif
+        if: always()
+
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/
+          framework: terraform
+          soft_fail: false
+
+  ansible-validation:
+    name: Ansible Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Ansible
+        run: pip install ansible ansible-lint yamllint
+
+      - name: Ansible Syntax Check
+        run: ansible-playbook --syntax-check playbooks/site.yml
+        working-directory: configuration/ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: false
+
+      - name: Ansible Lint
+        run: ansible-lint playbooks/site.yml || true
+        working-directory: configuration/ansible
+        continue-on-error: true
+
+      - name: YAML Lint
+        run: yamllint -c ../../.yamllint.yml . || true
+        working-directory: configuration/ansible
+        continue-on-error: true
+
+  security-scanning:
+    name: Security Scans
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secret Scanning (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: IaC Scanning (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+  documentation-validation:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Markdown Lint
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            **/*.md
+            !node_modules/**
+        continue-on-error: true
+
+      - name: Check Module READMEs
+        run: |
+          echo "Checking infrastructure module READMEs..."
+          missing=0
+          
+          for module in infrastructure/modules/*; do
+            if [ -d "$module" ] && [ ! -f "$module/README.md" ]; then
+              echo "✗ Missing README in $(basename $module)"
+              missing=$((missing + 1))
+            fi
+          done
+          
+          if [ $missing -gt 0 ]; then
+            echo "Warning: $missing modules missing README files"
+          else
+            echo "✓ All modules have README files"
+          fi
