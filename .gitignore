@@ -55,3 +55,6 @@ monitor-netbird/kubernetes/helm/monitoring-stack/charts/_loki/
 .vivus
 .agent
 *.tfvars
+.elastic-copilot
+.zencoder
+.zenflow

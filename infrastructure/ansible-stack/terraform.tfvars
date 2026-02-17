@@ -48,17 +48,17 @@ enable_ha            = false # MUST be false for SQLite
 # enable_ha = true
 
 # Common Variables
-netbird_domain  = "netbird.net.observe.camer.digital"
+netbird_domain  = "vpn.example.com"
 cloud_provider  = "aws"
 environment     = "prod"
 aws_region      = "eu-north-1"
-aws_tag_filters = { "Name" = "net" }
+aws_tag_filters = { "Name" = "netbird" }
 
 # Keycloak Configuration
-keycloak_url                 = "https://keycloak.net.observe.camer.digital/auth"
+keycloak_url                 = "https://keycloak.example.com/auth"
 keycloak_admin_username      = "admin"
-keycloak_admin_password      = "password123!"
-keycloak_admin_client_secret = "rk9v8yewnXKOZ1oAbXktyHIIUl7rDVob"
+keycloak_admin_password      = "CHANGE_ME"
+keycloak_admin_client_secret = "CHANGE_ME"
 keycloak_use_existing_realm  = false
 
 # Authentication Secrets (Leave empty to generate automatically)
@@ -70,7 +70,7 @@ netbird_log_level      = "info"
 
 # Default Administrator
 netbird_admin_email    = "admin@example.com"
-netbird_admin_password = "qwerty12345!A"
+netbird_admin_password = "CHANGE_ME"
 
 # SSH Configuration for Ansible
 ssh_user             = "ubuntu"
