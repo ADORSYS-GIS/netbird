@@ -4,14 +4,14 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 5.0"
-    }
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 3.0"
-    }
+    #     google = {
+    #       source  = "hashicorp/google"
+    #       version = "~> 5.0"
+    #     }
+    #     azurerm = {
+    #       source  = "hashicorp/azurerm"
+    #       version = "~> 3.0"
+    #     }
   }
 }
 
@@ -23,22 +23,22 @@ module "aws" {
   tag_filters = var.aws_tag_filters
 }
 
-module "gcp" {
-  source = "./providers/gcp"
-  count  = var.cloud_provider == "gcp" || var.cloud_provider == "multi" ? 1 : 0
+#   module "gcp" {
+#     source = "./providers/gcp"
+#     count  = var.cloud_provider == "gcp" || var.cloud_provider == "multi" ? 1 : 0
 
-  project       = var.gcp_project
-  region        = var.gcp_region
-  label_filters = var.gcp_label_filters
-}
+#     project       = var.gcp_project
+#     region        = var.gcp_region
+#     label_filters = var.gcp_label_filters
+#   }
 
-module "azure" {
-  source = "./providers/azure"
-  count  = var.cloud_provider == "azure" || var.cloud_provider == "multi" ? 1 : 0
+#   module "azure" {
+#     source = "./providers/azure"
+#     count  = var.cloud_provider == "azure" || var.cloud_provider == "multi" ? 1 : 0
 
-  resource_group_name = var.azure_resource_group
-  tag_filters         = var.azure_tag_filters
-}
+#     resource_group_name = var.azure_resource_group
+#     tag_filters         = var.azure_tag_filters
+#   }
 
 module "manual" {
   source = "./providers/manual"
@@ -49,12 +49,12 @@ module "manual" {
 locals {
   all_instances = concat(
     var.cloud_provider == "aws" || var.cloud_provider == "multi" ? module.aws[0].instances : [],
-    var.cloud_provider == "gcp" || var.cloud_provider == "multi" ? module.gcp[0].instances : [],
-    var.cloud_provider == "azure" || var.cloud_provider == "multi" ? module.azure[0].instances : [],
+    #     var.cloud_provider == "gcp" || var.cloud_provider == "multi" ? module.gcp[0].instances : [],
+    #     var.cloud_provider == "azure" || var.cloud_provider == "multi" ? module.azure[0].instances : [],
     module.manual.instances
   )
 
-  management_nodes    = [for i in local.all_instances : i if i.role == "management"]
-  relay_nodes         = [for i in local.all_instances : i if i.role == "relay"]
-  reverse_proxy_nodes = [for i in local.all_instances : i if i.role == "reverse-proxy"]
+  management_nodes    = [for i in local.all_instances : i if can(regex("management", i.role))]
+  relay_nodes         = [for i in local.all_instances : i if can(regex("relay", i.role))]
+  reverse_proxy_nodes = [for i in local.all_instances : i if can(regex("proxy", i.role))]
 }

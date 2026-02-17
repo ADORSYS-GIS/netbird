@@ -1,0 +1,43 @@
+all:
+  vars:
+    # NetBird Configuration
+    netbird_domain: "netbird.net.observe.camer.digital"
+    netbird_version: "latest"
+    relay_auth_secret: "b&{iWS+B}X>9IpiG#XS(2pLBGSX{vmFW"
+    coturn_password: "[HlY!rSbtF?gpu(6Ya}=F0=jt0D%wBdY"
+    netbird_encryption_key: "J1tVwuoWBOxGIpXY25tO82WhzzPQWHFGxv0Il6Zw2R0="
+
+    # Database Configuration
+    database_type: "sqlite"
+    database_engine: "sqlite"
+    database_dsn: "/var/lib/netbird/store.db"
+    database_endpoint: "local"
+    sqlite_database_path: "/var/lib/netbird/store.db"
+
+    # Keycloak Configuration
+    keycloak_url: "https://keycloak.net.observe.camer.digital/auth"
+    keycloak_realm: "netbird"
+    keycloak_client_id: "netbird-client"
+    keycloak_client_secret: "ye07XoCAqazpRSWMwkn6RLloeZlujciA"
+    keycloak_oidc_endpoint: "https://keycloak.net.observe.camer.digital/auth/realms/netbird/.well-known/openid-configuration"
+    
+    # Ansible Connection
+    ansible_user: "ubuntu"
+    ansible_ssh_private_key_file: "~/.ssh/private_key"
+    
+  children:
+    management:
+      hosts:
+        net:
+          ansible_host: 16.171.59.171
+          private_ip: 172.31.4.141
+    reverse_proxy:
+      hosts:
+        net:
+          ansible_host: 16.171.59.171
+          private_ip: 172.31.4.141
+    relay:
+      hosts:
+        net:
+          ansible_host: 16.171.59.171
+          private_ip: 172.31.4.141

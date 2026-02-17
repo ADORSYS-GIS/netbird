@@ -1,27 +1,36 @@
 {{ netbird_domain }} {
     # Management API
-    reverse_proxy /api/* {% for host in groups['management'] %}{{ hostvars[host].private_ip }}:80{% if not loop.last %} {% endif %}{% endfor %} {
-        lb_policy round_robin
-        health_uri /api/health
-        health_interval 10s
-        health_timeout 5s
+    reverse_proxy /api/* {
+        to netbird-management:80
     }
     
     # WebSocket - Signal
-    reverse_proxy /ws-proxy/signal* {% for host in groups['management'] %}{{ hostvars[host].private_ip }}:80{% if not loop.last %} {% endif %}{% endfor %}
+    reverse_proxy /ws-proxy/signal* {
+        to netbird-signal:80
+    }
     
     # gRPC - Signal (h2c = HTTP/2 cleartext)
-    reverse_proxy /signalexchange.SignalExchange/* {% for host in groups['management'] %}h2c://{{ hostvars[host].private_ip }}:10000{% if not loop.last %} {% endif %}{% endfor %}
+    reverse_proxy /signalexchange.SignalExchange/* {
+        to h2c://netbird-signal:80
+    }
     
     # WebSocket - Management
-    reverse_proxy /ws-proxy/management* {% for host in groups['management'] %}{{ hostvars[host].private_ip }}:80{% if not loop.last %} {% endif %}{% endfor %}
+    reverse_proxy /ws-proxy/management* {
+        to netbird-management:80
+    }
     
     # gRPC - Management
-    reverse_proxy /management.ManagementService/* {% for host in groups['management'] %}h2c://{{ hostvars[host].private_ip }}:80{% if not loop.last %} {% endif %}{% endfor %}
+    reverse_proxy /management.ManagementService/* {
+        to h2c://netbird-management:80
+    }
     
     # Relay
-    reverse_proxy /relay* {% for host in groups['management'] %}{{ hostvars[host].private_ip }}:80{% if not loop.last %} {% endif %}{% endfor %}
+    reverse_proxy /relay* {
+        to netbird-management:80
+    }
     
     # Dashboard (catch-all)
-    reverse_proxy /* {% for host in groups['management'] %}{{ hostvars[host].private_ip }}:8080{% if not loop.last %} {% endif %}{% endfor %}
+    reverse_proxy /* {
+        to netbird-dashboard:80
+    }
 }

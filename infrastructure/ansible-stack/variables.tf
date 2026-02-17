@@ -238,15 +238,29 @@ variable "keycloak_url" {
   type        = string
 }
 
-variable "keycloak_admin_client_id" {
-  description = "Keycloak Admin Client ID"
+variable "keycloak_admin_username" {
+  description = "Keycloak Administrator Username"
   type        = string
+  default     = "admin"
+}
+
+variable "keycloak_admin_password" {
+  description = "Keycloak Administrator Password"
+  type        = string
+  sensitive   = true
 }
 
 variable "keycloak_admin_client_secret" {
-  description = "Keycloak Admin Client Secret"
+  description = "Keycloak Admin Client Secret (Required if admin-cli is confidential)"
   type        = string
+  default     = ""
   sensitive   = true
+}
+
+variable "keycloak_use_existing_realm" {
+  description = "Whether to use an existing Keycloak realm instead of creating a new one"
+  type        = bool
+  default     = false
 }
 
 variable "realm_name" {
@@ -266,9 +280,23 @@ variable "netbird_version" {
   default     = "latest"
 }
 
+variable "netbird_log_level" {
+  description = "Log level for NetBird services"
+  type        = string
+  default     = "info"
+}
+
 variable "relay_auth_secret" {
   description = "Relay Authentication Secret"
   type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "coturn_password" {
+  description = "CoTurn Authentication Secret"
+  type        = string
+  default     = ""
   sensitive   = true
 }
 
@@ -276,4 +304,36 @@ variable "admin_cidr_blocks" {
   description = "List of CIDR blocks allowed to access SSH"
   type        = list(string)
   default     = ["0.0.0.0/0"]
+}
+
+variable "netbird_admin_email" {
+  description = "Default NetBird admin email"
+  type        = string
+  default     = "admin@netbird.io"
+}
+
+variable "netbird_admin_password" {
+  description = "Default NetBird admin password"
+  type        = string
+  sensitive   = true
+}
+
+# SSH Configuration
+variable "ssh_user" {
+  description = "SSH user for Ansible connection"
+  type        = string
+  default     = "ubuntu"
+}
+
+variable "ssh_private_key_path" {
+  description = "Path to SSH private key"
+  type        = string
+  default     = ""
+}
+
+variable "netbird_encryption_key" {
+  description = "32-byte encryption key for sensitive data at rest"
+  type        = string
+  default     = ""
+  sensitive   = true
 }

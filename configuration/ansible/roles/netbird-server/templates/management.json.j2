@@ -1,0 +1,91 @@
+{
+  "Stuns": [
+    {
+      "Proto": "udp",
+      "URI": "stun:{{ netbird_domain }}:3478"
+    }
+  ],
+  "Relay": {
+    "Addresses": ["rels://{{ netbird_domain }}:443"],
+    "CredentialsTTL": "24h",
+    "Secret": "{{ coturn_password }}"
+  },
+  "Signal": {
+    "Proto": "https",
+    "URI": "{{ netbird_domain }}:443"
+  },
+  "HttpConfig": {
+    "AuthIssuer": "{{ keycloak_url }}/realms/{{ keycloak_realm }}",
+    "AuthAudience": "{{ keycloak_client_id }}",
+    "OIDCConfigEndpoint": "{{ keycloak_url }}/realms/{{ keycloak_realm }}/.well-known/openid-configuration"
+  },
+  "IdpManagerConfig": {
+    "ManagerType": "keycloak",
+    "ClientConfig": {
+       "Issuer": "{{ keycloak_url }}/realms/{{ keycloak_realm }}",
+       "TokenEndpoint": "{{ keycloak_url }}/realms/{{ keycloak_realm }}/protocol/openid-connect/token",
+       "ClientID": "{{ keycloak_client_id }}",
+       "ClientSecret": "{{ keycloak_client_secret }}",
+       "GrantType": "client_credentials"
+    },
+    "ExtraConfig": {
+       "AdminEndpoint": "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}"
+    }
+  },
+  "Datastore": {
+    "Engine": "{{ database_engine | default('sqlite') }}",
+    {% if database_engine == 'postgres' or database_engine == 'postgresql' %}
+    "PostgreSQL": {
+      "Host": "{{ db_host }}",
+      "Port": {{ db_port | default(5432) }},
+      "Database": "{{ db_name }}",
+      "User": "{{ db_user }}",
+      "Password": "{{ db_password }}",
+      "SSLMode": "{{ db_sslmode | default('require') }}"
+    },
+    {% else %}
+    "Sqlite": {
+      "Path": "{{ sqlite_database_path | default('/var/lib/netbird/store.db') }}"
+    },
+    {% endif %}
+    "EncryptionKey": "{{ netbird_encryption_key }}"
+  },
+  "ListenAddress": ":80",
+  "ExposedAddress": "https://{{ netbird_domain }}:443",
+  "MetricsPort": 9090,
+  "HealthcheckAddress": ":9000",
+  "LogLevel": "{{ netbird_log_level | default('info') }}",
+  "LogFile": "console",
+  "AuthSecret": "{{ coturn_password }}",
+  "Datadir": "/var/lib/netbird",
+  "Auth": {
+    "Issuer": "{{ keycloak_url }}/realms/{{ keycloak_realm }}",
+    "SignKeyRefreshEnabled": true,
+    "DashboardRedirectURIs": [
+      "https://{{ netbird_domain }}/nb-auth",
+      "https://{{ netbird_domain }}/nb-silent-auth"
+    ],
+    "CliRedirectURIs": [
+      "http://localhost:53000/"
+    ]
+  },
+  "DeviceAuthorizationFlow": {
+    "Provider": "hosted",
+    "ProviderConfig": {
+      "Audience": "netbird-client",
+      "ClientID": "netbird-client",
+      "Scope": "openid"
+    }
+  },
+  "PKCEAuthorizationFlow": {
+    "ProviderConfig": {
+      "Audience": "netbird-client",
+      "ClientID": "netbird-client",
+      "Scope": "openid profile email offline_access",
+      "RedirectURLs": [
+        "http://localhost:53000/",
+        "http://localhost:54000/"
+      ]
+    }
+  }
+}

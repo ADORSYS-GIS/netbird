@@ -1,0 +1,28 @@
+---
+- name: Cleanup NetBird services
+  hosts: management,relay,reverse_proxy
+  become: true
+  tasks:
+    - name: Stop NetBird server services
+      community.docker.docker_compose_v2:
+        project_src: /etc/netbird
+        state: absent
+      when: "'management' in group_names"
+      ignore_errors: true
+
+    - name: Stop Caddy container
+      community.docker.docker_container:
+        name: caddy
+        state: absent
+      when: "'reverse_proxy' in group_names"
+      ignore_errors: true
+
+    - name: Remove NetBird and Caddy directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/netbird
+        - /opt/netbird
+        - /opt/caddy
+      ignore_errors: true

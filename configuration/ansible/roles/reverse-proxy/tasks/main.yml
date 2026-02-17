@@ -26,6 +26,8 @@
       - /opt/caddy/Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
+    networks:
+      - name: netbird
 
 - name: Reload Caddy
   ansible.builtin.command: docker exec caddy caddy reload --config /etc/caddy/Caddyfile

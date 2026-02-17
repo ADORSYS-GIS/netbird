@@ -1,72 +1,56 @@
-version: '3.8'
+version: '3'
 
 services:
-  # NetBird Combined Server (modern architecture)
-  netbird-server:
-    image: netbirdio/netbird:{{ netbird_version | default('latest') }}
-    container_name: netbird-server
-    restart: unless-stopped
-    networks:
-      - netbird
-    volumes:
-      - /opt/netbird/config.yaml:/etc/netbird/config.json:ro # Mapping to config.json as binary expects? No, usually config.json/yaml
-      # Note: Official image usually looks for /etc/netbird/config.json or passed via flag.
-      # We will assume config.json for now based on official docs or check entrypoint.
-      # Wait, latest netbird might use management.json?
-      # Modern (v0.29+) uses a single config?
-      # Actually, let's map it to management.json for safety as it largely contains Management config
-      - /opt/netbird/config.yaml:/etc/netbird/management.json:ro 
-    environment:
-      - NETBIRD_LOG_LEVEL=info
-      # If using single binary, might need flags. 
-      # "netbird management" is the command usually?
-      # Official docker-compose uses separate services usually, or "all-in-one"
-      # The user specified "Modern architecture (v0.29+): Uses consolidated port architecture with combined server binary"
-      # So we assume the image runs the combined service.
-    command: ["management", "--config", "/etc/netbird/management.json", "--log-level", "info"] 
-    # But wait, "Combined server binary" implies it runs Management + Signal + Relay?
-    # Actually, official images are split: netbirdio/management, netbirdio/signal, netbirdio/relay.
-    # User said "Single Container Deployment: NetBird runs Management, Signal, and Relay in ONE netbird-server container by default".
-    # This might be a specific "all-in-one" image or setup. 
-    # If using `netbirdio/netbird`, that is the CLIENT.
-    # The SERVER images are `netbirdio/management`.
-    # User said "NetBird runs Management, Signal, and Relay in ONE netbird-server container".
-    # This sounds like they might be referring to a custom or specific deployment mode.
-    # HOWEVER, adhering to "Strictly follow NetBird Official Patterns", the official repo uses separate containers in `docker-compose.yml.tmpl`.
-    # Use standard separate containers for safety unless user insists on the "Single Container" claim which might be a misunderstanding of the Go binary capability vs Docker image.
-    # BUT, the user explicitly said "Single netbird-server container".
-    # Let's check if `netbirdio/management` handles it all? No.
-    # I will stick to the "standard" separate containers as per the official `infrastructure_files` mentioned by the user.
-    # The user said "Reference the official NetBird repository structure... Docker Compose templates".
-    # The official template has `management`, `signal`, `relay`.
-    # So I will IGNORE the "Single Container" claim in favor of "Official Patterns".
-    
-  # Management Service
+  # NetBird Server (Management & Signal Service)
+  # The modern image combines management and signal capabilities if requested, 
+  # but here we keep them split for scaling as per official docs.
   management:
     image: netbirdio/management:{{ netbird_version | default('latest') }}
     container_name: netbird-management
     restart: unless-stopped
+    networks:
+      - netbird
     volumes:
-      - /opt/netbird/config.yaml:/etc/netbird/management.json:ro
+      - /var/lib/netbird:/var/lib/netbird
+      - /etc/netbird:/etc/netbird
     ports:
-      - "{{ ansible_default_ipv4.address }}:80:80"     # API & Signal (proxied)
-      # - "443:443"   # Disable SSL (handled by Caddy) - or bind to internal
-      - "{{ ansible_default_ipv4.address }}:10000:10000"  # gRPC (proxied)
-    command: ["--config", "/etc/netbird/management.json"]
+      - "{{ ansible_default_ipv4.address }}:8081:80"
+      - "{{ ansible_default_ipv4.address }}:10000:10000"
+      - "{{ ansible_default_ipv4.address }}:9000:9000"
+    command: [
+      "--config", "/etc/netbird/management.json",
+      "--log-file", "console",
+      "--log-level", "{{ netbird_log_level | default('info') }}"
+    ]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
 
   # Signal Service
   signal:
     image: netbirdio/signal:{{ netbird_version | default('latest') }}
+    container_name: netbird-signal
     restart: unless-stopped
-    volumes:
-      - /opt/netbird/config.yaml:/etc/netbird/signal.json:ro # Signal needs its own config? Usually shares or has specific envs.
-    # For simplicity in this generated plan, I am adding Signal/Relay here.
-    
+    networks:
+      - netbird
+    ports:
+      - "{{ ansible_default_ipv4.address }}:10001:80"
+    command: ["--port", "80"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
+
   # Dashboard
   dashboard:
     image: netbirdio/dashboard:{{ netbird_version | default('latest') }}
     container_name: netbird-dashboard
     restart: unless-stopped
+    networks:
+      - netbird
     environment:
       - NETBIRD_MGMT_API_ENDPOINT=https://{{ netbird_domain }}
       - NETBIRD_MGMT_GRPC_API_ENDPOINT=https://{{ netbird_domain }}
@@ -74,11 +58,18 @@ services:
       - AUTH_CLIENT_ID={{ keycloak_client_id }}
       - AUTH_CLIENT_SECRET={{ keycloak_client_secret }}
       - AUTH_AUTHORITY={{ keycloak_url }}/realms/{{ keycloak_realm }}
+      - AUTH_SUPPORTED_SCOPES=openid profile email groups
       - AUTH_REDIRECT_URI=https://{{ netbird_domain }}/nb-auth
       - AUTH_SILENT_REDIRECT_URI=https://{{ netbird_domain }}/nb-silent-auth
+      - LETSENCRYPT_DOMAIN=none
     ports:
       - "{{ ansible_default_ipv4.address }}:8080:80"
-  
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
+
   # Coturn
   coturn:
     image: coturn/coturn:latest
@@ -86,10 +77,15 @@ services:
     restart: unless-stopped
     network_mode: host
     volumes:
-      - /opt/netbird/turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - /etc/netbird/turnserver.conf:/etc/coturn/turnserver.conf:ro
     command:
       - -c
       - /etc/coturn/turnserver.conf
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "2"
 
 networks:
   netbird:

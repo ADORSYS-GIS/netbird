@@ -1,4 +1,12 @@
 ---
+- name: Create NetBird data directory
+  ansible.builtin.file:
+    path: /var/lib/netbird
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
 - name: Create NetBird directory
   ansible.builtin.file:
     path: /opt/netbird
@@ -13,13 +21,18 @@
     group: root
     mode: '0755'
 
-- name: Determine config template based on engine
-  ansible.builtin.set_fact:
-    config_template: "config-{{ database_engine }}.yaml.j2"
+- name: Deploy Coturn configuration
+  ansible.builtin.template:
+    src: turnserver.conf.j2
+    dest: /etc/netbird/turnserver.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart netbird
 
 - name: Deploy NetBird configuration
   ansible.builtin.template:
-    src: "{{ config_template }}"
+    src: management.json.j2
     dest: /etc/netbird/management.json
     owner: root
     group: root

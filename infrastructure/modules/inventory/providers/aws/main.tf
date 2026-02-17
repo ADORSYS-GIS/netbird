@@ -36,9 +36,9 @@ locals {
       role      = try(inst.tags["NetBirdRole"], "unknown")
       cloud     = "aws"
       # Network details
-      vpc_id          = inst.vpc_id
-      subnet_id       = inst.subnet_id
-      security_groups = inst.vpc_security_group_ids
+      vpc_id          = try(inst.vpc_id, null)
+      subnet_id       = try(inst.subnet_id, null)
+      security_groups = try(inst.vpc_security_group_ids, [])
 
       # Metadata
       az          = inst.availability_zone

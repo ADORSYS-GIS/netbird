@@ -13,7 +13,6 @@ netbird_encryption_key: "CHANGE_ME_IN_VAULT_OR_INVENTORY"
 
 # Coturn
 # Defaults
-netbird_log_level: "info"
 coturn_password: "CHANGE_ME_IF_NOT_IN_INVENTORY"
 
 # Database defaults (overridden by inventory)
