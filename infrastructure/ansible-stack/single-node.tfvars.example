@@ -1,0 +1,35 @@
+# =============================================================================
+# NETBIRD SINGLE-NODE DEPLOYMENT (DOCKER + SQLITE)
+# =============================================================================
+# Simplest possible configuration for testing or small-scale use.
+# All roles (management, signal, dashboard, relay, proxy) on a single server.
+# =============================================================================
+
+# 1. Main Configuration
+netbird_domain  = "vpn.example.com"
+environment     = "dev"
+
+# 2. Host Configuration (One VM for everything)
+netbird_hosts = {
+  "netbird-all-in-one" = {
+    public_ip = "1.2.3.4"
+    roles     = ["management", "relay", "proxy"] # Includes all NetBird services
+    ssh_user  = "ubuntu"
+  }
+}
+
+# 3. Database (SQLite is local to the server)
+database_type        = "sqlite"
+sqlite_database_path = "/var/lib/netbird/store.db"
+
+# 4. Identity Provider (Keycloak)
+keycloak_url            = "https://keycloak.example.com"
+keycloak_admin_username = "admin"
+keycloak_admin_password = "REPLACE_WITH_KEYCLOAK_ADMIN_PASSWORD"
+
+# 5. NetBird Admin Dashboard
+netbird_admin_email    = "admin@example.com"
+netbird_admin_password = "REPLACE_WITH_SECURE_ADMIN_PASSWORD"
+
+# 6. SSH Credentials for Ansible
+ssh_private_key_path = "~/.ssh/id_rsa"

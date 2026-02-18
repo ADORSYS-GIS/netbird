@@ -1,0 +1,60 @@
+# =============================================================================
+# NETBIRD HIGH-AVAILABILITY DEPLOYMENT (MULTI-NODE + MANAGED DB)
+# =============================================================================
+# Production-ready configuration with separate roles and High Availability.
+# =============================================================================
+
+# 1. Main Configuration
+netbird_domain  = "vpn.example.com"
+environment     = "prod"
+aws_region      = "us-east-1" # Only needed if creating AWS RDS
+
+# 2. Host Configuration (Distributed roles)
+netbird_hosts = {
+  "management-01" = {
+    public_ip  = "1.2.3.10"
+    private_ip = "10.0.1.10"
+    roles      = ["management"]
+    ssh_user   = "ubuntu"
+  },
+  "relay-01" = {
+    public_ip  = "1.2.3.20"
+    private_ip = "10.0.1.20"
+    roles      = ["relay"]
+    ssh_user   = "ubuntu"
+  },
+  "proxy-01" = {
+    public_ip  = "1.2.3.30"
+    private_ip = "10.0.1.30"
+    roles      = ["proxy"]
+    ssh_user   = "ubuntu"
+  }
+}
+
+# 3. Database (Using Managed AWS RDS PostgreSQL)
+database_type                    = "postgresql"
+database_mode                    = "create"
+cloud_provider                   = "aws"
+postgresql_instance_class        = "db.t3.medium"
+postgresql_storage_gb            = 50
+postgresql_password              = "REPLACE_WITH_SECURE_DB_PASSWORD"
+postgresql_multi_az              = true
+postgresql_backup_retention_days = 30
+enable_ha                        = true
+
+# 4. Identity Provider (Keycloak)
+keycloak_url            = "https://keycloak.example.com"
+keycloak_admin_username = "admin"
+keycloak_admin_password = "REPLACE_WITH_KEYCLOAK_ADMIN_PASSWORD"
+realm_name              = "netbird"
+
+# 5. NetBird Admin Dashboard
+netbird_admin_email    = "admin@example.com"
+netbird_admin_password = "REPLACE_WITH_SECURE_ADMIN_PASSWORD"
+
+# 6. SSH Credentials for Ansible
+ssh_private_key_path = "~/.ssh/id_rsa"
+
+# 7. (Optional) Service secrets - Generated automatically if left empty
+# relay_auth_secret      = ""
+# netbird_encryption_key = ""

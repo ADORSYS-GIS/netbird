@@ -64,9 +64,11 @@ resource "random_id" "netbird_encryption_key" {
 
 resource "local_file" "ansible_inventory" {
   content = templatefile("${path.module}/templates/inventory.yaml.tpl", {
-    netbird_domain    = var.netbird_domain
-    netbird_version   = var.netbird_version
-    netbird_log_level = var.netbird_log_level
+    netbird_domain         = var.netbird_domain
+    netbird_version        = var.netbird_version
+    netbird_log_level      = var.netbird_log_level
+    caddy_version          = var.caddy_version
+    docker_compose_version = var.docker_compose_version
 
     # Database
     database_type        = module.database.database_type
@@ -90,10 +92,6 @@ resource "local_file" "ansible_inventory" {
 
     relay_auth_secret      = var.relay_auth_secret != "" ? var.relay_auth_secret : random_password.relay_auth_secret.result
     netbird_encryption_key = var.netbird_encryption_key != "" ? var.netbird_encryption_key : random_id.netbird_encryption_key.b64_std
-    netbird_log_level      = var.netbird_log_level
-    netbird_version        = var.netbird_version
-    caddy_version          = var.caddy_version
-    docker_compose_version = var.docker_compose_version
 
 
     # Compute relay addresses list for management.json (rels://IP:443 format)

@@ -1,17 +1,20 @@
+# -----------------------------------------------------------------------------
+# CORE CONFIGURATION
+# -----------------------------------------------------------------------------
+
+variable "netbird_domain" {
+  description = "Public domain name for NetBird"
+  type        = string
+}
+
 variable "environment" {
-  description = "Environment name (prod, staging)"
+  description = "Environment name (prod, staging, dev)"
   type        = string
   default     = "prod"
 }
 
-variable "aws_region" {
-  description = "AWS Region"
-  type        = string
-  default     = "us-east-1"
-}
-
 variable "netbird_hosts" {
-  description = "Map of hosts for NetBird deployment"
+  description = "Map of target hosts. Format: hostname = { public_ip, private_ip?, roles, ssh_user? }"
   type = map(object({
     public_ip  = string
     private_ip = optional(string)
@@ -20,119 +23,132 @@ variable "netbird_hosts" {
   }))
 }
 
-# Database Configuration
+# -----------------------------------------------------------------------------
+# DATABASE CONFIGURATION
+# -----------------------------------------------------------------------------
+
 variable "database_type" {
-  description = "Database type (sqlite, postgresql)"
+  description = "Database backend: 'sqlite' or 'postgresql'"
   type        = string
   default     = "sqlite"
 }
 
 variable "database_mode" {
-  description = "Database mode (create, existing)"
+  description = "For postgresql: 'create' (managed cloud DB) or 'existing'"
   type        = string
   default     = "existing"
 }
 
 variable "enable_ha" {
-  description = "Enable High Availability features"
+  description = "Enable HA features (like multiple management nodes)"
   type        = bool
   default     = false
 }
 
-# SQLite Configuration
+# SQLite specific
 variable "sqlite_database_path" {
-  description = "Path for SQLite database file"
+  description = "Path for SQLite DB on the management server"
   type        = string
   default     = "/var/lib/netbird/store.db"
 }
 
-# PostgreSQL Create Configuration
+# Managed PostgreSQL (Used only if database_mode = 'create')
 variable "cloud_provider" {
-  description = "Cloud provider for managed PostgreSQL (aws, gcp, azure)"
+  description = "Target cloud for managed DB (aws, gcp, azure)"
   type        = string
   default     = ""
 }
 
+variable "aws_region" {
+  description = "AWS Region (only needed if provider 'aws' is actively used)"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "postgresql_instance_class" {
-  description = "PostgreSQL instance class"
+  description = "DB instance class"
   type        = string
   default     = "db.t3.medium"
 }
 
 variable "postgresql_storage_gb" {
-  description = "PostgreSQL storage in GB"
+  description = "Storage in GB"
   type        = number
-  default     = 100
+  default     = 20
 }
 
 variable "postgresql_database_name" {
-  description = "PostgreSQL database name"
+  description = "DB name"
   type        = string
   default     = "netbird"
 }
 
 variable "postgresql_username" {
-  description = "PostgreSQL username"
+  description = "DB master username"
   type        = string
   default     = "netbird"
 }
 
 variable "postgresql_password" {
-  description = "PostgreSQL password"
+  description = "DB master password"
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "postgresql_multi_az" {
-  description = "Enable PostgreSQL Multi-AZ deployment"
+  description = "Enable DB HA"
   type        = bool
   default     = true
 }
 
 variable "postgresql_backup_retention_days" {
-  description = "PostgreSQL backup retention in days"
+  description = "Backup retention"
   type        = number
-  default     = 30
+  default     = 7
 }
 
-# PostgreSQL Existing Configuration
+# Existing PostgreSQL (Used only if database_mode = 'existing')
 variable "existing_postgresql_host" {
-  description = "Existing PostgreSQL host"
+  description = "DB Host"
   type        = string
   default     = ""
 }
 
 variable "existing_postgresql_port" {
-  description = "Existing PostgreSQL port"
+  description = "DB Port"
   type        = number
   default     = 5432
 }
 
 variable "existing_postgresql_database" {
-  description = "Existing PostgreSQL database name"
+  description = "DB Name"
   type        = string
   default     = ""
 }
 
 variable "existing_postgresql_username" {
-  description = "Existing PostgreSQL username"
+  description = "DB Username"
   type        = string
   default     = ""
 }
 
 variable "existing_postgresql_password" {
-  description = "Existing PostgreSQL password"
+  description = "DB Password"
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "existing_postgresql_sslmode" {
-  description = "Existing PostgreSQL SSL mode"
+  description = "PostgreSQL SSL mode"
   type        = string
   default     = "require"
 }
+
+# -----------------------------------------------------------------------------
+# IDENTITY PROVIDER (KEYCLOAK)
+# -----------------------------------------------------------------------------
 
 variable "keycloak_url" {
   description = "Keycloak URL"
@@ -140,39 +156,49 @@ variable "keycloak_url" {
 }
 
 variable "keycloak_admin_username" {
-  description = "Keycloak Administrator Username"
+  description = "Keycloak admin username"
   type        = string
   default     = "admin"
 }
 
 variable "keycloak_admin_password" {
-  description = "Keycloak Administrator Password"
+  description = "Keycloak admin password"
   type        = string
   sensitive   = true
 }
 
 variable "keycloak_admin_client_secret" {
-  description = "Keycloak Admin Client Secret"
+  description = "Keycloak client secret for admin-cli"
   type        = string
   default     = ""
   sensitive   = true
 }
 
 variable "keycloak_use_existing_realm" {
-  description = "Whether to use an existing Keycloak realm instead of creating a new one"
+  description = "Use an existing realm"
   type        = bool
   default     = false
 }
 
 variable "realm_name" {
-  description = "Keycloak Realm Name"
+  description = "NetBird realm name"
   type        = string
   default     = "netbird"
 }
 
-variable "netbird_domain" {
-  description = "NetBird Domain"
+# -----------------------------------------------------------------------------
+# APPLICATION SECRETS & VERSIONS
+# -----------------------------------------------------------------------------
+
+variable "netbird_admin_email" {
+  description = "Default NetBird admin email"
   type        = string
+}
+
+variable "netbird_admin_password" {
+  description = "Default NetBird admin password"
+  type        = string
+  sensitive   = true
 }
 
 variable "netbird_version" {
@@ -193,42 +219,31 @@ variable "docker_compose_version" {
   default     = "v2.24.0"
 }
 
-
 variable "netbird_log_level" {
-  description = "Log level for NetBird services"
+  description = "Log level"
   type        = string
   default     = "info"
 }
 
 variable "relay_auth_secret" {
-  description = "Relay Authentication Secret"
+  description = "Relay Secret (Generated if empty)"
   type        = string
   default     = ""
   sensitive   = true
-}
-
-variable "netbird_admin_email" {
-  description = "Default NetBird admin email"
-  type        = string
-  default     = "admin@netbird.io"
-}
-
-variable "netbird_admin_password" {
-  description = "Default NetBird admin password"
-  type        = string
-  sensitive   = true
-}
-
-# SSH Configuration
-variable "ssh_private_key_path" {
-  description = "Path to SSH private key"
-  type        = string
-  default     = ""
 }
 
 variable "netbird_encryption_key" {
-  description = "32-byte encryption key for sensitive data at rest"
+  description = "32-byte Encryption Key (Generated if empty)"
   type        = string
   default     = ""
   sensitive   = true
+}
+
+# -----------------------------------------------------------------------------
+# SSH / ANSIBLE
+# -----------------------------------------------------------------------------
+
+variable "ssh_private_key_path" {
+  description = "Local path to the SSH private key for host access"
+  type        = string
 }
