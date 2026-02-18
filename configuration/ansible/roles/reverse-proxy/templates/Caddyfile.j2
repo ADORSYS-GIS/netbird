@@ -1,5 +1,6 @@
 {{ netbird_domain }} {
     # Management API
+    {% if groups['management'] is defined and groups['management'] | length > 0 %}
     reverse_proxy /api/* {
         to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8081 {% endfor %}
         lb_policy round_robin
@@ -8,44 +9,57 @@
         health_interval 5s
         health_timeout 2s
     }
+    {% endif %}
     
     # WebSocket - Signal
+    {% if groups['management'] is defined and groups['management'] | length > 0 %}
     reverse_proxy /ws-proxy/signal* {
         to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8083 {% endfor %}
         lb_policy round_robin
     }
+    {% endif %}
     
     # gRPC - Signal (h2c = HTTP/2 cleartext)
+    {% if groups['management'] is defined and groups['management'] | length > 0 %}
     reverse_proxy /signalexchange.SignalExchange/* {
         to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8083 {% endfor %}
         transport http {
             versions h2c
         }
     }
+    {% endif %}
     
     # WebSocket - Management
+    {% if groups['management'] is defined and groups['management'] | length > 0 %}
     reverse_proxy /ws-proxy/management* {
         to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8081 {% endfor %}
         lb_policy round_robin
     }
+    {% endif %}
     
     # gRPC - Management
+    {% if groups['management'] is defined and groups['management'] | length > 0 %}
     reverse_proxy /management.ManagementService/* {
         to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8081 {% endfor %}
         transport http {
             versions h2c
         }
     }
+    {% endif %}
     
     # Relay (Proxying to Relay nodes on 33080)
+    {% if groups['relay'] is defined and groups['relay'] | length > 0 %}
     reverse_proxy /relay* {
         to {% for node in groups['relay'] %}{{ hostvars[node].private_ip }}:33080 {% endfor %}
         lb_policy round_robin
     }
+    {% endif %}
     
     # Dashboard (catch-all)
+    {% if groups['management'] is defined and groups['management'] | length > 0 %}
     reverse_proxy /* {
         to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8080 {% endfor %}
         lb_policy round_robin
     }
+    {% endif %}
 }

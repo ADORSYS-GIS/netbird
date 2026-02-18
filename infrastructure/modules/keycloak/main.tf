@@ -128,7 +128,6 @@ resource "keycloak_openid_client_default_scopes" "netbird_client_scopes" {
     "email",
     "roles",
     "web-origins",
-    "offline_access",
     keycloak_openid_client_scope.api.name,
     keycloak_openid_client_scope.groups.name,
   ]

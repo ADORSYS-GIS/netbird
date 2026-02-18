@@ -1,93 +1,37 @@
 # =============================================================================
-# NETBIRD TERRAFORM + ANSIBLE STACK - CONFIGURATION EXAMPLE
+# NETBIRD SINGLE-NODE DEPLOYMENT (DOCKER + SQLITE)
 # =============================================================================
-# Use this file as a template for your deployment.
-# Copy it to 'terraform.tfvars' and update the values.
+# Simplest possible configuration for testing or small-scale use.
+# All roles (management, signal, dashboard, relay, proxy) on a single server.
 # =============================================================================
 
-# -----------------------------------------------------------------------------
-# 1. Environment & Network
-# -----------------------------------------------------------------------------
-environment     = "prod"
-aws_region      = "us-east-1"
-netbird_domain  = "vpn.example.com"
+# 1. Main Configuration
+netbird_domain = "ec2-16-171-59-171.eu-north-1.compute.amazonaws.com"
+environment    = "dev"
 
-# -----------------------------------------------------------------------------
-# 2. Inventory Configuration
-# -----------------------------------------------------------------------------
-# Map your servers to roles: management, relay, proxy
-# For a single-node setup, assign all roles to one host.
+# 2. Host Configuration (One VM for everything)
 netbird_hosts = {
-  "netbird-main" = {
-    public_ip  = "1.2.3.4"      # Public IP reachable by clients and Ansible
-    private_ip = "10.0.0.1"    # Optional: Internal IP for inter-service communication
-    roles      = ["management", "relay", "proxy"]
-    ssh_user   = "ubuntu"       # Default user for Ansible connection
+  "netbird-all-in-one" = {
+    public_ip = "16.171.59.171"
+    roles     = ["management", "relay", "proxy"] # Includes all NetBird services
+    ssh_user  = "ubuntu"
   }
 }
 
-# -----------------------------------------------------------------------------
-# 3. Database Selection
-# -----------------------------------------------------------------------------
-
-# --- OPTION A: SQLite (Simpler, local file) ---
+# 3. Database (SQLite is local to the server)
 database_type        = "sqlite"
 sqlite_database_path = "/var/lib/netbird/store.db"
 
-# --- OPTION B: Existing PostgreSQL (Recommended for production) ---
-# database_type                  = "postgresql"
-# database_mode                  = "existing"
-# existing_postgresql_host       = "db.example.com"
-# existing_postgresql_port       = 5432
-# existing_postgresql_database   = "netbird"
-# existing_postgresql_username   = "netbird_user"
-# existing_postgresql_password   = "REPLACE_WITH_SECURE_PASSWORD"
-# existing_postgresql_sslmode    = "require"
-
-# --- OPTION C: Create Managed PostgreSQL (Cloud-native) ---
-# database_type                    = "postgresql"
-# database_mode                    = "create"
-# cloud_provider                   = "aws" # options: aws, gcp, azure
-# postgresql_instance_class        = "db.t3.medium"
-# postgresql_storage_gb            = 20
-# postgresql_database_name         = "netbird"
-# postgresql_username              = "netbird_admin"
-# postgresql_password              = "REPLACE_WITH_SECURE_PASSWORD"
-# postgresql_multi_az              = false # set to true for high availability
-# postgresql_backup_retention_days = 7
-
-# -----------------------------------------------------------------------------
-# 4. Identity Provider (Keycloak) Configuration
-# -----------------------------------------------------------------------------
-# NetBird requires an OIDC provider. This module configures a Keycloak realm.
-keycloak_url                 = "https://keycloak.example.com"
+# 4. Identity Provider (Keycloak)
+keycloak_url                 = "https://keycloak.net.observe.camer.digital/auth"
 keycloak_admin_username      = "admin"
-keycloak_admin_password      = "REPLACE_WITH_KEYCLOAK_ADMIN_PASSWORD"
-keycloak_use_existing_realm  = false
-realm_name                   = "netbird"
+keycloak_admin_password      = "password123!"
+keycloak_admin_client_secret = "rk9v8yewnXKOZ1oAbXktyHIIUl7rDVob"
 
-# -----------------------------------------------------------------------------
-# 5. NetBird Application Secrets
-# -----------------------------------------------------------------------------
-# Default NetBird Dashboard Administrator
-netbird_admin_email          = "admin@example.com"
-netbird_admin_password       = "REPLACE_WITH_SECURE_ADMIN_PASSWORD"
 
-# Secrets generation:
-# If left empty, Terraform will generate secure random strings automatically.
-relay_auth_secret            = ""
-netbird_encryption_key       = "" # 32-byte base64 key for sensitive data at rest
-netbird_log_level            = "info"
+# 5. NetBird Admin Dashboard
+netbird_admin_email    = "admin@example.com"
+netbird_admin_password = "password123!"
 
-# -----------------------------------------------------------------------------
-# 6. Version Pinning
-# -----------------------------------------------------------------------------
-netbird_version              = "latest"
-caddy_version                = "latest"
-docker_compose_version       = "v2.24.0"
-
-# -----------------------------------------------------------------------------
-# 7. Ansible Connection Settings
-# -----------------------------------------------------------------------------
-# Path to the private key used to SSH into 'netbird_hosts'
-ssh_private_key_path         = "~/.ssh/id_rsa"
+# 6. SSH Credentials for Ansible
+ssh_private_key_path = "~/.ssh/private_key"

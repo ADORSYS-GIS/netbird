@@ -62,10 +62,17 @@ resource "random_id" "netbird_encryption_key" {
   byte_length = 32
 }
 
-resource "local_file" "ansible_inventory" {
-  content = templatefile("${path.module}/templates/inventory.yaml.tpl", {
+resource "random_password" "coturn_password" {
+  length  = 32
+  special = true
+}
+
+locals {
+  inventory_path = "${path.module}/../../configuration/ansible/inventory/terraform_inventory.yaml"
+  inventory_content = templatefile("${path.module}/templates/inventory.yaml.tpl", {
     netbird_domain         = var.netbird_domain
     netbird_version        = var.netbird_version
+    coturn_version         = var.coturn_version
     netbird_log_level      = var.netbird_log_level
     caddy_version          = var.caddy_version
     docker_compose_version = var.docker_compose_version
@@ -92,10 +99,11 @@ resource "local_file" "ansible_inventory" {
 
     relay_auth_secret      = var.relay_auth_secret != "" ? var.relay_auth_secret : random_password.relay_auth_secret.result
     netbird_encryption_key = var.netbird_encryption_key != "" ? var.netbird_encryption_key : random_id.netbird_encryption_key.b64_std
+    coturn_password        = random_password.coturn_password.result
 
-
-    # Compute relay addresses list for management.json (rels://IP:443 format)
-    relay_addresses = [for node in module.inventory.relay_nodes : "rels://${node.public_ip}:443"]
+    # Compute addresses for management.json
+    relay_addresses = [for node in module.inventory.relay_nodes : "rels://${node.public_ip}:33080"]
+    stun_addresses  = [for node in module.inventory.management_nodes : "stun:${node.public_ip}:3478"]
 
     management_nodes    = module.inventory.management_nodes
     reverse_proxy_nodes = module.inventory.reverse_proxy_nodes
@@ -103,26 +111,38 @@ resource "local_file" "ansible_inventory" {
 
     ssh_private_key_path = var.ssh_private_key_path
   })
-  filename        = "${path.module}/../../configuration/ansible/inventory/terraform_inventory.yaml"
-  file_permission = "0600"
 }
 
 # Automate Ansible Deployment and Cleanup
 resource "terraform_data" "ansible_provisioning" {
+  # We store the inventory content and path in the state so the destroy provisioner can recreate it if needed
+  input = {
+    content = local.inventory_content
+    path    = local.inventory_path
+  }
+
   triggers_replace = [
-    local_file.ansible_inventory.content,
+    local.inventory_content,
     module.database.database_dsn,
     module.keycloak.backend_client_secret
   ]
 
   provisioner "local-exec" {
-    command = "cd ../../configuration/ansible && ansible-playbook -i inventory/terraform_inventory.yaml playbooks/site.yml"
+    command = <<EOT
+      mkdir -p $(dirname ${local.inventory_path})
+      echo "${base64encode(local.inventory_content)}" | base64 -d > ${local.inventory_path}
+      chmod 600 ${local.inventory_path}
+      cd ../../configuration/ansible && ansible-playbook -i inventory/terraform_inventory.yaml playbooks/site.yml
+    EOT
   }
 
   provisioner "local-exec" {
     when    = destroy
-    command = "cd ../../configuration/ansible && ansible-playbook -i inventory/terraform_inventory.yaml playbooks/cleanup.yml"
+    command = <<EOT
+      mkdir -p $(dirname ${self.input.path})
+      echo "${base64encode(self.input.content)}" | base64 -d > ${self.input.path}
+      chmod 600 ${self.input.path}
+      cd ../../configuration/ansible && ansible-playbook -i inventory/terraform_inventory.yaml playbooks/cleanup.yml || echo 'Cleanup failed, proceeding anyway'
+    EOT
   }
-
-  depends_on = [local_file.ansible_inventory]
 }

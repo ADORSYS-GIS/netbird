@@ -47,7 +47,7 @@ sqlite_database_path = "/var/lib/netbird/store.db"
 # --- OPTION C: Create Managed PostgreSQL (Cloud-native) ---
 # database_type                    = "postgresql"
 # database_mode                    = "create"
-# cloud_provider                   = "aws" # options: aws, gcp, azure
+# cloud_provider                   = "aws"
 # postgresql_instance_class        = "db.t3.medium"
 # postgresql_storage_gb            = 20
 # postgresql_database_name         = "netbird"
@@ -63,6 +63,8 @@ sqlite_database_path = "/var/lib/netbird/store.db"
 keycloak_url                 = "https://keycloak.example.com"
 keycloak_admin_username      = "admin"
 keycloak_admin_password      = "REPLACE_WITH_KEYCLOAK_ADMIN_PASSWORD"
+keycloak_admin_client_secret  = "" # Required if admin-cli client in master realm is 'confidential'
+
 keycloak_use_existing_realm  = false
 realm_name                   = "netbird"
 

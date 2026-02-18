@@ -170,7 +170,7 @@ variable "keycloak_admin_password" {
 variable "keycloak_admin_client_secret" {
   description = "Keycloak client secret for admin-cli"
   type        = string
-  default     = ""
+  default     = null
   sensitive   = true
 }
 
@@ -209,6 +209,12 @@ variable "netbird_version" {
 
 variable "caddy_version" {
   description = "Caddy Version"
+  type        = string
+  default     = "latest"
+}
+
+variable "coturn_version" {
+  description = "Coturn Version"
   type        = string
   default     = "latest"
 }

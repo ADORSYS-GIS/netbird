@@ -6,14 +6,6 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 5.0"
-    }
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 3.0"
-    }
     local = {
       source  = "hashicorp/local"
       version = "~> 2.0"
@@ -28,20 +20,6 @@ terraform {
     }
   }
 }
-
-provider "aws" {
-  region = var.aws_region
-}
-
-# provider "google" {
-#   project = var.gcp_project
-#   region  = var.gcp_region
-# }
-
-# provider "azurerm" {
-#   features {}
-#   subscription_id = var.azure_subscription_id
-# }
 
 provider "keycloak" {
   # Keycloak requires an OIDC client even when using direct credentials.

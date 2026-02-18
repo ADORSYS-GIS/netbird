@@ -2,4 +2,5 @@
 - name: Restart NetBird Management
   community.docker.docker_container:
     name: netbird-management
-    state: restarted
+    state: started
+    restart: true

@@ -1,6 +1,6 @@
 output "inventory_file" {
   description = "Path to the generated Ansible inventory file"
-  value       = local_file.ansible_inventory.filename
+  value       = local.inventory_path
 }
 
 output "database_dsn" {

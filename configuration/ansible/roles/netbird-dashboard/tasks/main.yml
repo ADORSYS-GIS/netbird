@@ -24,7 +24,7 @@
       AUTH_SILENT_REDIRECT_URI: "https://{{ netbird_domain }}/nb-silent-auth"
       LETSENCRYPT_DOMAIN: "none"
     ports:
-      - "{{ private_ip }}:8080:80"
+      - "8080:80"
     log_driver: "json-file"
     log_options:
       max-size: "500m"

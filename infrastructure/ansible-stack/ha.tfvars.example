@@ -44,8 +44,10 @@ enable_ha                        = true
 
 # 4. Identity Provider (Keycloak)
 keycloak_url            = "https://keycloak.example.com"
-keycloak_admin_username = "admin"
-keycloak_admin_password = "REPLACE_WITH_KEYCLOAK_ADMIN_PASSWORD"
+keycloak_admin_username      = "admin"
+keycloak_admin_password      = "REPLACE_WITH_KEYCLOAK_ADMIN_PASSWORD"
+keycloak_admin_client_secret  = "" # Required if admin-cli client in master realm is 'confidential'
+
 realm_name              = "netbird"
 
 # 5. NetBird Admin Dashboard

@@ -1,43 +1,65 @@
 all:
   vars:
     # NetBird Configuration
-    netbird_domain: "vpn.example.com"
+    netbird_domain: "ec2-16-171-59-171.eu-north-1.compute.amazonaws.com"
     netbird_version: "latest"
-    relay_auth_secret: "CHANGE_ME"
-    coturn_password: "CHANGE_ME"
-    netbird_encryption_key: "CHANGE_ME"
+    coturn_version: "latest"
+    caddy_version: "latest"
+    docker_compose_version: "v2.24.0"
+    netbird_log_level: "info"
+    relay_auth_secret: "b&{iWS+B}X>9IpiG#XS(2pLBGSX{vmFW"
+    netbird_encryption_key: "J1tVwuoWBOxGIpXY25tO82WhzzPQWHFGxv0Il6Zw2R0="
+    coturn_password: "[HlY!rSbtF?gpu(6Ya}=F0=jt0D%wBdY"
+
+    # Paths
+    netbird_data_dir: "/var/lib/netbird"
+    netbird_config_dir: "/etc/netbird"
 
     # Database Configuration
     database_type: "sqlite"
     database_engine: "sqlite"
     database_dsn: "/var/lib/netbird/store.db"
     database_endpoint: "local"
+    db_host: "local"
+    db_port: 0
+    db_name: ""
+    db_user: ""
+    db_password: ""
+    db_sslmode: "require"
     sqlite_database_path: "/var/lib/netbird/store.db"
 
     # Keycloak Configuration
-    keycloak_url: "https://keycloak.example.com/auth"
+    keycloak_url: "https://keycloak.net.observe.camer.digital/auth"
     keycloak_realm: "netbird"
     keycloak_client_id: "netbird-client"
-    keycloak_client_secret: "CHANGE_ME"
-    keycloak_oidc_endpoint: "https://keycloak.example.com/auth/realms/netbird/.well-known/openid-configuration"
+    keycloak_backend_client_id: "netbird-backend"
+    keycloak_backend_client_secret: "wahUSWrKpszPenDxQMHxgZiYSquyz265"
+    keycloak_oidc_endpoint: "https://keycloak.net.observe.camer.digital/auth/realms/netbird/.well-known/openid-configuration"
     
+    # Relay & STUN Addresses
+    relay_addresses: ["rels://16.171.59.171:33080"]
+    stun_addresses: ["stun://16.171.59.171:3478"]
+
     # Ansible Connection
-    ansible_user: "ubuntu"
     ansible_ssh_private_key_file: "~/.ssh/private_key"
     
   children:
     management:
       hosts:
-        net:
-          ansible_host: 1.2.3.4
-          private_ip: 10.0.0.1
+        netbird-all-in-one:
+          ansible_host: 16.171.59.171
+          private_ip: 16.171.59.171
+          ansible_user: ubuntu
     reverse_proxy:
       hosts:
-        net:
-          ansible_host: 1.2.3.4
-          private_ip: 10.0.0.1
+        netbird-all-in-one:
+          ansible_host: 16.171.59.171
+          private_ip: 16.171.59.171
+          ansible_user: ubuntu
     relay:
       hosts:
-        net:
-          ansible_host: 1.2.3.4
-          private_ip: 10.0.0.1
+        netbird-all-in-one:
+          ansible_host: 16.171.59.171
+          private_ip: 16.171.59.171
+          ansible_user: ubuntu
+          relay_domain: 16.171.59.171

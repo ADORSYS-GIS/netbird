@@ -3,11 +3,17 @@ all:
     # NetBird Configuration
     netbird_domain: "${netbird_domain}"
     netbird_version: "${netbird_version}"
+    coturn_version: "${coturn_version}"
     caddy_version: "${caddy_version}"
     docker_compose_version: "${docker_compose_version}"
     netbird_log_level: "${netbird_log_level}"
     relay_auth_secret: "${relay_auth_secret}"
     netbird_encryption_key: "${netbird_encryption_key}"
+    coturn_password: "${coturn_password}"
+
+    # Paths
+    netbird_data_dir: "/var/lib/netbird"
+    netbird_config_dir: "/etc/netbird"
 
     # Database Configuration
     database_type: "${database_type}"
@@ -30,8 +36,9 @@ all:
     keycloak_backend_client_secret: "${keycloak_backend_client_secret}"
     keycloak_oidc_endpoint: "${keycloak_oidc_endpoint}"
     
-    # Relay Addresses (list of rels://IP:443)
+    # Relay & STUN Addresses
     relay_addresses: ${jsonencode(relay_addresses)}
+    stun_addresses: ${jsonencode(stun_addresses)}
 
     # Ansible Connection
     ansible_ssh_private_key_file: "${ssh_private_key_path}"
@@ -39,7 +46,7 @@ all:
   children:
     management:
       hosts:
-%{ for index, node in management_nodes ~}
+%{ for node in management_nodes ~}
         ${node.hostname}:
           ansible_host: ${node.public_ip}
           private_ip: ${node.ip}
@@ -47,7 +54,7 @@ all:
 %{ endfor ~}
     reverse_proxy:
       hosts:
-%{ for index, node in reverse_proxy_nodes ~}
+%{ for node in reverse_proxy_nodes ~}
         ${node.hostname}:
           ansible_host: ${node.public_ip}
           private_ip: ${node.ip}
@@ -55,7 +62,7 @@ all:
 %{ endfor ~}
     relay:
       hosts:
-%{ for index, node in relay_nodes ~}
+%{ for node in relay_nodes ~}
         ${node.hostname}:
           ansible_host: ${node.public_ip}
           private_ip: ${node.ip}

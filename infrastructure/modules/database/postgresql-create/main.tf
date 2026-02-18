@@ -38,51 +38,51 @@ resource "aws_db_instance" "netbird" {
 }
 
 # ---------------------------------------------------------------------------
-# GCP Cloud SQL
+# GCP Cloud SQL (Disabled - Provider removed)
 # ---------------------------------------------------------------------------
 
-resource "google_sql_database_instance" "netbird" {
-  count            = var.cloud_provider == "gcp" ? 1 : 0
-  name             = "netbird-${lookup(var.tags, "Environment", "prod")}"
-  database_version = "POSTGRES_16"
-  region           = lookup(var.tags, "Region", "us-central1")
-
-  settings {
-    tier              = var.instance_class
-    availability_type = var.multi_az ? "REGIONAL" : "ZONAL"
-    backup_configuration {
-      enabled    = true
-      start_time = "02:00"
-    }
-    ip_configuration {
-      ipv4_enabled    = true
-      private_network = var.vpc_id
-    }
-  }
-}
+# resource "google_sql_database_instance" "netbird" {
+#   count            = var.cloud_provider == "gcp" ? 1 : 0
+#   name             = "netbird-${lookup(var.tags, "Environment", "prod")}"
+#   database_version = "POSTGRES_16"
+#   region           = lookup(var.tags, "Region", "us-central1")
+#
+#   settings {
+#     tier              = var.instance_class
+#     availability_type = var.multi_az ? "REGIONAL" : "ZONAL"
+#     backup_configuration {
+#       enabled    = true
+#       start_time = "02:00"
+#     }
+#     ip_configuration {
+#       ipv4_enabled    = true
+#       private_network = var.vpc_id
+#     }
+#   }
+# }
 
 # ---------------------------------------------------------------------------
-# Azure Flexible Server
+# Azure Flexible Server (Disabled - Provider removed)
 # ---------------------------------------------------------------------------
 
-resource "azurerm_postgresql_flexible_server" "netbird" {
-  count               = var.cloud_provider == "azure" ? 1 : 0
-  name                = "netbird-${lookup(var.tags, "Environment", "prod")}"
-  resource_group_name = lookup(var.tags, "ResourceGroup", "netbird-rg")
-  location            = lookup(var.tags, "Location", "East US")
-  version             = "16"
-
-  delegated_subnet_id = length(var.subnet_ids) > 0 ? var.subnet_ids[0] : null
-  private_dns_zone_id = lookup(var.tags, "DNSZoneId", null)
-
-  administrator_login    = var.username
-  administrator_password = var.password
-
-  storage_mb = var.storage_gb * 1024
-
-  sku_name   = var.instance_class
-  
-  high_availability {
-    mode = var.multi_az ? "ZoneRedundant" : "Disabled"
-  }
-}
+# resource "azurerm_postgresql_flexible_server" "netbird" {
+#   count               = var.cloud_provider == "azure" ? 1 : 0
+#   name                = "netbird-${lookup(var.tags, "Environment", "prod")}"
+#   resource_group_name = lookup(var.tags, "ResourceGroup", "netbird-rg")
+#   location            = lookup(var.tags, "Location", "East US")
+#   version             = "16"
+#
+#   delegated_subnet_id = length(var.subnet_ids) > 0 ? var.subnet_ids[0] : null
+#   private_dns_zone_id = lookup(var.tags, "DNSZoneId", null)
+#
+#   administrator_login    = var.username
+#   administrator_password = var.password
+#
+#   storage_mb = var.storage_gb * 1024
+#
+#   sku_name   = var.instance_class
+#   
+#   high_availability {
+#     mode = var.multi_az ? "ZoneRedundant" : "Disabled"
+#   }
+# }

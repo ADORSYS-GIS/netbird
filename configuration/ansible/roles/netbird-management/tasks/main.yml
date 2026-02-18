@@ -38,9 +38,9 @@
     networks:
       - name: netbird
     ports:
-      - "{{ private_ip }}:8081:80"
-      - "{{ private_ip }}:10000:10000"
-      - "{{ private_ip }}:9000:9000"
+      - "8081:80"
+      - "10000:10000"
+      - "9000:9000"
     volumes:
       - "{{ netbird_data_dir }}:/var/lib/netbird"
       - "{{ netbird_config_dir }}:/etc/netbird"

@@ -1,6 +1,8 @@
 ---
-coturn_version: \"4.6.2\"
-coturn_port: 3478
+coturn_version: latest
 coturn_min_port: 49152
 coturn_max_port: 65535
-coturn_realm: \"{{ netbird_domain }}\"
+coturn_port: 3478
+coturn_realm: "{{ netbird_domain }}"
+coturn_password: ""
+netbird_domain: ""

@@ -24,8 +24,10 @@ sqlite_database_path = "/var/lib/netbird/store.db"
 
 # 4. Identity Provider (Keycloak)
 keycloak_url            = "https://keycloak.example.com"
-keycloak_admin_username = "admin"
-keycloak_admin_password = "REPLACE_WITH_KEYCLOAK_ADMIN_PASSWORD"
+keycloak_admin_username      = "admin"
+keycloak_admin_password      = "REPLACE_WITH_KEYCLOAK_ADMIN_PASSWORD"
+keycloak_admin_client_secret  = "" # Required if admin-cli client in master realm is 'confidential'
+
 
 # 5. NetBird Admin Dashboard
 netbird_admin_email    = "admin@example.com"

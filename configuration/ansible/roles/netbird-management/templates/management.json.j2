@@ -1,8 +1,14 @@
 {
   "Stuns": [
+    {% for addr in stun_addresses %}
+    {
+      "URI": "{{ addr }}"
+    }{{ "," if not loop.last else "" }}
+    {% else %}
     {
       "URI": "stun:{{ netbird_domain }}:3478"
     }
+    {% endfor %}
   ],
   "Relay": {
     "Addresses": {{ relay_addresses | to_json }},
