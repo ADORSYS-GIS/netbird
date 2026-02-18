@@ -51,7 +51,7 @@
 
 - name: Add user to docker group
   ansible.builtin.user:
-    name: \"{{ ansible_user }}\"
+    name: "{{ ansible_user }}"
     groups: docker
     append: true
 
@@ -71,4 +71,4 @@
     rule: allow
     port: 22
     proto: tcp
-    comment: \"Allow SSH for management\"
+    comment: "Allow SSH for management"
