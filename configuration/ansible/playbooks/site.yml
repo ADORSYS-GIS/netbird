@@ -1,35 +1,27 @@
 ---
 - name: Deploy Production NetBird Infrastructure
   hosts: all
-  become: yes
-  
-  pre_tasks:
-    - name: Validate configuration from Terraform
-      assert:
-        that:
-          - keycloak_client_id is defined
-          - keycloak_client_secret is defined
-          - (database_engine == 'postgres' and postgres_dsn is defined) or (database_engine == 'sqlite' and sqlite_database_path is defined)
-        msg: "Keycloak and Database must be configured by Terraform first (check inventory variables)"
-  
+  become: true
   roles:
     - common
-    - docker
-    - role: postgres-client
-      when: database_engine | default('sqlite') == 'postgres'
 
 - name: Deploy NetBird Management Servers
   hosts: management
-  become: yes
+  become: true
   roles:
-    - role: ufw-netbird
-      tags: [firewall]
-    - role: database-client
-      tags: [database]
-    - netbird-server
+    - netbird-management
+    - netbird-signal
+    - netbird-dashboard
+    - netbird-coturn
 
-- name: Deploy Load Balancer (for HA)
+- name: Deploy NetBird Relay Servers
+  hosts: relay
+  become: true
+  roles:
+    - netbird-relay
+
+- name: Deploy Load Balancer
   hosts: reverse_proxy
-  become: yes
+  become: true
   roles:
     - reverse-proxy

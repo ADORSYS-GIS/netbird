@@ -1,10 +1,3 @@
-variable "host" { type = string }
-variable "port" { type = number }
-variable "database" { type = string }
-variable "username" { type = string }
-variable "password" { type = string }
-variable "sslmode" { type = string }
-
 # Validate connection
 resource "null_resource" "validate_connection" {
   triggers = {
@@ -23,13 +16,4 @@ resource "null_resource" "validate_connection" {
       fi
     EOT
   }
-}
-
-output "dsn" {
-  value     = "host=${var.host} port=${var.port} dbname=${var.database} user=${var.username} password=${var.password} sslmode=${var.sslmode}"
-  sensitive = true
-}
-
-output "endpoint" {
-  value = var.host
 }

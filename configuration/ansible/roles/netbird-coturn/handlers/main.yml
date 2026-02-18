@@ -1,0 +1,6 @@
+---
+- name: Restart Coturn
+  community.docker.docker_container:
+    name: coturn
+    state: started
+    restart: true

@@ -3,8 +3,10 @@ all:
     # NetBird Configuration
     netbird_domain: "${netbird_domain}"
     netbird_version: "${netbird_version}"
+    caddy_version: "${caddy_version}"
+    docker_compose_version: "${docker_compose_version}"
+    netbird_log_level: "${netbird_log_level}"
     relay_auth_secret: "${relay_auth_secret}"
-    coturn_password: "${coturn_password}"
     netbird_encryption_key: "${netbird_encryption_key}"
 
     # Database Configuration
@@ -12,17 +14,26 @@ all:
     database_engine: "${database_engine}"
     database_dsn: "${database_dsn}"
     database_endpoint: "${database_endpoint}"
+    db_host: "${database_endpoint}"
+    db_port: ${database_port}
+    db_name: "${database_name}"
+    db_user: "${database_username}"
+    db_password: "${database_password}"
+    db_sslmode: "${database_sslmode}"
     sqlite_database_path: "${sqlite_database_path}"
 
     # Keycloak Configuration
     keycloak_url: "${keycloak_url}"
     keycloak_realm: "${keycloak_realm}"
     keycloak_client_id: "${keycloak_client_id}"
-    keycloak_client_secret: "${keycloak_client_secret}"
+    keycloak_backend_client_id: "${keycloak_backend_client_id}"
+    keycloak_backend_client_secret: "${keycloak_backend_client_secret}"
     keycloak_oidc_endpoint: "${keycloak_oidc_endpoint}"
     
+    # Relay Addresses (list of rels://IP:443)
+    relay_addresses: ${jsonencode(relay_addresses)}
+
     # Ansible Connection
-    ansible_user: "${ssh_user}"
     ansible_ssh_private_key_file: "${ssh_private_key_path}"
     
   children:
@@ -30,20 +41,24 @@ all:
       hosts:
 %{ for index, node in management_nodes ~}
         ${node.hostname}:
-          ansible_host: ${node.public_ip != "" ? node.public_ip : node.ip}
+          ansible_host: ${node.public_ip}
           private_ip: ${node.ip}
+          ansible_user: ${node.ssh_user}
 %{ endfor ~}
     reverse_proxy:
       hosts:
 %{ for index, node in reverse_proxy_nodes ~}
         ${node.hostname}:
-          ansible_host: ${node.public_ip != "" ? node.public_ip : node.ip}
+          ansible_host: ${node.public_ip}
           private_ip: ${node.ip}
+          ansible_user: ${node.ssh_user}
 %{ endfor ~}
     relay:
       hosts:
 %{ for index, node in relay_nodes ~}
         ${node.hostname}:
-          ansible_host: ${node.public_ip != "" ? node.public_ip : node.ip}
+          ansible_host: ${node.public_ip}
           private_ip: ${node.ip}
+          ansible_user: ${node.ssh_user}
+          relay_domain: ${node.public_ip}
 %{ endfor ~}

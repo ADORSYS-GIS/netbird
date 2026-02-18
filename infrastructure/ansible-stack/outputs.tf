@@ -14,9 +14,14 @@ output "keycloak_client_id" {
   value       = module.keycloak.client_id
 }
 
-output "keycloak_client_secret" {
-  description = "NetBird OIDC Client Secret"
-  value       = module.keycloak.client_secret
+output "keycloak_backend_client_id" {
+  description = "NetBird backend OIDC Client ID (for IDP management)"
+  value       = module.keycloak.backend_client_id
+}
+
+output "keycloak_backend_client_secret" {
+  description = "NetBird backend OIDC Client Secret (for IDP management)"
+  value       = module.keycloak.backend_client_secret
   sensitive   = true
 }
 

@@ -1,60 +1,15 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-    #     google = {
-    #       source  = "hashicorp/google"
-    #       version = "~> 5.0"
-    #     }
-    #     azurerm = {
-    #       source  = "hashicorp/azurerm"
-    #       version = "~> 3.0"
-    #     }
-  }
-}
-
-module "aws" {
-  source = "./providers/aws"
-  count  = var.cloud_provider == "aws" || var.cloud_provider == "multi" ? 1 : 0
-
-  region      = var.aws_region
-  tag_filters = var.aws_tag_filters
-}
-
-#   module "gcp" {
-#     source = "./providers/gcp"
-#     count  = var.cloud_provider == "gcp" || var.cloud_provider == "multi" ? 1 : 0
-
-#     project       = var.gcp_project
-#     region        = var.gcp_region
-#     label_filters = var.gcp_label_filters
-#   }
-
-#   module "azure" {
-#     source = "./providers/azure"
-#     count  = var.cloud_provider == "azure" || var.cloud_provider == "multi" ? 1 : 0
-
-#     resource_group_name = var.azure_resource_group
-#     tag_filters         = var.azure_tag_filters
-#   }
-
-module "manual" {
-  source = "./providers/manual"
-
-  manual_hosts = var.manual_hosts
-}
-
 locals {
-  all_instances = concat(
-    var.cloud_provider == "aws" || var.cloud_provider == "multi" ? module.aws[0].instances : [],
-    #     var.cloud_provider == "gcp" || var.cloud_provider == "multi" ? module.gcp[0].instances : [],
-    #     var.cloud_provider == "azure" || var.cloud_provider == "multi" ? module.azure[0].instances : [],
-    module.manual.instances
-  )
+  instances = [
+    for hostname, config in var.netbird_hosts : {
+      hostname  = hostname
+      public_ip = config.public_ip
+      ip        = coalesce(config.private_ip, config.public_ip)
+      roles     = config.roles
+      ssh_user  = config.ssh_user
+    }
+  ]
 
-  management_nodes    = [for i in local.all_instances : i if can(regex("management", i.role))]
-  relay_nodes         = [for i in local.all_instances : i if can(regex("relay", i.role))]
-  reverse_proxy_nodes = [for i in local.all_instances : i if can(regex("proxy", i.role))]
+  management_nodes    = [for i in local.instances : i if contains(i.roles, "management")]
+  relay_nodes         = [for i in local.instances : i if contains(i.roles, "relay")]
+  reverse_proxy_nodes = [for i in local.instances : i if contains(i.roles, "proxy")]
 }

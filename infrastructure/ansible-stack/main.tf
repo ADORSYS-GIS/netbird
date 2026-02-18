@@ -1,23 +1,7 @@
 module "inventory" {
   source = "../modules/inventory"
 
-  cloud_provider = var.cloud_provider
-
-  # AWS
-  aws_region      = var.aws_region
-  aws_tag_filters = var.aws_tag_filters
-
-  # GCP
-  gcp_project       = var.gcp_project
-  gcp_region        = var.gcp_region
-  gcp_label_filters = var.gcp_label_filters
-
-  # Azure
-  azure_resource_group = var.azure_resource_group
-  azure_tag_filters    = var.azure_tag_filters
-
-  # Manual hosts
-  manual_hosts = var.manual_hosts
+  netbird_hosts = var.netbird_hosts
 }
 
 module "database" {
@@ -40,9 +24,9 @@ module "database" {
   postgresql_multi_az              = var.postgresql_multi_az
   postgresql_backup_retention_days = var.postgresql_backup_retention_days
 
-  # AWS-specific
-  vpc_id                      = module.inventory.vpc_id
-  database_subnet_ids         = module.inventory.subnet_ids
+  # Subnets/VPC (if needed for creation)
+  vpc_id                      = ""
+  database_subnet_ids         = []
   database_security_group_ids = []
   tags                        = { Environment = var.environment }
 
@@ -53,13 +37,6 @@ module "database" {
   existing_postgresql_username = var.existing_postgresql_username
   existing_postgresql_password = var.existing_postgresql_password
   existing_postgresql_sslmode  = var.existing_postgresql_sslmode
-
-  # MySQL Existing
-  existing_mysql_host     = var.existing_mysql_host
-  existing_mysql_port     = var.existing_mysql_port
-  existing_mysql_database = var.existing_mysql_database
-  existing_mysql_username = var.existing_mysql_username
-  existing_mysql_password = var.existing_mysql_password
 }
 
 module "keycloak" {
@@ -81,11 +58,6 @@ resource "random_password" "relay_auth_secret" {
   special = true
 }
 
-resource "random_password" "coturn_password" {
-  length  = 32
-  special = true
-}
-
 resource "random_id" "netbird_encryption_key" {
   byte_length = 32
 }
@@ -101,24 +73,36 @@ resource "local_file" "ansible_inventory" {
     database_engine      = module.database.database_engine
     database_dsn         = module.database.database_dsn
     database_endpoint    = module.database.database_endpoint
+    database_port        = module.database.database_port
+    database_name        = module.database.database_name
+    database_username    = module.database.database_username
+    database_password    = module.database.database_password
+    database_sslmode     = module.database.database_sslmode
     sqlite_database_path = var.sqlite_database_path
 
     # Keycloak
-    keycloak_url           = var.keycloak_url
-    keycloak_realm         = module.keycloak.realm_name
-    keycloak_client_id     = module.keycloak.client_id
-    keycloak_client_secret = module.keycloak.client_secret
-    keycloak_oidc_endpoint = module.keycloak.oidc_config_endpoint
+    keycloak_url                   = var.keycloak_url
+    keycloak_realm                 = module.keycloak.realm_name
+    keycloak_client_id             = module.keycloak.client_id
+    keycloak_backend_client_id     = module.keycloak.backend_client_id
+    keycloak_backend_client_secret = module.keycloak.backend_client_secret
+    keycloak_oidc_endpoint         = module.keycloak.oidc_config_endpoint
 
     relay_auth_secret      = var.relay_auth_secret != "" ? var.relay_auth_secret : random_password.relay_auth_secret.result
-    coturn_password        = var.coturn_password != "" ? var.coturn_password : random_password.coturn_password.result
     netbird_encryption_key = var.netbird_encryption_key != "" ? var.netbird_encryption_key : random_id.netbird_encryption_key.b64_std
+    netbird_log_level      = var.netbird_log_level
+    netbird_version        = var.netbird_version
+    caddy_version          = var.caddy_version
+    docker_compose_version = var.docker_compose_version
+
+
+    # Compute relay addresses list for management.json (rels://IP:443 format)
+    relay_addresses = [for node in module.inventory.relay_nodes : "rels://${node.public_ip}:443"]
 
     management_nodes    = module.inventory.management_nodes
     reverse_proxy_nodes = module.inventory.reverse_proxy_nodes
     relay_nodes         = module.inventory.relay_nodes
 
-    ssh_user             = var.ssh_user
     ssh_private_key_path = var.ssh_private_key_path
   })
   filename        = "${path.module}/../../configuration/ansible/inventory/terraform_inventory.yaml"
@@ -130,7 +114,7 @@ resource "terraform_data" "ansible_provisioning" {
   triggers_replace = [
     local_file.ansible_inventory.content,
     module.database.database_dsn,
-    module.keycloak.client_secret
+    module.keycloak.backend_client_secret
   ]
 
   provisioner "local-exec" {

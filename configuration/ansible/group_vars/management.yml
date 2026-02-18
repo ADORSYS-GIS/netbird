@@ -1,4 +1,0 @@
----
-netbird_management_port: 80
-netbird_signal_port: 80
-netbird_dashboard_port: 8080

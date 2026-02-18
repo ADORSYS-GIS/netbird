@@ -1,36 +1,51 @@
 {{ netbird_domain }} {
     # Management API
     reverse_proxy /api/* {
-        to netbird-management:80
+        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8081 {% endfor %}
+        lb_policy round_robin
+        health_uri /healthz
+        health_port 9000
+        health_interval 5s
+        health_timeout 2s
     }
     
     # WebSocket - Signal
     reverse_proxy /ws-proxy/signal* {
-        to netbird-signal:80
+        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8083 {% endfor %}
+        lb_policy round_robin
     }
     
     # gRPC - Signal (h2c = HTTP/2 cleartext)
     reverse_proxy /signalexchange.SignalExchange/* {
-        to h2c://netbird-signal:80
+        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8083 {% endfor %}
+        transport http {
+            versions h2c
+        }
     }
     
     # WebSocket - Management
     reverse_proxy /ws-proxy/management* {
-        to netbird-management:80
+        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8081 {% endfor %}
+        lb_policy round_robin
     }
     
     # gRPC - Management
     reverse_proxy /management.ManagementService/* {
-        to h2c://netbird-management:80
+        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8081 {% endfor %}
+        transport http {
+            versions h2c
+        }
     }
     
-    # Relay
+    # Relay (Proxying to Relay nodes on 33080)
     reverse_proxy /relay* {
-        to netbird-management:80
+        to {% for node in groups['relay'] %}{{ hostvars[node].private_ip }}:33080 {% endfor %}
+        lb_policy round_robin
     }
     
     # Dashboard (catch-all)
     reverse_proxy /* {
-        to netbird-dashboard:80
+        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8080 {% endfor %}
+        lb_policy round_robin
     }
 }

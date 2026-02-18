@@ -1,6 +1,6 @@
 output "all_instances" {
-  description = "All discovered instances"
-  value       = local.all_instances
+  description = "All defined instances"
+  value       = local.instances
 }
 
 output "management_nodes" {
@@ -19,11 +19,11 @@ output "reverse_proxy_nodes" {
 }
 
 output "vpc_id" {
-  description = "AWS VPC ID (if using AWS)"
-  value       = var.cloud_provider == "aws" || var.cloud_provider == "multi" ? module.aws[0].vpc_id : null
+  description = "VPC ID (dummy for compatibility)"
+  value       = null
 }
 
 output "subnet_ids" {
-  description = "AWS Subnet IDs (if using AWS)"
-  value       = var.cloud_provider == "aws" || var.cloud_provider == "multi" ? module.aws[0].subnet_ids : []
+  description = "Subnet IDs (dummy for compatibility)"
+  value       = []
 }

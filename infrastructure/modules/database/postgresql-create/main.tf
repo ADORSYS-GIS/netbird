@@ -1,18 +1,9 @@
-# Helper to create managed Postgres instances
-variable "cloud_provider" { type = string }
-variable "instance_class" { type = string }
-variable "storage_gb" { type = number }
-variable "database_name" { type = string }
-variable "username" { type = string }
-variable "password" { type = string }
-variable "multi_az" { type = bool }
-variable "backup_retention_days" { type = number }
-variable "vpc_id" { type = string }
-variable "subnet_ids" { type = list(string) }
-variable "security_group_ids" { type = list(string) }
-variable "tags" { type = map(string) }
+# Managed PostgreSQL Instances across cloud providers
 
+# ---------------------------------------------------------------------------
 # AWS RDS
+# ---------------------------------------------------------------------------
+
 resource "aws_db_subnet_group" "netbird" {
   count       = var.cloud_provider == "aws" ? 1 : 0
   name_prefix = "netbird-db-"
@@ -46,15 +37,52 @@ resource "aws_db_instance" "netbird" {
   tags = var.tags
 }
 
-# Add GCP/Azure resources similarly (omitted for brevity in this step, focusing on structure)
+# ---------------------------------------------------------------------------
+# GCP Cloud SQL
+# ---------------------------------------------------------------------------
 
-output "dsn" {
-  value = var.cloud_provider == "aws" ? (
-    "host=${aws_db_instance.netbird[0].address} port=${aws_db_instance.netbird[0].port} dbname=${var.database_name} user=${var.username} password=${var.password} sslmode=require"
-  ) : "" # Placeholder for others
-  sensitive = true
+resource "google_sql_database_instance" "netbird" {
+  count            = var.cloud_provider == "gcp" ? 1 : 0
+  name             = "netbird-${lookup(var.tags, "Environment", "prod")}"
+  database_version = "POSTGRES_16"
+  region           = lookup(var.tags, "Region", "us-central1")
+
+  settings {
+    tier              = var.instance_class
+    availability_type = var.multi_az ? "REGIONAL" : "ZONAL"
+    backup_configuration {
+      enabled    = true
+      start_time = "02:00"
+    }
+    ip_configuration {
+      ipv4_enabled    = true
+      private_network = var.vpc_id
+    }
+  }
 }
 
-output "endpoint" {
-  value = var.cloud_provider == "aws" ? aws_db_instance.netbird[0].address : ""
+# ---------------------------------------------------------------------------
+# Azure Flexible Server
+# ---------------------------------------------------------------------------
+
+resource "azurerm_postgresql_flexible_server" "netbird" {
+  count               = var.cloud_provider == "azure" ? 1 : 0
+  name                = "netbird-${lookup(var.tags, "Environment", "prod")}"
+  resource_group_name = lookup(var.tags, "ResourceGroup", "netbird-rg")
+  location            = lookup(var.tags, "Location", "East US")
+  version             = "16"
+
+  delegated_subnet_id = length(var.subnet_ids) > 0 ? var.subnet_ids[0] : null
+  private_dns_zone_id = lookup(var.tags, "DNSZoneId", null)
+
+  administrator_login    = var.username
+  administrator_password = var.password
+
+  storage_mb = var.storage_gb * 1024
+
+  sku_name   = var.instance_class
+  
+  high_availability {
+    mode = var.multi_az ? "ZoneRedundant" : "Disabled"
+  }
 }

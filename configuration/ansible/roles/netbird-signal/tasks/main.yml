@@ -1,0 +1,22 @@
+---
+- name: Allow NetBird Signal ports (UFW)
+  community.general.ufw:
+    rule: allow
+    port: '8083'
+    proto: tcp
+    comment: 'NetBird Signal'
+
+- name: Run NetBird Signal container
+  community.docker.docker_container:
+    name: netbird-signal
+    image: "netbirdio/signal:{{ netbird_version }}"
+    restart_policy: unless-stopped
+    networks:
+      - name: netbird
+    ports:
+      - "{{ private_ip }}:8083:80"
+    command: ["--port", "80"]
+    log_driver: "json-file"
+    log_options:
+      max-size: "500m"
+      max-file: "2"

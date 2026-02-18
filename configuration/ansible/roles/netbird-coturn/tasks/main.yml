@@ -1,0 +1,42 @@
+---
+- name: Create Coturn configuration directory
+  ansible.builtin.file:
+    path: \"/etc/coturn\"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy Coturn configuration
+  ansible.builtin.template:
+    src: turnserver.conf.j2
+    dest: /etc/coturn/turnserver.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Coturn
+
+- name: Allow Coturn ports (UFW)
+  community.general.ufw:
+    rule: allow
+    port: \"{{ item.port }}\"
+    proto: \"{{ item.proto }}\"
+    comment: \"{{ item.comment }}\"
+  loop:
+    - { port: '3478', proto: 'udp', comment: 'Coturn STUN/TURN UDP' }
+    - { port: '3478', proto: 'tcp', comment: 'Coturn STUN/TURN TCP' }
+    - { port: '{{ coturn_min_port }}:{{ coturn_max_port }}', proto: 'udp', comment: 'Coturn Relay Range' }
+
+- name: Run Coturn container
+  community.docker.docker_container:
+    name: coturn
+    image: \"coturn/coturn:{{ coturn_version }}\"
+    restart_policy: unless-stopped
+    network_mode: host
+    volumes:
+      - /etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: [\"-c\", \"/etc/coturn/turnserver.conf\"]
+    log_driver: \"json-file\"
+    log_options:
+      max-size: \"500m\"
+      max-file: \"2\"

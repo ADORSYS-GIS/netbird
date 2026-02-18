@@ -1,0 +1,31 @@
+---
+- name: Allow NetBird Dashboard ports (UFW)
+  community.general.ufw:
+    rule: allow
+    port: '8080'
+    proto: tcp
+    comment: 'NetBird Dashboard'
+
+- name: Run NetBird Dashboard container
+  community.docker.docker_container:
+    name: netbird-dashboard
+    image: "netbirdio/dashboard:{{ netbird_version }}"
+    restart_policy: unless-stopped
+    networks:
+      - name: netbird
+    env:
+      NETBIRD_MGMT_API_ENDPOINT: "https://{{ netbird_domain }}"
+      NETBIRD_MGMT_GRPC_API_ENDPOINT: "https://{{ netbird_domain }}"
+      AUTH_AUDIENCE: "{{ keycloak_client_id }}"
+      AUTH_CLIENT_ID: "{{ keycloak_client_id }}"
+      AUTH_AUTHORITY: "{{ keycloak_url }}/realms/{{ keycloak_realm }}"
+      AUTH_SUPPORTED_SCOPES: "openid profile email groups api"
+      AUTH_REDIRECT_URI: "https://{{ netbird_domain }}/nb-auth"
+      AUTH_SILENT_REDIRECT_URI: "https://{{ netbird_domain }}/nb-silent-auth"
+      LETSENCRYPT_DOMAIN: "none"
+    ports:
+      - "{{ private_ip }}:8080:80"
+    log_driver: "json-file"
+    log_options:
+      max-size: "500m"
+      max-file: "2"

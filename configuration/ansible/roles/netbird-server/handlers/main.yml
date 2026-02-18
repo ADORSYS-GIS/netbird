@@ -1,4 +1,0 @@
-- name: restart netbird
-  community.docker.docker_compose_v2:
-    project_src: /etc/netbird
-    state: restarted

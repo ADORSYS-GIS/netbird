@@ -4,92 +4,25 @@ variable "environment" {
   default     = "prod"
 }
 
-variable "cloud_provider" {
-  description = "Cloud provider (aws, gcp, azure)"
-  type        = string
-}
-
 variable "aws_region" {
   description = "AWS Region"
   type        = string
   default     = "us-east-1"
 }
 
-variable "aws_tag_filters" {
-  description = "Tags to filter instances by"
-  type        = map(string)
-  default     = {}
-}
-
-variable "gcp_project" {
-  description = "GCP Project ID"
-  type        = string
-  default     = ""
-}
-
-variable "gcp_region" {
-  description = "GCP Region"
-  type        = string
-  default     = "us-central1"
-}
-
-variable "gcp_label_filters" {
-  description = "Labels to filter instances by"
-  type        = map(string)
-  default     = {}
-}
-
-variable "azure_resource_group" {
-  description = "Azure Resource Group"
-  type        = string
-  default     = ""
-}
-
-variable "azure_tag_filters" {
-  description = "Tags to filter instances by"
-  type        = map(string)
-  default     = {}
-}
-
-variable "azure_location" {
-  description = "Azure Location"
-  type        = string
-  default     = "eastus"
-}
-
-variable "azure_vnet_name" {
-  description = "Azure VNet Name"
-  type        = string
-  default     = ""
-}
-
-variable "vpc_name" {
-  description = "AWS VPC Name"
-  type        = string
-  default     = ""
-}
-
-variable "gcp_network_name" {
-  description = "GCP Network Name"
-  type        = string
-  default     = ""
-}
-
-variable "manual_hosts" {
-  description = "List of manual hosts"
-  type        = list(any)
-  default     = []
-}
-
-variable "azure_subscription_id" {
-  description = "Azure Subscription ID"
-  type        = string
-  default     = ""
+variable "netbird_hosts" {
+  description = "Map of hosts for NetBird deployment"
+  type = map(object({
+    public_ip  = string
+    private_ip = optional(string)
+    roles      = list(string) # ["management", "relay", "proxy"]
+    ssh_user   = optional(string, "ubuntu")
+  }))
 }
 
 # Database Configuration
 variable "database_type" {
-  description = "Database type (sqlite, postgresql, mysql)"
+  description = "Database type (sqlite, postgresql)"
   type        = string
   default     = "sqlite"
 }
@@ -114,7 +47,7 @@ variable "sqlite_database_path" {
 }
 
 # PostgreSQL Create Configuration
-variable "postgresql_cloud_provider" {
+variable "cloud_provider" {
   description = "Cloud provider for managed PostgreSQL (aws, gcp, azure)"
   type        = string
   default     = ""
@@ -201,38 +134,6 @@ variable "existing_postgresql_sslmode" {
   default     = "require"
 }
 
-# MySQL Existing Configuration
-variable "existing_mysql_host" {
-  description = "Existing MySQL host"
-  type        = string
-  default     = ""
-}
-
-variable "existing_mysql_port" {
-  description = "Existing MySQL port"
-  type        = number
-  default     = 3306
-}
-
-variable "existing_mysql_database" {
-  description = "Existing MySQL database name"
-  type        = string
-  default     = ""
-}
-
-variable "existing_mysql_username" {
-  description = "Existing MySQL username"
-  type        = string
-  default     = ""
-}
-
-variable "existing_mysql_password" {
-  description = "Existing MySQL password"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
 variable "keycloak_url" {
   description = "Keycloak URL"
   type        = string
@@ -251,7 +152,7 @@ variable "keycloak_admin_password" {
 }
 
 variable "keycloak_admin_client_secret" {
-  description = "Keycloak Admin Client Secret (Required if admin-cli is confidential)"
+  description = "Keycloak Admin Client Secret"
   type        = string
   default     = ""
   sensitive   = true
@@ -280,6 +181,19 @@ variable "netbird_version" {
   default     = "latest"
 }
 
+variable "caddy_version" {
+  description = "Caddy Version"
+  type        = string
+  default     = "latest"
+}
+
+variable "docker_compose_version" {
+  description = "Docker Compose Version"
+  type        = string
+  default     = "v2.24.0"
+}
+
+
 variable "netbird_log_level" {
   description = "Log level for NetBird services"
   type        = string
@@ -291,19 +205,6 @@ variable "relay_auth_secret" {
   type        = string
   default     = ""
   sensitive   = true
-}
-
-variable "coturn_password" {
-  description = "CoTurn Authentication Secret"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "admin_cidr_blocks" {
-  description = "List of CIDR blocks allowed to access SSH"
-  type        = list(string)
-  default     = ["0.0.0.0/0"]
 }
 
 variable "netbird_admin_email" {
@@ -319,12 +220,6 @@ variable "netbird_admin_password" {
 }
 
 # SSH Configuration
-variable "ssh_user" {
-  description = "SSH user for Ansible connection"
-  type        = string
-  default     = "ubuntu"
-}
-
 variable "ssh_private_key_path" {
   description = "Path to SSH private key"
   type        = string
