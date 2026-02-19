@@ -213,6 +213,22 @@ variable "caddy_version" {
   default     = "latest"
 }
 
+variable "acme_provider" {
+  description = "ACME provider for Caddy certificates (letsencrypt or zerossl)"
+  type        = string
+  default     = "letsencrypt"
+  validation {
+    condition     = contains(["letsencrypt", "zerossl"], var.acme_provider)
+    error_message = "acme_provider must be either 'letsencrypt' or 'zerossl'."
+  }
+}
+
+variable "acme_email" {
+  description = "Email address for ACME registration"
+  type        = string
+  default     = "admin@example.com"
+}
+
 variable "coturn_version" {
   description = "Coturn Version"
   type        = string

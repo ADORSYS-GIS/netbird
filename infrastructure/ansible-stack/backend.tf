@@ -1,6 +1,5 @@
 terraform {
-  backend "gcs" {
-    bucket = "observe-472521-terraform-state"
-    prefix = "netbird-infrastructure"
+  backend "local" {
+    path = "terraform.tfstate"
   }
 }

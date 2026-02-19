@@ -6,7 +6,7 @@
 # =============================================================================
 
 # 1. Main Configuration
-netbird_domain = "ec2-16-171-59-171.eu-north-1.compute.amazonaws.com"
+netbird_domain = "netbird.observe.camer.digital"
 environment    = "dev"
 
 # 2. Host Configuration (One VM for everything)
@@ -27,11 +27,17 @@ keycloak_url                 = "https://keycloak.net.observe.camer.digital/auth"
 keycloak_admin_username      = "admin"
 keycloak_admin_password      = "password123!"
 keycloak_admin_client_secret = "rk9v8yewnXKOZ1oAbXktyHIIUl7rDVob"
+keycloak_use_existing_realm = true
+realm_name = "netbird2"
 
 
 # 5. NetBird Admin Dashboard
-netbird_admin_email    = "admin@example.com"
+netbird_admin_email    = "admin@observe.camer.digital"
 netbird_admin_password = "password123!"
 
-# 6. SSH Credentials for Ansible
+# 6. ACME Configuration
+acme_provider = "letsencrypt"
+acme_email    = "admin@observe.camer.digital"
+
+# 7. SSH Credentials for Ansible
 ssh_private_key_path = "~/.ssh/private_key"

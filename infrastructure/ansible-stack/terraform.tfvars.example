@@ -82,10 +82,12 @@ netbird_encryption_key       = "" # 32-byte base64 key for sensitive data at res
 netbird_log_level            = "info"
 
 # -----------------------------------------------------------------------------
-# 6. Version Pinning
+# 6. Version Pinning & ACME
 # -----------------------------------------------------------------------------
 netbird_version              = "latest"
 caddy_version                = "latest"
+acme_provider                = "letsencrypt" # Options: letsencrypt, zerossl
+acme_email                   = "admin@example.com"
 docker_compose_version       = "v2.24.0"
 
 # -----------------------------------------------------------------------------

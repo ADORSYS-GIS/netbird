@@ -5,6 +5,8 @@ all:
     netbird_version: "${netbird_version}"
     coturn_version: "${coturn_version}"
     caddy_version: "${caddy_version}"
+    acme_provider: "${acme_provider}"
+    acme_email: "${acme_email}"
     docker_compose_version: "${docker_compose_version}"
     netbird_log_level: "${netbird_log_level}"
     relay_auth_secret: "${relay_auth_secret}"

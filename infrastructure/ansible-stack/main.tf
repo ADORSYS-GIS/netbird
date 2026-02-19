@@ -75,6 +75,8 @@ locals {
     coturn_version         = var.coturn_version
     netbird_log_level      = var.netbird_log_level
     caddy_version          = var.caddy_version
+    acme_provider          = var.acme_provider
+    acme_email             = var.acme_email
     docker_compose_version = var.docker_compose_version
 
     # Database
@@ -124,7 +126,10 @@ resource "terraform_data" "ansible_provisioning" {
   triggers_replace = [
     local.inventory_content,
     module.database.database_dsn,
-    module.keycloak.backend_client_secret
+    module.keycloak.backend_client_secret,
+    sha256(file("${path.module}/../../configuration/ansible/roles/netbird-management/templates/management.json.j2")),
+    sha256(file("${path.module}/../../configuration/ansible/roles/reverse-proxy/templates/Caddyfile.j2")),
+    sha256(file("${path.module}/../../configuration/ansible/roles/netbird-dashboard/tasks/main.yml"))
   ]
 
   provisioner "local-exec" {
@@ -143,6 +148,7 @@ resource "terraform_data" "ansible_provisioning" {
       echo "${base64encode(self.input.content)}" | base64 -d > ${self.input.path}
       chmod 600 ${self.input.path}
       cd ../../configuration/ansible && ansible-playbook -i inventory/terraform_inventory.yaml playbooks/cleanup.yml || echo 'Cleanup failed, proceeding anyway'
+      rm -f ${self.input.path}
     EOT
   }
 }
