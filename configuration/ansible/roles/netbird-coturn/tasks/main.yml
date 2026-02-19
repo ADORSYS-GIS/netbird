@@ -1,13 +1,19 @@
 ---
-- name: Create Coturn configuration directory
+- name: Stop Coturn container (Cleanup)
+  community.docker.docker_container:
+    name: coturn
+    state: absent
+  when: netbird_state | default('present') == 'absent'
+
+- name: Manage Coturn configuration directory
   ansible.builtin.file:
     path: "/etc/coturn"
-    state: directory
+    state: "{{ 'directory' if netbird_state | default('present') == 'present' else 'absent' }}"
     owner: root
     group: root
     mode: '0755'
 
-- name: Deploy Coturn configuration
+- name: Manage Coturn configuration file
   ansible.builtin.template:
     src: turnserver.conf.j2
     dest: /etc/coturn/turnserver.conf
@@ -15,22 +21,13 @@
     group: root
     mode: '0644'
   notify: Restart Coturn
+  when: netbird_state | default('present') == 'present'
 
-- name: Allow Coturn ports (UFW)
-  community.general.ufw:
-    rule: allow
-    port: "{{ item.port }}"
-    proto: "{{ item.proto }}"
-    comment: "{{ item.comment }}"
-  loop:
-    - { port: '3478', proto: 'udp', comment: 'Coturn STUN/TURN UDP' }
-    - { port: '3478', proto: 'tcp', comment: 'Coturn STUN/TURN TCP' }
-    - { port: '{{ coturn_min_port }}:{{ coturn_max_port }}', proto: 'udp', comment: 'Coturn Relay Range' }
-
-- name: Run Coturn container
+- name: Manage Coturn container
   community.docker.docker_container:
     name: coturn
     image: "coturn/coturn:{{ coturn_version }}"
+    state: started
     restart_policy: unless-stopped
     network_mode: host
     volumes:
@@ -40,3 +37,16 @@
     log_options:
       max-size: "500m"
       max-file: "2"
+  when: netbird_state | default('present') == 'present'
+
+- name: Manage Coturn ports (UFW)
+  community.general.ufw:
+    rule: allow
+    delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop:
+    - { port: '3478', proto: 'udp', comment: 'Coturn STUN/TURN UDP' }
+    - { port: '3478', proto: 'tcp', comment: 'Coturn STUN/TURN TCP' }
+    - { port: '{{ coturn_min_port }}:{{ coturn_max_port }}', proto: 'udp', comment: 'Coturn Relay Range' }

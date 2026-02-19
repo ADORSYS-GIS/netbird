@@ -1,28 +1,35 @@
 ---
-- name: Cleanup NetBird services
-  hosts: management,relay,reverse_proxy
+- name: Cleanup NetBird Management Servers
+  hosts: management
   become: true
-  tasks:
-    - name: Stop NetBird server services
-      community.docker.docker_compose_v2:
-        project_src: /etc/netbird
-        state: absent
-      when: "'management' in group_names"
-      ignore_errors: true
+  vars:
+    netbird_state: absent
+  roles:
+    - netbird-management
+    - netbird-signal
+    - netbird-dashboard
+    - netbird-coturn
 
-    - name: Stop Caddy container
-      community.docker.docker_container:
-        name: caddy
-        state: absent
-      when: "'reverse_proxy' in group_names"
-      ignore_errors: true
+- name: Cleanup NetBird Relay Servers
+  hosts: relay
+  become: true
+  vars:
+    netbird_state: absent
+  roles:
+    - netbird-relay
 
-    - name: Remove NetBird and Caddy directories
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - /etc/netbird
-        - /opt/netbird
-        - /opt/caddy
-      ignore_errors: true
+- name: Cleanup Load Balancer
+  hosts: reverse_proxy
+  become: true
+  vars:
+    netbird_state: absent
+  roles:
+    - reverse-proxy
+
+- name: Cleanup NetBird Infrastructure (Common)
+  hosts: all
+  become: true
+  vars:
+    netbird_state: absent
+  roles:
+    - common

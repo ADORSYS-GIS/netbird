@@ -1,8 +1,14 @@
 ---
-- name: Create NetBird directories
+- name: Stop NetBird Management container (Cleanup)
+  community.docker.docker_container:
+    name: netbird-management
+    state: absent
+  when: netbird_state | default('present') == 'absent'
+
+- name: Manage NetBird directories
   ansible.builtin.file:
     path: "{{ item }}"
-    state: directory
+    state: "{{ 'directory' if netbird_state | default('present') == 'present' else 'absent' }}"
     owner: root
     group: root
     mode: '0755'
@@ -10,7 +16,7 @@
     - "{{ netbird_data_dir }}"
     - "{{ netbird_config_dir }}"
 
-- name: Deploy NetBird Management configuration
+- name: Manage NetBird configuration file
   ansible.builtin.template:
     src: management.json.j2
     dest: "{{ netbird_config_dir }}/management.json"
@@ -18,10 +24,12 @@
     group: root
     mode: '0600'
   notify: Restart NetBird Management
+  when: netbird_state | default('present') == 'present'
 
-- name: Allow NetBird Management ports (UFW)
+- name: Manage NetBird Management ports (UFW)
   community.general.ufw:
     rule: allow
+    delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
     port: "{{ item.port }}"
     proto: tcp
     comment: "{{ item.comment }}"
@@ -30,10 +38,11 @@
     - { port: '10000', comment: 'NetBird gRPC' }
     - { port: '9000', comment: 'NetBird Management Health' }
 
-- name: Run NetBird Management container
+- name: Start NetBird Management container (Deploy)
   community.docker.docker_container:
     name: netbird-management
     image: "netbirdio/management:{{ netbird_version }}"
+    state: started
     restart_policy: unless-stopped
     networks:
       - name: netbird
@@ -41,6 +50,9 @@
       - "8081:80"
       - "10000:10000"
       - "9000:9000"
+    env:
+      NETBIRD_STORE_ENGINE_POSTGRES_DSN: "{{ database_dsn if database_engine in ['postgres', 'postgresql'] else '' }}"
+      NETBIRD_STORE_ENGINE_MYSQL_DSN: "{{ database_dsn if database_engine == 'mysql' else '' }}"
     volumes:
       - "{{ netbird_data_dir }}:/var/lib/netbird"
       - "{{ netbird_config_dir }}:/etc/netbird"
@@ -49,3 +61,4 @@
     log_options:
       max-size: "500m"
       max-file: "2"
+  when: netbird_state | default('present') == 'present'

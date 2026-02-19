@@ -5,3 +5,7 @@
 
 netbird_data_dir: "/var/lib/netbird"
 netbird_config_dir: "/etc/netbird"
+
+# ACME Settings
+acme_provider: "letsencrypt"
+acme_email: "admin@example.com"

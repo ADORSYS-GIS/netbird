@@ -1,15 +1,17 @@
 ---
-- name: Allow Relay port (UFW)
+- name: Manage Relay port (UFW)
   community.general.ufw:
     rule: allow
+    delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
     port: '33080'
     proto: tcp
     comment: "NetBird Relay Service"
 
-- name: Run NetBird Relay container
+- name: Manage NetBird Relay container
   community.docker.docker_container:
     name: netbird-relay
     image: "netbirdio/relay:{{ netbird_version }}"
+    state: "{{ 'started' if netbird_state | default('present') == 'present' else 'absent' }}"
     restart_policy: unless-stopped
     networks:
       - name: netbird

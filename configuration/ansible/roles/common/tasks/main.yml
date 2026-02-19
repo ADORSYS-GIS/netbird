@@ -1,83 +1,95 @@
 ---
-- name: Wipe all existing Docker repository configurations
-  ansible.builtin.shell: |
-    rm -f /etc/apt/sources.list.d/*docker*
-    sed -i '/download.docker.com/d' /etc/apt/sources.list
-  args:
-    executable: /bin/bash
-  register: cleanup_docker
-  changed_when: true
-
-- name: Install dependencies
-  ansible.builtin.apt:
-    name:
-      - ca-certificates
-      - curl
-      - ufw
-      - python3-pip
-    state: present
-    update_cache: true
-
-- name: Create directory for Docker GPG key
-  ansible.builtin.file:
-    path: /etc/apt/keyrings
-    state: directory
-    mode: '0755'
-
-- name: Download Docker GPG key
-  ansible.builtin.get_url:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    dest: /etc/apt/keyrings/docker.asc
-    mode: '0644'
-
-- name: Add Docker repository
-  ansible.builtin.apt_repository:
-    repo: >-
-      deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}
-      signed-by=/etc/apt/keyrings/docker.asc]
-      https://download.docker.com/linux/ubuntu
-      {{ ansible_distribution_release }} stable
-    state: present
-    filename: docker
-
-
-- name: Install Docker components
-  ansible.builtin.apt:
-    name:
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-      - docker-compose-plugin
-      - docker-buildx-plugin
-    state: present
-    update_cache: true
-
-- name: Ensure Docker is started and enabled
-  ansible.builtin.service:
-    name: docker
-    state: started
-    enabled: true
-
-- name: Add user to docker group
-  ansible.builtin.user:
-    name: "{{ ansible_user }}"
-    groups: docker
-    append: true
-
-- name: Create NetBird Docker network
+- name: Manage NetBird Docker network
   community.docker.docker_network:
     name: netbird
-    state: present
+    state: "{{ 'present' if netbird_state | default('present') == 'present' else 'absent' }}"
 
-- name: Set UFW default policies
-  community.general.ufw:
-    policy: deny
-    direction: incoming
-    state: enabled
-
-- name: Allow SSH
+- name: Manage SSH port (UFW)
   community.general.ufw:
     rule: allow
+    delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
     port: 22
     proto: tcp
     comment: "Allow SSH for management"
+
+- name: Cleanup-only tasks
+  when: netbird_state | default('present') == 'absent'
+  block:
+    - name: Disable UFW
+      community.general.ufw:
+        state: disabled
+      ignore_errors: true
+
+- name: Check if Docker is installed
+  ansible.builtin.command: which docker
+  register: docker_check
+  failed_when: false
+  changed_when: false
+
+- name: Deploy-only tasks
+  when: netbird_state | default('present') == 'present'
+  block:
+    - name: Install dependencies
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - ufw
+          - python3-pip
+        state: present
+        update_cache: true
+
+    - name: Set up Docker repository
+      when: docker_check.rc != 0
+      block:
+        - name: Create directory for Docker GPG key
+          ansible.builtin.file:
+            path: /etc/apt/keyrings
+            state: directory
+            mode: '0755'
+
+        - name: Download Docker GPG key
+          ansible.builtin.get_url:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            dest: /etc/apt/keyrings/docker.asc
+            mode: '0644'
+
+        - name: Add Docker repository
+          ansible.builtin.apt_repository:
+            repo: >-
+              deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}
+              signed-by=/etc/apt/keyrings/docker.asc]
+              https://download.docker.com/linux/ubuntu
+              {{ ansible_distribution_release }} stable
+            state: present
+            filename: docker
+
+    - name: Install Docker components
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+          - docker-buildx-plugin
+        state: present
+        update_cache: true
+      when: docker_check.rc != 0
+
+    - name: Ensure Docker is started and enabled
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add user to docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+
+    - name: Set UFW default policies
+      community.general.ufw:
+        policy: deny
+        direction: incoming
+        state: enabled

@@ -2,27 +2,34 @@
   "Stuns": [
     {% for addr in stun_addresses %}
     {
-      "URI": "{{ addr }}"
+      "URI": "{{ addr }}",
+      "Username": "",
+      "Password": ""
     }{{ "," if not loop.last else "" }}
     {% else %}
     {
-      "URI": "stun:{{ netbird_domain }}:3478"
+      "URI": "stun:{{ netbird_domain }}:3478",
+      "Username": "",
+      "Password": ""
     }
     {% endfor %}
   ],
   "Relay": {
-    "Addresses": {{ relay_addresses | to_json }},
+    "Addresses": [
+      {% for addr in relay_addresses %}
+      "{{ addr }}"{{ "," if not loop.last else "" }}
+      {% else %}
+      "rels://{{ netbird_domain }}:443/relay"
+      {% endfor %}
+    ],
     "CredentialsTTL": "24h",
     "Secret": "{{ relay_auth_secret }}"
   },
   "Signal": {
     "Proto": "https",
-    "URI": "{{ netbird_domain }}:443"
-  },
-  "HttpConfig": {
-    "AuthIssuer": "{{ keycloak_url }}/realms/{{ keycloak_realm }}",
-    "AuthAudience": "{{ keycloak_client_id }}",
-    "OIDCConfigEndpoint": "{{ keycloak_oidc_endpoint }}"
+    "URI": "{{ netbird_domain }}:443",
+    "Username": "",
+    "Password": ""
   },
   "IdpManagerConfig": {
     "ManagerType": "keycloak",
@@ -37,23 +44,25 @@
        "AdminEndpoint": "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}"
     }
   },
-  "Datastore": {
-    "Engine": "{{ database_engine | default('sqlite') }}",
-    {% if database_engine == 'postgres' or database_engine == 'postgresql' %}
-    "PostgreSQL": {
-      "Host": "{{ db_host }}",
-      "Port": {{ db_port | default(5432) }},
-      "Database": "{{ db_name }}",
-      "User": "{{ db_user }}",
-      "Password": "{{ db_password }}",
-      "SSLMode": "{{ db_sslmode | default('require') }}"
-    },
-    {% else %}
-    "Sqlite": {
-      "Path": "{{ sqlite_database_path | default('/var/lib/netbird/store.db') }}"
-    },
-    {% endif %}
-    "EncryptionKey": "{{ netbird_encryption_key }}"
+  "Datadir": "/var/lib/netbird",
+  "DataStoreEncryptionKey": "{{ netbird_encryption_key }}",
+  "StoreConfig": {
+    "Engine": "{{ database_engine | default('sqlite') }}"
+  },
+  "HttpConfig": {
+    "Address": ":80",
+    "AuthIssuer": "{{ keycloak_url }}/realms/{{ keycloak_realm }}",
+    "AuthAudience": "{{ keycloak_client_id }}",
+    "AuthUserIDClaim": "sub",
+    "OIDCConfigEndpoint": "{{ keycloak_oidc_endpoint }}",
+    "IdpSignKeyRefreshEnabled": true
+  },
+  "ReverseProxy": {
+    "TrustedHTTPProxies": [],
+    "TrustedHTTPProxiesCount": 0,
+    "TrustedPeers": [
+      "0.0.0.0/0"
+    ]
   },
   "ListenAddress": ":80",
   "ExposedAddress": "https://{{ netbird_domain }}:443",
@@ -61,9 +70,10 @@
   "HealthcheckAddress": ":9000",
   "LogLevel": "{{ netbird_log_level | default('info') }}",
   "LogFile": "console",
-  "Datadir": "/var/lib/netbird",
   "Auth": {
     "Issuer": "{{ keycloak_url }}/realms/{{ keycloak_realm }}",
+    "Audience": "{{ keycloak_client_id }}",
+    "UserIDClaim": "sub",
     "SignKeyRefreshEnabled": true,
     "DashboardRedirectURIs": [
       "https://{{ netbird_domain }}/nb-auth",

@@ -52,7 +52,7 @@ resource "keycloak_openid_audience_protocol_mapper" "api_audience" {
   client_scope_id = keycloak_openid_client_scope.api.id
   name            = "Audience for NetBird Management API"
 
-  included_client_audience = "netbird-client"
+  included_client_audience = keycloak_openid_client.netbird_client.client_id
   add_to_access_token      = true
   add_to_id_token          = false
 }
@@ -107,15 +107,16 @@ resource "keycloak_openid_client" "netbird_client" {
     "https://${var.netbird_domain}/*",
     "https://${var.netbird_domain}/nb-auth",
     "https://${var.netbird_domain}/nb-silent-auth",
-    "http://localhost:53000/", # CLI device auth flow
-    "http://localhost:54000/", # CLI PKCE flow
+    "http://localhost:53000/*",
+    "http://localhost:54000/*",
   ]
 
   valid_post_logout_redirect_uris = [
+    "+",
     "https://${var.netbird_domain}/*",
   ]
 
-  web_origins = ["+"] # Allows all valid redirect URI origins
+  web_origins = ["+"]
 }
 
 # Attach "api" and "groups" scopes as defaults to netbird-client

@@ -1,24 +1,32 @@
-- name: Allow HTTP/HTTPS ports (UFW)
-  community.general.ufw:
-    rule: allow
-    port: "{{ item }}"
-    proto: tcp
-    comment: "NetBird Reverse Proxy"
-  loop:
-    - 80
-    - 443
+---
+- name: Stop Caddy container (Cleanup)
+  community.docker.docker_container:
+    name: caddy
+    state: absent
+  when: netbird_state | default('present') == 'absent'
 
-- name: Setup Caddy configuration
+- name: Manage Caddy configuration directory
+  ansible.builtin.file:
+    path: /etc/caddy
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  when: netbird_state | default('present') == 'present'
+
+- name: Manage Caddy configuration file
   ansible.builtin.template:
     src: Caddyfile.j2
     dest: /etc/caddy/Caddyfile
     mode: '0644'
-  notify: Reload Caddy
+  notify: Restart Caddy
+  when: netbird_state | default('present') == 'present'
 
-- name: Run Caddy Docker container
+- name: Manage Caddy Docker container
   community.docker.docker_container:
     name: caddy
     image: "caddy:{{ caddy_version | default('latest') }}"
+    state: started
     restart_policy: unless-stopped
     networks:
       - name: netbird
@@ -29,8 +37,31 @@
       - /etc/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+  notify: Restart Caddy
+  when: netbird_state | default('present') == 'present'
 
-- name: Reload Caddy
-  ansible.builtin.command: docker exec caddy caddy reload --config /etc/caddy/Caddyfile
-  changed_when: true
-  when: false # Triggered by handler
+- name: Manage HTTP/HTTPS ports (UFW)
+  community.general.ufw:
+    rule: allow
+    delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
+    port: "{{ item }}"
+    proto: tcp
+    comment: "NetBird Reverse Proxy"
+  loop:
+    - 80
+    - 443
+
+- name: Remove Caddy configuration directory
+  ansible.builtin.file:
+    path: /etc/caddy
+    state: absent
+  when: netbird_state | default('present') == 'absent'
+
+- name: Remove Caddy Docker volumes
+  community.docker.docker_volume:
+    name: \"{{ item }}\"
+    state: absent
+  loop:
+    - caddy_data
+    - caddy_config
+  when: netbird_state | default('present') == 'absent'

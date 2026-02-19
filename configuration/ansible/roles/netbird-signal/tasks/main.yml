@@ -1,15 +1,23 @@
 ---
-- name: Allow NetBird Signal ports (UFW)
+- name: Stop NetBird Signal container (Cleanup)
+  community.docker.docker_container:
+    name: netbird-signal
+    state: absent
+  when: netbird_state | default('present') == 'absent'
+
+- name: Manage NetBird Signal ports (UFW)
   community.general.ufw:
     rule: allow
+    delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
     port: '8083'
     proto: tcp
     comment: 'NetBird Signal'
 
-- name: Run NetBird Signal container
+- name: Start NetBird Signal container (Deploy)
   community.docker.docker_container:
     name: netbird-signal
     image: "netbirdio/signal:{{ netbird_version }}"
+    state: started
     restart_policy: unless-stopped
     networks:
       - name: netbird
@@ -20,3 +28,4 @@
     log_options:
       max-size: "500m"
       max-file: "2"
+  when: netbird_state | default('present') == 'present'

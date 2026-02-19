@@ -1,65 +1,88 @@
+{
+    email {{ acme_email }}
+    {% if acme_provider == 'letsencrypt' %}
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
+    {% elif acme_provider == 'zerossl' %}
+    acme_ca https://acme.zerossl.com/v2/DV90
+    {% endif %}
+}
+
 {{ netbird_domain }} {
-    # Management API
-    {% if groups['management'] is defined and groups['management'] | length > 0 %}
-    reverse_proxy /api/* {
-        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8081 {% endfor %}
-        lb_policy round_robin
-        health_uri /healthz
-        health_port 9000
-        health_interval 5s
-        health_timeout 2s
-    }
+    # SSL Configuration for AWS ephemeral domains
+    {% if "compute.amazonaws.com" in netbird_domain %}
+    tls internal
     {% endif %}
-    
-    # WebSocket - Signal
-    {% if groups['management'] is defined and groups['management'] | length > 0 %}
-    reverse_proxy /ws-proxy/signal* {
-        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8083 {% endfor %}
-        lb_policy round_robin
+
+    # Security headers
+    header {
+        Strict-Transport-Security max-age=31536000;
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
     }
-    {% endif %}
-    
-    # gRPC - Signal (h2c = HTTP/2 cleartext)
-    {% if groups['management'] is defined and groups['management'] | length > 0 %}
-    reverse_proxy /signalexchange.SignalExchange/* {
-        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8083 {% endfor %}
-        transport http {
-            versions h2c
-        }
-    }
-    {% endif %}
-    
-    # WebSocket - Management
-    {% if groups['management'] is defined and groups['management'] | length > 0 %}
-    reverse_proxy /ws-proxy/management* {
-        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8081 {% endfor %}
-        lb_policy round_robin
-    }
-    {% endif %}
-    
-    # gRPC - Management
-    {% if groups['management'] is defined and groups['management'] | length > 0 %}
+
+    # Management gRPC - HTTP/2 cleartext (h2c)
     reverse_proxy /management.ManagementService/* {
-        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8081 {% endfor %}
+        to netbird-management:80
+        header_up Host {host}
+        header_up X-Real-IP {remote_ip}
         transport http {
             versions h2c
         }
     }
-    {% endif %}
-    
-    # Relay (Proxying to Relay nodes on 33080)
-    {% if groups['relay'] is defined and groups['relay'] | length > 0 %}
+
+    # Signal gRPC - HTTP/2 cleartext (h2c)
+    reverse_proxy /signalexchange.SignalExchange/* {
+        to netbird-signal:80
+        header_up Host {host}
+        header_up X-Real-IP {remote_ip}
+        transport http {
+            versions h2c
+        }
+    }
+
+    # Signal WebSocket
+    reverse_proxy /ws-proxy/signal* {
+        to netbird-signal:80
+        header_up Host {host}
+        header_up X-Real-IP {remote_ip}
+        header_up X-Forwarded-For {remote_ip}
+        header_up Upgrade {>Upgrade}
+        header_up Connection {>Connection}
+    }
+
+    # Management WebSocket
+    reverse_proxy /ws-proxy/management* {
+        to netbird-management:80
+        header_up Host {host}
+        header_up X-Real-IP {remote_ip}
+        header_up X-Forwarded-For {remote_ip}
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
+
+    # Relay WebSocket
     reverse_proxy /relay* {
-        to {% for node in groups['relay'] %}{{ hostvars[node].private_ip }}:33080 {% endfor %}
-        lb_policy round_robin
+        to netbird-relay:33080
+        header_up Host {host}
+        header_up X-Real-IP {remote_ip}
+        header_up X-Forwarded-For {remote_ip}
+        header_up Upgrade {>Upgrade}
+        header_up Connection {>Connection}
     }
-    {% endif %}
-    
-    # Dashboard (catch-all)
-    {% if groups['management'] is defined and groups['management'] | length > 0 %}
+
+    # Management REST API
+    reverse_proxy /api/* {
+        to netbird-management:80
+        header_up Host {host}
+        header_up X-Real-IP {remote_ip}
+        header_up X-Forwarded-For {remote_ip}
+    }
+
+    # Dashboard UI - catch-all (must be last)
     reverse_proxy /* {
-        to {% for node in groups['management'] %}{{ hostvars[node].private_ip }}:8080 {% endfor %}
-        lb_policy round_robin
+        to netbird-dashboard:80
+        header_up Host {host}
+        header_up X-Real-IP {remote_ip}
+        header_up X-Forwarded-For {remote_ip}
     }
-    {% endif %}
 }
