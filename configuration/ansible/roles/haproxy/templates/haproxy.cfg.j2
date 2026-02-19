@@ -37,6 +37,11 @@ frontend https_in
     bind *:443 ssl crt /etc/haproxy/certs/{{ netbird_domain }}.pem alpn h2,http/1.1
     redirect scheme https if !{ ssl_fc }
 
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+    http-request set-header X-Forwarded-Proto http if !{ ssl_fc }
+    http-request set-header X-Forwarded-Host %[req.hdr(Host)]
+
     # ACLs for routing
     acl is_grpc_mgmt path_beg /management.ManagementService/
     acl is_grpc_signal path_beg /signalexchange.SignalExchange/

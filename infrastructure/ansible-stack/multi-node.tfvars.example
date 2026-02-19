@@ -1,0 +1,73 @@
+# =============================================================================
+# NETBIRD MULTI-NODE HA DEPLOYMENT (DOCKER + EXTERNAL DB + HAPROXY)
+# =============================================================================
+# High-performance distributed architecture.
+# Separates components (Management, Signal, Relay, Proxy) onto multiple hosts.
+# =============================================================================
+
+# 1. Main Configuration
+netbird_domain = "netbird.example.com"
+environment    = "prod"
+enable_ha      = true
+proxy_type     = "haproxy" # Use HAProxy instead of Caddy for high throughput
+
+# 2. Distributed Host Configuration
+netbird_hosts = {
+  "netbird-mgmt-1" = {
+    public_ip  = "1.2.3.4"
+    private_ip = "10.0.0.4"
+    roles      = ["management"] # Runs Management, Signal, Dashboard
+    ssh_user   = "ubuntu"
+  },
+  "netbird-mgmt-2" = {
+    public_ip  = "1.2.3.5"
+    private_ip = "10.0.0.5"
+    roles      = ["management"] # High Availability Management node
+    ssh_user   = "ubuntu"
+  },
+  "netbird-proxy-1" = {
+    public_ip  = "1.2.3.6"
+    private_ip = "10.0.0.6"
+    roles      = ["proxy"] # Runs HAProxy with SSL termination
+    ssh_user   = "ubuntu"
+  },
+  "netbird-relay-1" = {
+    public_ip  = "1.2.3.7"
+    private_ip = "10.0.0.7"
+    roles      = ["relay"] # Dedicated Relay/STUN node
+    ssh_user   = "ubuntu"
+  }
+}
+
+# 3. Database Configuration (External PostgreSQL recommended for HA)
+database_type             = "postgresql"
+database_mode             = "existing" # or 'create' for managed cloud DB
+existing_postgresql_host     = "db.example.com"
+existing_postgresql_port     = 5432
+existing_postgresql_database = "netbird"
+existing_postgresql_username = "netbird_user"
+existing_postgresql_password = "secure-password-here"
+existing_postgresql_sslmode  = "require"
+
+# 4. Identity Provider (Keycloak)
+keycloak_url                 = "https://keycloak.example.com/auth"
+keycloak_realm               = "netbird"
+keycloak_admin_username      = "admin"
+keycloak_admin_password      = "keycloak-admin-password"
+keycloak_admin_client_secret = "your-client-secret" # Optional if using username/password
+keycloak_use_existing_realm  = false
+
+# 5. NetBird Admin Dashboard
+netbird_admin_email    = "admin@example.com"
+netbird_admin_password = "netbird-admin-password"
+
+# 6. Proxy & ACME Configuration
+acme_provider   = "letsencrypt"
+acme_email      = "admin@example.com"
+haproxy_version = "latest"
+
+# 7. Advanced Log Configuration
+netbird_log_level = "info" # Set to 'debug' for troubleshooting
+
+# 8. SSH Credentials for Ansible
+ssh_private_key_path = "~/.ssh/id_rsa"
