@@ -1,0 +1,69 @@
+all:
+  vars:
+    # NetBird Configuration
+    netbird_domain: "netbird.observe.camer.digital"
+    netbird_version: "latest"
+    coturn_version: "latest"
+    caddy_version: "latest"
+    haproxy_version: "latest"
+    proxy_type: "caddy"
+    acme_provider: "letsencrypt"
+    acme_email: "admin@observe.camer.digital"
+    docker_compose_version: "v2.24.0"
+    netbird_log_level: "debug"
+    relay_auth_secret: "lP=eNw>fc20DV>TJxO*)QnfMCKjQv$b}"
+    netbird_encryption_key: "MYtsUqU56RTzzCnM00+07UuN/2a4JgeoJRLSEzbh3gg="
+    coturn_password: "7MGA<{R3kk!5KH{m)S%l&[8WvwAk<-W>"
+
+    # Paths
+    netbird_data_dir: "/var/lib/netbird"
+    netbird_config_dir: "/etc/netbird"
+
+    # Database Configuration
+    database_type: "sqlite"
+    database_engine: "sqlite"
+    database_dsn: "/var/lib/netbird/store.db"
+    database_endpoint: "local"
+    db_host: "local"
+    db_port: 0
+    db_name: ""
+    db_user: ""
+    db_password: ""
+    db_sslmode: "require"
+    sqlite_database_path: "/var/lib/netbird/store.db"
+
+    # Keycloak Configuration
+    keycloak_url: "https://keycloak.net.observe.camer.digital/auth"
+    keycloak_realm: "netbird2"
+    keycloak_client_id: "netbird-client"
+    keycloak_backend_client_id: "netbird-backend"
+    keycloak_backend_client_secret: "LhbHLCMfnvJkisMjoCZGLxZOQCrjYOO7"
+    keycloak_oidc_endpoint: "https://keycloak.net.observe.camer.digital/auth/realms/netbird2/.well-known/openid-configuration"
+    
+    # Relay & STUN Addresses
+    relay_addresses: ["rels://16.171.59.171:33080"]
+    stun_addresses: ["stun:16.171.59.171:3478"]
+
+    # Ansible Connection
+    ansible_ssh_private_key_file: "~/.ssh/private_key"
+    
+  children:
+    management:
+      hosts:
+        netbird-all-in-one:
+          ansible_host: 16.171.59.171
+          private_ip: 16.171.59.171
+          ansible_user: ubuntu
+    reverse_proxy:
+      hosts:
+        netbird-all-in-one:
+          ansible_host: 16.171.59.171
+          private_ip: 16.171.59.171
+          ansible_user: ubuntu
+    relay:
+      hosts:
+        netbird-all-in-one:
+          ansible_host: 16.171.59.171
+          private_ip: 16.171.59.171
+          ansible_user: ubuntu
+          relay_domain: 16.171.59.171

@@ -5,6 +5,8 @@ all:
     netbird_version: "${netbird_version}"
     coturn_version: "${coturn_version}"
     caddy_version: "${caddy_version}"
+    haproxy_version: "${haproxy_version}"
+    proxy_type: "${proxy_type}"
     acme_provider: "${acme_provider}"
     acme_email: "${acme_email}"
     docker_compose_version: "${docker_compose_version}"

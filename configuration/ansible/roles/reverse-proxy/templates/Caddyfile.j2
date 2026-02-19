@@ -76,6 +76,8 @@
         header_up Host {host}
         header_up X-Real-IP {remote_ip}
         header_up X-Forwarded-For {remote_ip}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
     }
 
     # Dashboard UI - catch-all (must be last)
@@ -84,5 +86,7 @@
         header_up Host {host}
         header_up X-Real-IP {remote_ip}
         header_up X-Forwarded-For {remote_ip}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
     }
 }

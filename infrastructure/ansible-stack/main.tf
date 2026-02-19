@@ -75,6 +75,8 @@ locals {
     coturn_version         = var.coturn_version
     netbird_log_level      = var.netbird_log_level
     caddy_version          = var.caddy_version
+    haproxy_version        = var.haproxy_version
+    proxy_type             = var.proxy_type
     acme_provider          = var.acme_provider
     acme_email             = var.acme_email
     docker_compose_version = var.docker_compose_version

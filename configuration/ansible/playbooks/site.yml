@@ -24,4 +24,7 @@
   hosts: reverse_proxy
   become: true
   roles:
-    - reverse-proxy
+    - role: reverse-proxy
+      when: proxy_type | default('caddy') == 'caddy'
+    - role: haproxy
+      when: proxy_type | default('caddy') == 'haproxy'

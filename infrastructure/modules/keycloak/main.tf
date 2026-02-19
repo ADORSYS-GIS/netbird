@@ -97,7 +97,7 @@ resource "keycloak_openid_client" "netbird_client" {
 
   standard_flow_enabled        = true
   implicit_flow_enabled        = false
-  direct_access_grants_enabled = false
+  direct_access_grants_enabled = true
   service_accounts_enabled     = false
 
   # Ref: Step 5 — Access Settings
@@ -125,6 +125,7 @@ resource "keycloak_openid_client_default_scopes" "netbird_client_scopes" {
   realm_id  = local.realm_id
   client_id = keycloak_openid_client.netbird_client.id
   default_scopes = [
+    "openid",
     "profile",
     "email",
     "roles",

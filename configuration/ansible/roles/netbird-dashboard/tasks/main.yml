@@ -32,7 +32,7 @@
       AUTH_REDIRECT_URI: "/nb-auth"
       AUTH_SILENT_REDIRECT_URI: "/nb-silent-auth"
       LETSENCRYPT_DOMAIN: "none"
-      NETBIRD_TOKEN_SOURCE: "accessToken"
+      NETBIRD_TOKEN_SOURCE: "idToken"
       NGINX_SSL_PORT: "443"
     ports:
       - "8080:80"

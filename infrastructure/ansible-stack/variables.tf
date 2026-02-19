@@ -213,6 +213,22 @@ variable "caddy_version" {
   default     = "latest"
 }
 
+variable "proxy_type" {
+  description = "Reverse proxy type: 'caddy' (default) or 'haproxy'"
+  type        = string
+  default     = "caddy"
+  validation {
+    condition     = contains(["caddy", "haproxy"], var.proxy_type)
+    error_message = "proxy_type must be either 'caddy' or 'haproxy'."
+  }
+}
+
+variable "haproxy_version" {
+  description = "HAProxy Version"
+  type        = string
+  default     = "latest"
+}
+
 variable "acme_provider" {
   description = "ACME provider for Caddy certificates (letsencrypt or zerossl)"
   type        = string

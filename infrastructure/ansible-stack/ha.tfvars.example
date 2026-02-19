@@ -17,6 +17,12 @@ netbird_hosts = {
     roles      = ["management"]
     ssh_user   = "ubuntu"
   },
+  "management-02" = {
+    public_ip  = "1.2.3.11"
+    private_ip = "10.0.1.11"
+    roles      = ["management"]
+    ssh_user   = "ubuntu"
+  },
   "relay-01" = {
     public_ip  = "1.2.3.20"
     private_ip = "10.0.1.20"
@@ -31,7 +37,10 @@ netbird_hosts = {
   }
 }
 
-# 3. Database (Using Managed AWS RDS PostgreSQL)
+# 3. Proxy Configuration
+proxy_type = "haproxy"
+
+# 4. Database (Using Managed AWS RDS PostgreSQL)
 database_type                    = "postgresql"
 database_mode                    = "create"
 cloud_provider                   = "aws"

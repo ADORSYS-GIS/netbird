@@ -58,8 +58,15 @@
     "IdpSignKeyRefreshEnabled": true
   },
   "ReverseProxy": {
-    "TrustedHTTPProxies": [],
-    "TrustedHTTPProxiesCount": 0,
+    "TrustedHTTPProxies": [
+      {% for host in groups['reverse_proxy'] | default([]) %}
+      "{{ hostvars[host]['ansible_host'] }}/32",
+      {% endfor %}
+      "127.0.0.1/32",
+      "172.16.0.0/12",
+      "10.0.0.0/8"
+    ],
+    "TrustedHTTPProxiesCount": {{ groups['reverse_proxy'] | length if 'reverse_proxy' in groups else 0 }},
     "TrustedPeers": [
       "0.0.0.0/0"
     ]
