@@ -4,31 +4,35 @@ all:
     netbird_domain: "netbird.observe.camer.digital"
     netbird_version: "latest"
     coturn_version: "latest"
-    caddy_version: "latest"
-    haproxy_version: "latest"
+    caddy_version: "2.11"
+    haproxy_version: "3.2.0"
     proxy_type: "caddy"
     acme_provider: "letsencrypt"
     acme_email: "admin@observe.camer.digital"
-    docker_compose_version: "v2.24.0"
-    netbird_log_level: "debug"
-    relay_auth_secret: "lP=eNw>fc20DV>TJxO*)QnfMCKjQv$b}"
-    netbird_encryption_key: "MYtsUqU56RTzzCnM00+07UuN/2a4JgeoJRLSEzbh3gg="
-    coturn_password: "7MGA<{R3kk!5KH{m)S%l&[8WvwAk<-W>"
+    docker_compose_version: "v5.0.2"
+    netbird_log_level: "info"
+    relay_auth_secret: "ea4a85c5b5e75f33acaa7ba87ddb240ca3bb47f4bc65143328bdd2dedba3d24a"
+    netbird_encryption_key: "c7e3143dc04c0d8d6b7c00a6384852fae300618765612e257e5f94231b6458ee"
+    coturn_password: "qS1leiTnul$7I47t&AefsfY2>s#X!cmT"
+    coturn_port: 3478
+    coturn_min_port: 49152
+    coturn_max_port: 65535
+    coturn_realm: "netbird.observe.camer.digital"
 
     # Paths
     netbird_data_dir: "/var/lib/netbird"
     netbird_config_dir: "/etc/netbird"
 
     # Database Configuration
-    database_type: "sqlite"
-    database_engine: "sqlite"
-    database_dsn: "/var/lib/netbird/store.db"
-    database_endpoint: "local"
-    db_host: "local"
-    db_port: 0
-    db_name: ""
-    db_user: ""
-    db_password: ""
+    database_type: "postgresql"
+    database_engine: "postgres"
+    database_dsn: "host=ep-blue-recipe-aifgkckf-pooler.c-4.us-east-1.aws.neon.tech port=5432 dbname=neondb user=neondb_owner password=npg_qAHLUgk5hTw6 sslmode=require"
+    database_endpoint: "ep-blue-recipe-aifgkckf-pooler.c-4.us-east-1.aws.neon.tech"
+    db_host: "ep-blue-recipe-aifgkckf-pooler.c-4.us-east-1.aws.neon.tech"
+    db_port: 5432
+    db_name: "neondb"
+    db_user: "neondb_owner"
+    db_password: "npg_qAHLUgk5hTw6"
     db_sslmode: "require"
     sqlite_database_path: "/var/lib/netbird/store.db"
 
@@ -37,12 +41,12 @@ all:
     keycloak_realm: "netbird2"
     keycloak_client_id: "netbird-client"
     keycloak_backend_client_id: "netbird-backend"
-    keycloak_backend_client_secret: "LhbHLCMfnvJkisMjoCZGLxZOQCrjYOO7"
+    keycloak_backend_client_secret: "MM0XoEeBOcBsM9lFbkBxIuGHlKg0ofX6"
     keycloak_oidc_endpoint: "https://keycloak.net.observe.camer.digital/auth/realms/netbird2/.well-known/openid-configuration"
     
     # Relay & STUN Addresses
-    relay_addresses: ["rels://16.171.59.171:33080"]
-    stun_addresses: ["stun:16.171.59.171:3478"]
+    relay_addresses: ["rels://16.171.59.171:33080","rels://13.63.35.177:33080","rels://51.20.52.128:33080"]
+    stun_addresses: ["stun:16.171.59.171:3478","stun:13.63.35.177:3478","stun:51.20.52.128:3478"]
 
     # Ansible Connection
     ansible_ssh_private_key_file: "~/.ssh/private_key"
@@ -50,20 +54,46 @@ all:
   children:
     management:
       hosts:
-        netbird-all-in-one:
+        node-1:
           ansible_host: 16.171.59.171
-          private_ip: 16.171.59.171
+          private_ip: 172.31.4.141
+          ansible_user: ubuntu
+        node-2:
+          ansible_host: 13.63.35.177
+          private_ip: 172.31.11.58
+          ansible_user: ubuntu
+        node-3:
+          ansible_host: 51.20.52.128
+          private_ip: 172.31.20.213
           ansible_user: ubuntu
     reverse_proxy:
       hosts:
-        netbird-all-in-one:
+        node-1:
           ansible_host: 16.171.59.171
-          private_ip: 16.171.59.171
+          private_ip: 172.31.4.141
+          ansible_user: ubuntu
+        node-2:
+          ansible_host: 13.63.35.177
+          private_ip: 172.31.11.58
+          ansible_user: ubuntu
+        node-3:
+          ansible_host: 51.20.52.128
+          private_ip: 172.31.20.213
           ansible_user: ubuntu
     relay:
       hosts:
-        netbird-all-in-one:
+        node-1:
           ansible_host: 16.171.59.171
-          private_ip: 16.171.59.171
+          private_ip: 172.31.4.141
           ansible_user: ubuntu
           relay_domain: 16.171.59.171
+        node-2:
+          ansible_host: 13.63.35.177
+          private_ip: 172.31.11.58
+          ansible_user: ubuntu
+          relay_domain: 13.63.35.177
+        node-3:
+          ansible_host: 51.20.52.128
+          private_ip: 172.31.20.213
+          ansible_user: ubuntu
+          relay_domain: 51.20.52.128

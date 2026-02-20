@@ -29,6 +29,8 @@
     image: "coturn/coturn:{{ coturn_version }}"
     state: started
     restart_policy: unless-stopped
+    pull: true
+    recreate: true
     network_mode: host
     volumes:
       - /etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro

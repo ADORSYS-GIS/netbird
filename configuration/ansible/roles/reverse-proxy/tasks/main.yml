@@ -28,6 +28,8 @@
     image: "caddy:{{ caddy_version | default('latest') }}"
     state: started
     restart_policy: unless-stopped
+    pull: true
+    recreate: true
     networks:
       - name: netbird
     ports:
@@ -59,7 +61,7 @@
 
 - name: Remove Caddy Docker volumes
   community.docker.docker_volume:
-    name: \"{{ item }}\"
+    name: "{{ item }}"
     state: absent
   loop:
     - caddy_data

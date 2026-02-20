@@ -7,13 +7,10 @@ global
     group root
     daemon
 
-    # Default SSL material locations
+    # TLS Configuration (HAProxy handles HTTPS directly)
     ca-base /etc/ssl/certs
     crt-base /etc/ssl/private
-
-    # SSL configuration
-    ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
-    ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+    ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384
     ssl-default-bind-options ssl-min-ver TLSv1.2 no-tls-tickets
 
 defaults
@@ -32,17 +29,31 @@ defaults
     errorfile 503 /usr/local/etc/haproxy/errors/503.http
     errorfile 504 /usr/local/etc/haproxy/errors/504.http
 
-frontend https_in
-    bind *:80
-    bind *:443 ssl crt /etc/haproxy/certs/{{ netbird_domain }}.pem alpn h2,http/1.1
-    redirect scheme https if !{ ssl_fc }
+# Stats UI (accessible on :8404)
+listen stats
+    bind 0.0.0.0:8404
+    stats enable
+    stats uri /stats
+    stats refresh 10s
+    stats admin if TRUE
 
+# Public Frontend (direct client connections)
+# Receives HTTPS traffic from: Internet clients
+# Routes to: NetBird management nodes (health checks, sticky sessions, load balancing)
+frontend public_https
+    bind 0.0.0.0:443 ssl crt /var/lib/acme/certs/{{ netbird_domain }}.pem
+    bind 0.0.0.0:80
+    mode http
+    
+    # Redirect HTTP to HTTPS
+    http-request redirect scheme https code 301 if !{ ssl_fc }
+    
     option forwardfor
     http-request set-header X-Forwarded-Proto https if { ssl_fc }
     http-request set-header X-Forwarded-Proto http if !{ ssl_fc }
     http-request set-header X-Forwarded-Host %[req.hdr(Host)]
 
-    # ACLs for routing
+    # ACLs for routing to different backends
     acl is_grpc_mgmt path_beg /management.ManagementService/
     acl is_grpc_signal path_beg /signalexchange.SignalExchange/
     acl is_ws_signal path_beg /ws-proxy/signal
@@ -50,7 +61,7 @@ frontend https_in
     acl is_relay path_beg /relay
     acl is_api path_beg /api/
 
-    # Use backends based on ACLs
+    # Route to appropriate backend
     use_backend mgmt_grpc if is_grpc_mgmt
     use_backend signal_grpc if is_grpc_signal
     use_backend signal_ws if is_ws_signal
@@ -58,52 +69,71 @@ frontend https_in
     use_backend relay_backend if is_relay
     use_backend mgmt_api if is_api
 
-    # Default backend (Dashboard)
+    # Default: dashboard
     default_backend dashboard_backend
 
+# Management gRPC backend
 backend mgmt_grpc
     mode http
     option http-use-htx
+    balance source
+    stick-table type ip size 100k expire 30m
+    stick on src
     {% for host in groups['management'] %}
-    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8081 check proto h2
+    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8081 check proto h2 timeout check 3s inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
     {% endfor %}
 
+# Signal gRPC backend
 backend signal_grpc
     mode http
     option http-use-htx
+    balance source
+    stick-table type ip size 100k expire 30m
+    stick on src
     {% for host in groups['management'] %}
-    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8083 check proto h2
+    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8083 check proto h2 timeout check 3s inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
     {% endfor %}
 
+# Signal WebSocket backend
 backend signal_ws
-    balance roundrobin
+    balance source
     option http-server-close
+    stick-table type ip size 100k expire 30m
+    stick on src
     {% for host in groups['management'] %}
-    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8083 check
+    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8083 check timeout check 3s inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
     {% endfor %}
 
+# Management WebSocket backend
 backend mgmt_ws
-    balance roundrobin
+    balance source
     option http-server-close
+    stick-table type ip size 100k expire 30m
+    stick on src
     {% for host in groups['management'] %}
-    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8081 check
+    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8081 check timeout check 3s inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
     {% endfor %}
 
+# Relay backend
 backend relay_backend
     balance roundrobin
     option http-server-close
     {% for host in groups['relay'] %}
-    server {{ host }} {{ hostvars[host]['ansible_host'] }}:33080 check
+    server {{ host }} {{ hostvars[host]['ansible_host'] }}:33080 check timeout check 3s inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
     {% endfor %}
 
+# Management API backend
 backend mgmt_api
     balance roundrobin
     {% for host in groups['management'] %}
-    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8081 check
+    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8081 check timeout check 3s inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
     {% endfor %}
 
+# Dashboard backend
 backend dashboard_backend
-    balance roundrobin
+    balance source
+    stick-table type ip size 100k expire 30m
+    stick on src
     {% for host in groups['management'] %}
-    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8080 check
+    server {{ host }} {{ hostvars[host]['ansible_host'] }}:8082 check timeout check 3s inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
     {% endfor %}

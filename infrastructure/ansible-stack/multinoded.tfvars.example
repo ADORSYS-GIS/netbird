@@ -17,31 +17,58 @@
 # SECTION 1: CORE CONFIGURATION [REQUIRED]
 # =============================================================================
 
-netbird_domain = "netbird.observe.camer.digital" # [REQUIRED] Your domain name
+netbird_domain = "netbird.example.com"  # [REQUIRED] Your domain name
 
-environment = "prod" # Environment: prod, staging, dev
+environment = "prod"  # Environment: prod, staging, dev
 
 # [REQUIRED] Multi-node host configuration
-# Define dedicated nodes (each node runs all roles: management, relay, proxy)
+# Define dedicated nodes for each role (management, relay, proxy)
 netbird_hosts = {
-  # HA Cluster Nodes (3 for quorum-based clustering)
-  # Each node runs: management + relay + proxy services + PgBouncer
+  # Management nodes (3 for quorum-based clustering)
   "node-1" = {
-    public_ip  = "16.171.59.171"
-    private_ip = "172.31.4.141"
-    roles      = ["management", "relay", "proxy"]
+    public_ip  = "203.0.113.11"
+    private_ip = "10.0.1.11"
+    roles      = ["management"]
     ssh_user   = "ubuntu"
   }
   "node-2" = {
-    public_ip  = "13.63.35.177"
-    private_ip = "172.31.11.58"
-    roles      = ["management", "relay", "proxy"]
+    public_ip  = "203.0.113.12"
+    private_ip = "10.0.1.12"
+    roles      = ["management"]
     ssh_user   = "ubuntu"
   }
   "node-3" = {
-    public_ip  = "51.20.52.128"
-    private_ip = "172.31.20.213"
-    roles      = ["management", "relay", "proxy"]
+    public_ip  = "203.0.113.13"
+    private_ip = "10.0.1.13"
+    roles      = ["management"]
+    ssh_user   = "ubuntu"
+  }
+
+  # Relay nodes (2 for redundancy - optional)
+  "relay-node-1" = {
+    public_ip  = "203.0.113.21"
+    private_ip = "10.0.2.21"
+    roles      = ["relay"]
+    ssh_user   = "ubuntu"
+  }
+  "relay-node-2" = {
+    public_ip  = "203.0.113.22"
+    private_ip = "10.0.2.22"
+    roles      = ["relay"]
+    ssh_user   = "ubuntu"
+  }
+
+  # Proxy nodes (2 for load balancing + failover)
+  "proxy-node-1" = {
+    public_ip  = "203.0.113.31"
+    private_ip = "10.0.3.31"
+    roles      = ["proxy"]
+    ssh_user   = "ubuntu"
+  }
+  "proxy-node-2" = {
+    public_ip  = "203.0.113.32"
+    private_ip = "10.0.3.32"
+    roles      = ["proxy"]
     ssh_user   = "ubuntu"
   }
 }
@@ -57,12 +84,12 @@ database_mode = "existing"
 enable_ha     = true
 
 # [REQUIRED] PostgreSQL database (AWS RDS, Azure, GCP, or self-hosted)
-existing_postgresql_host     = "ep-blue-recipe-aifgkckf-pooler.c-4.us-east-1.aws.neon.tech"  # FOR TESTING: Docker container name | PRODUCTION: Use external RDS endpoint
+existing_postgresql_host     = "postgres.c5abcdef123456.us-east-1.rds.amazonaws.com"  # [REQUIRED]
 existing_postgresql_port     = 5432
-existing_postgresql_database = "neondb"
-existing_postgresql_username = "neondb_owner"
-existing_postgresql_password = "npg_qAHLUgk5hTw6" # CHANGE THIS IN PRODUCTION
-existing_postgresql_sslmode  = "require"  # FOR TESTING ONLY | PRODUCTION: "require" with TLS enabled
+existing_postgresql_database = "netbird_db"
+existing_postgresql_username = "netbird_user"
+existing_postgresql_password = "your-secure-32-character-password"  # [REQUIRED] Use random, strong password
+existing_postgresql_sslmode  = "require"
 
 # SQLite is NOT recommended for HA deployments (only for single-node)
 # sqlite_database_path = "/var/lib/netbird/store.db"
@@ -71,12 +98,12 @@ existing_postgresql_sslmode  = "require"  # FOR TESTING ONLY | PRODUCTION: "requ
 # SECTION 3: KEYCLOAK / IDENTITY PROVIDER [REQUIRED]
 # =============================================================================
 
-keycloak_url                 = "https://keycloak.net.observe.camer.digital/auth" # [REQUIRED] Keycloak server URL
-keycloak_admin_username      = "admin"
-keycloak_admin_password      = "password123!"                     # [REQUIRED] - Change in Keycloak UI after deployment
-keycloak_admin_client_secret = "rk9v8yewnXKOZ1oAbXktyHIIUl7rDVob" # Usually null unless using existing realm
-keycloak_use_existing_realm  = true
-realm_name                   = "netbird2"
+keycloak_url                  = "https://keycloak.example.com"  # [REQUIRED] Keycloak server URL
+keycloak_admin_username       = "admin"
+keycloak_admin_password       = "change-me-to-secure-password"  # [REQUIRED]
+keycloak_admin_client_secret  = null  # Usually null unless using existing realm
+keycloak_use_existing_realm   = false
+realm_name                    = "netbird"
 
 # =============================================================================
 # SECTION 4: APPLICATION SECRETS & CREDENTIALS [REQUIRED FOR HA]
@@ -93,8 +120,8 @@ realm_name                   = "netbird2"
 # 3. Apply once: terraform apply
 # 4. NEVER CHANGE these values again (unless you want clients to reconnect)
 
-netbird_admin_email    = "admin@observe.camer.digital" # [REQUIRED]
-netbird_admin_password = "password123!"                # Strong password generated
+netbird_admin_email    = "admin@example.com"  # [REQUIRED]
+netbird_admin_password = "change-me-to-secure-password"  # [REQUIRED]
 
 # [OPTIONAL but RECOMMENDED for HA]
 # If you leave these commented, Terraform will generate random values.
@@ -106,39 +133,32 @@ netbird_admin_password = "password123!"                # Strong password generat
 # SECTION 5: VERSION CONFIGURATION
 # =============================================================================
 
-netbird_version        = "latest" # NetBird version to deploy (e.g., "1.0.0" or "latest")
-caddy_version          = "2.11"
-haproxy_version        = "3.2.0"
-coturn_version         = "latest"
-docker_compose_version = "v5.0.2"
+netbird_version         = "0.27.0"
+caddy_version           = "2.8"
+haproxy_version         = "2.8"
+coturn_version          = "4.6.2"
+docker_compose_version  = "v2.24.0"
 
 # =============================================================================
-# SECTION 6: REVERSE PROXY & CERTIFICATE CONFIGURATION (HAPROXY + ACME)
+# SECTION 6: REVERSE PROXY & CERTIFICATE CONFIGURATION
 # =============================================================================
-# Direct HAProxy with built-in ACME support (minimal latency, no middleman)
-#   - HAProxy (port 443): TLS termination + Load balancing + ACME certificates
-#   - Uses: ghcr.io/flobernd/haproxy-acme-http01 (HAProxy with ACME built-in)
-#   Flow: Client → HAProxy (443) → Management Nodes (no extra hops!)
+# HA deployments use HAProxy for advanced load balancing + health checks
 
-proxy_type    = "haproxy"                     # HAProxy with ACME support
-acme_provider = "letsencrypt"                 # ACME provider: letsencrypt only
-acme_email    = "admin@observe.camer.digital" # Email for certificate notifications
-
-# HAProxy ACME Configuration
-# Uses HTTP-01 challenge (port 80 must be accessible)
-# Automatic certificate renewal via cron
+proxy_type    = "haproxy"  # HA uses HAProxy (not Caddy)
+acme_provider = "letsencrypt"  # ACME provider: letsencrypt or zerossl
+acme_email    = "admin@example.com"  # Email for certificate notifications
 
 # =============================================================================
 # SECTION 7: LOGGING CONFIGURATION
 # =============================================================================
 
-netbird_log_level = "info" # Options: debug, info, warn, error
+netbird_log_level = "info"  # Options: debug, info, warn, error
 
 # =============================================================================
 # SECTION 8: SSH / ANSIBLE CONFIGURATION [REQUIRED]
 # =============================================================================
 
-ssh_private_key_path = "~/.ssh/private_key" # [REQUIRED] Path to SSH private key
+ssh_private_key_path = "~/.ssh/id_rsa"  # [REQUIRED] Path to SSH private key
 
 # =============================================================================
 # SECTION 9: HIGH AVAILABILITY CONFIGURATION [CRITICAL]
@@ -147,18 +167,18 @@ ssh_private_key_path = "~/.ssh/private_key" # [REQUIRED] Path to SSH private key
 # Disabling any of these will break HA functionality
 
 # Feature 1: Management Service Clustering
-enable_clustering    = true # MUST be true for HA
-netbird_cluster_port = 9090 # Port for inter-node communication
+enable_clustering    = true              # MUST be true for HA
+netbird_cluster_port = 9090              # Port for inter-node communication
 
 # Feature 2: PgBouncer Connection Pooling
 # CRITICAL: Prevents database connection exhaustion with multiple nodes
-enable_pgbouncer               = true
-pgbouncer_listen_port          = 6432
-pgbouncer_min_pool_size        = 10 # Minimum idle connections
-pgbouncer_default_pool_size    = 25 # Target pool size (tuned for 3 mgmt nodes)
-pgbouncer_reserve_pool_size    = 5  # Extra connections for spikes
+enable_pgbouncer              = true
+pgbouncer_listen_port         = 6432
+pgbouncer_min_pool_size       = 10    # Minimum idle connections
+pgbouncer_default_pool_size   = 25    # Target pool size (tuned for 3 mgmt nodes)
+pgbouncer_reserve_pool_size   = 5     # Extra connections for spikes
 pgbouncer_reserve_pool_timeout = 3
-pgbouncer_pool_mode            = "transaction" # Transaction-level pooling
+pgbouncer_pool_mode           = "transaction"  # Transaction-level pooling
 
 # =============================================================================
 # SECTION 10: HAPROXY HEALTH CHECK CONFIGURATION [CRITICAL]
@@ -173,8 +193,6 @@ haproxy_health_check_rise     = 3      # consecutive successes before marking UP
 haproxy_stick_table_size      = "100k" # Max sessions per stick table
 haproxy_stick_table_expire    = "30m"  # Session timeout
 
-relay_auth_secret      = "ea4a85c5b5e75f33acaa7ba87ddb240ca3bb47f4bc65143328bdd2dedba3d24a"
-netbird_encryption_key = "c7e3143dc04c0d8d6b7c00a6384852fae300618765612e257e5f94231b6458ee"
 # =============================================================================
 # SECTION 11: MULTI-NODE HA DEPLOYMENT NOTES
 # =============================================================================

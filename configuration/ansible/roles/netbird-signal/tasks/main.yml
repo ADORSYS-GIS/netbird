@@ -19,6 +19,8 @@
     image: "netbirdio/signal:{{ netbird_version }}"
     state: started
     restart_policy: unless-stopped
+    pull: true
+    recreate: true
     networks:
       - name: netbird
     ports:

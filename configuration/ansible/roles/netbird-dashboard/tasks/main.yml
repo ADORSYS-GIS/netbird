@@ -9,7 +9,7 @@
   community.general.ufw:
     rule: allow
     delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
-    port: '8080'
+    port: '8082'
     proto: tcp
     comment: 'NetBird Dashboard'
 
@@ -19,6 +19,8 @@
     image: "netbirdio/dashboard:{{ netbird_version }}"
     state: started
     restart_policy: unless-stopped
+    pull: true
+    recreate: true
     networks:
       - name: netbird
     env:
@@ -35,7 +37,7 @@
       NETBIRD_TOKEN_SOURCE: "idToken"
       NGINX_SSL_PORT: "443"
     ports:
-      - "8080:80"
+      - "8082:80"
     log_driver: "json-file"
     log_options:
       max-size: "500m"

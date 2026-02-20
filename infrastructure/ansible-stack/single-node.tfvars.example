@@ -1,37 +1,207 @@
 # =============================================================================
-# NETBIRD SINGLE-NODE DEPLOYMENT (DOCKER + SQLITE)
+# NETBIRD SINGLE-NODE DEPLOYMENT - COMPLETE CONFIGURATION REFERENCE
 # =============================================================================
-# Simplest possible configuration for testing or small-scale use.
-# All roles (management, signal, dashboard, relay, proxy) on a single server.
+#
+# This file contains ALL 48 configuration variables for NetBird.
+# Only variables marked [REQUIRED] must be set before deployment.
+# All other variables have sensible defaults and are commented below.
+#
+# COPY & USE:
+#   cp single-node.tfvars.example terraform.tfvars
+#   vim terraform.tfvars  (update [REQUIRED] values)
+#   terraform plan && terraform apply
+#
 # =============================================================================
 
-# 1. Main Configuration
-netbird_domain  = "vpn.example.com"
-environment     = "dev"
+# =============================================================================
+# SECTION 1: CORE CONFIGURATION [REQUIRED]
+# =============================================================================
 
-# 2. Host Configuration (One VM for everything)
+netbird_domain = "netbird.example.com"  # [REQUIRED] Your domain name
+
+environment = "prod"  # Environment: prod, staging, dev
+
+# [REQUIRED] Single-node host configuration
+# All roles on one server
 netbird_hosts = {
-  "netbird-all-in-one" = {
-    public_ip = "1.2.3.4"
-    roles     = ["management", "relay", "proxy"] # Includes all NetBird services
-    ssh_user  = "ubuntu"
+  "netbird-server" = {
+    public_ip  = "203.0.113.10"   # [REQUIRED] Server public IP
+    private_ip = "10.0.1.10"      # [REQUIRED] Server private IP
+    roles      = ["management", "relay", "proxy"]  # All roles on one node
+    ssh_user   = "ubuntu"
   }
 }
 
-# 3. Database (SQLite is local to the server)
-database_type        = "sqlite"
+# =============================================================================
+# SECTION 2: DATABASE CONFIGURATION
+# =============================================================================
+
+# Option 1: SQLite (default - no external database needed)
+database_type = "sqlite"
+database_mode = "existing"
 sqlite_database_path = "/var/lib/netbird/store.db"
 
-# 4. Identity Provider (Keycloak)
-keycloak_url            = "https://keycloak.example.com"
-keycloak_admin_username      = "admin"
-keycloak_admin_password      = "REPLACE_WITH_KEYCLOAK_ADMIN_PASSWORD"
-keycloak_admin_client_secret  = "" # Required if admin-cli client in master realm is 'confidential'
+# Option 2: PostgreSQL (uncomment and configure if using existing PostgreSQL)
+# database_type = "postgresql"
+# database_mode = "existing"
+# existing_postgresql_host     = "postgres.example.com"  # [REQUIRED if using PostgreSQL]
+# existing_postgresql_port     = 5432
+# existing_postgresql_database = "netbird"
+# existing_postgresql_username = "netbird_user"
+# existing_postgresql_password = "your-secure-password"  # [REQUIRED if using PostgreSQL]
+# existing_postgresql_sslmode  = "require"
 
+enable_ha = false  # Disabled for single-node
 
-# 5. NetBird Admin Dashboard
-netbird_admin_email    = "admin@example.com"
-netbird_admin_password = "REPLACE_WITH_SECURE_ADMIN_PASSWORD"
+# =============================================================================
+# SECTION 3: KEYCLOAK / IDENTITY PROVIDER [REQUIRED]
+# =============================================================================
 
-# 6. SSH Credentials for Ansible
-ssh_private_key_path = "~/.ssh/id_rsa"
+keycloak_url                  = "https://keycloak.example.com"  # [REQUIRED] Keycloak server URL
+keycloak_admin_username       = "admin"
+keycloak_admin_password       = "change-me-to-secure-password"  # [REQUIRED]
+keycloak_admin_client_secret  = null  # Usually null unless using existing realm
+keycloak_use_existing_realm   = false
+realm_name                    = "netbird"
+
+# =============================================================================
+# SECTION 4: APPLICATION SECRETS & CREDENTIALS [REQUIRED]
+# =============================================================================
+
+netbird_admin_email    = "admin@example.com"  # [REQUIRED]
+netbird_admin_password = "change-me-to-secure-password"  # [REQUIRED]
+
+# Optional: Set permanent secrets for HA deployments
+# For single-node, these are auto-generated and don't need to be set
+# relay_auth_secret       = ""  # Leave empty for auto-generation
+# netbird_encryption_key  = ""  # Leave empty for auto-generation
+
+# =============================================================================
+# SECTION 5: VERSION CONFIGURATION
+# =============================================================================
+
+netbird_version         = "0.27.0"
+caddy_version           = "2.8"
+haproxy_version         = "2.8"
+coturn_version          = "4.6.2"
+docker_compose_version  = "v2.24.0"
+
+# =============================================================================
+# SECTION 6: REVERSE PROXY & CERTIFICATE CONFIGURATION
+# =============================================================================
+
+proxy_type    = "caddy"  # Single-node uses Caddy (lighter than HAProxy)
+acme_provider = "letsencrypt"  # ACME provider: letsencrypt or zerossl
+acme_email    = "admin@example.com"  # Email for certificate notifications
+
+# =============================================================================
+# SECTION 7: LOGGING CONFIGURATION
+# =============================================================================
+
+netbird_log_level = "info"  # Options: debug, info, warn, error
+
+# =============================================================================
+# SECTION 8: SSH / ANSIBLE CONFIGURATION [REQUIRED]
+# =============================================================================
+
+ssh_private_key_path = "~/.ssh/id_rsa"  # [REQUIRED] Path to SSH private key
+
+# =============================================================================
+# SECTION 9: HIGH AVAILABILITY CONFIGURATION
+# =============================================================================
+# NOTE: ALL HA features should be DISABLED for single-node deployment
+# These settings have no effect when enable_ha = false
+
+enable_clustering   = false  # DISABLED for single-node
+enable_pgbouncer    = false  # NOT needed for single-node
+
+# Clustering configuration (inactive for single-node)
+netbird_cluster_port = 9090  # Only used if enable_clustering = true
+
+# PgBouncer configuration (inactive for single-node)
+pgbouncer_listen_port          = 6432
+pgbouncer_min_pool_size        = 10
+pgbouncer_default_pool_size    = 25
+pgbouncer_reserve_pool_size    = 5
+pgbouncer_reserve_pool_timeout = 3
+pgbouncer_pool_mode            = "transaction"
+
+# =============================================================================
+# SECTION 10: HAPROXY HEALTH CHECK CONFIGURATION
+# =============================================================================
+# NOTE: HAProxy not used in single-node deployment
+# These are ignored when proxy_type = "caddy"
+
+haproxy_health_check_interval = 5000   # milliseconds
+haproxy_health_check_timeout  = 3000   # milliseconds
+haproxy_health_check_fall     = 2      # consecutive failures
+haproxy_health_check_rise     = 3      # consecutive successes
+haproxy_stick_table_size      = "100k"
+haproxy_stick_table_expire    = "30m"
+
+# =============================================================================
+# SECTION 11: SINGLE-NODE DEPLOYMENT NOTES
+# =============================================================================
+#
+# ✓ What gets deployed:
+#   - NetBird management service
+#   - NetBird signal server
+#   - NetBird dashboard
+#   - COTURN STUN/TURN server
+#   - Caddy reverse proxy (with Let's Encrypt SSL)
+#   - SQLite or PostgreSQL database
+#
+# ✓ What is NOT deployed (HA features):
+#   - Multiple management nodes
+#   - HAProxy load balancer
+#   - PgBouncer connection pooling
+#   - Inter-node clustering
+#   - Multi-AZ database failover
+#
+# ✓ Suitable for:
+#   - Development environments
+#   - Testing
+#   - Small production deployments (<50 users)
+#
+# ✓ Single point of failure:
+#   - This server is a SPOF (single point of failure)
+#   - If the server goes down, NetBird is offline
+#   - For HA, use multinoded.tfvars.example instead
+#
+# ✓ Resource requirements:
+#   - CPU: 2 vCPUs minimum
+#   - RAM: 2-4 GB
+#   - Disk: 10-20 GB
+#   - Network: 1 Mbps+ (for users)
+#
+# ✓ Database choice:
+#   - SQLite: Simple, no external database, limited to ~50 users
+#   - PostgreSQL: Better performance, supports 100+ users, requires external DB
+#
+# ✓ Firewall rules needed:
+#   - 80/tcp   (HTTP, for ACME verification)
+#   - 443/tcp  (HTTPS, for management API + dashboard)
+#   - 3478/tcp (STUN, for NAT traversal)
+#   - 33080/tcp (Relay, for VPN traffic)
+#
+# ✓ SSL certificates:
+#   - Caddy automatically obtains and renews Let's Encrypt certificates
+#   - Domain must be accessible from internet
+#   - Automatic renewal happens in background
+#
+# ✓ Backup strategy:
+#   If using SQLite:
+#     cp /var/lib/netbird/store.db /backups/store.db.$(date +%Y%m%d)
+#   If using PostgreSQL:
+#     Configure backups with your PostgreSQL provider
+#
+# ✓ Monitoring:
+#   curl -f https://netbird.example.com/health
+#   Expected: {"status":"ok"}
+#
+# ✓ Troubleshooting:
+#   docker logs netbird-management
+#   docker logs caddy
+#   Check DNS: nslookup netbird.example.com
+#
+# =============================================================================

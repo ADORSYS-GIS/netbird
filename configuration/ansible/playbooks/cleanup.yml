@@ -25,6 +25,7 @@
     netbird_state: absent
   roles:
     - reverse-proxy
+    - haproxy
 
 - name: Cleanup NetBird Infrastructure (Common)
   hosts: all

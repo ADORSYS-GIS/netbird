@@ -5,40 +5,17 @@
     state: absent
   when: netbird_state | default('present') == 'absent'
 
-- name: Manage HAProxy configuration and cert directories
+- name: Manage HAProxy configuration and ACME directories
   ansible.builtin.file:
-    path: \"{{ item }}\"
-    state: \"{{ 'directory' if netbird_state | default('present') == 'present' else 'absent' }}\"
+    path: "{{ item }}"
+    state: "{{ (netbird_state | default('present') == 'present') | ternary('directory', 'absent') }}"
     owner: root
     group: root
     mode: '0755'
   loop:
     - /etc/haproxy
-    - /etc/haproxy/certs
-    - /etc/haproxy/acme.sh
+    - /var/lib/acme
   when: netbird_state | default('present') == 'present'
-
-- name: Install acme.sh
-  ansible.builtin.shell: |
-    curl https://get.acme.sh | sh -s email={{ acme_email }}
-  args:
-    creates: /root/.acme.sh/acme.sh
-  when: netbird_state | default('present') == 'present'
-
-- name: Issue SSL certificate with acme.sh
-  ansible.builtin.shell: |
-    /root/.acme.sh/acme.sh --issue -d {{ netbird_domain }} --standalone --httpport 80
-  args:
-    creates: \"/root/.acme.sh/{{ netbird_domain }}_ecc/fullchain.cer\"
-  when: netbird_state | default('present') == 'present'
-  register: acme_issue
-  failed_when: false
-
-- name: Combine cert and key for HAProxy
-  ansible.builtin.shell: |
-    cat /root/.acme.sh/{{ netbird_domain }}_ecc/{{ netbird_domain }}.cer /root/.acme.sh/{{ netbird_domain }}_ecc/{{ netbird_domain }}.key > /etc/haproxy/certs/{{ netbird_domain }}.pem
-  when: netbird_state | default('present') == 'present'
-  changed_when: acme_issue.changed
 
 - name: Manage HAProxy configuration file
   ansible.builtin.template:
@@ -48,38 +25,48 @@
   notify: Restart HAProxy
   when: netbird_state | default('present') == 'present'
 
-- name: Manage HAProxy Docker container
+- name: Manage HAProxy Docker container with built-in ACME
   community.docker.docker_container:
     name: haproxy
-    image: \"haproxy:{{ haproxy_version | default('latest') }}\"
+    image: "ghcr.io/flobernd/haproxy-acme-http01:latest"
     state: started
     restart_policy: unless-stopped
+    pull: true
+    recreate: true
     networks:
       - name: netbird
     ports:
-      - \"80:80\"
-      - \"443:443\"
-      - \"33073:33073\" # NetBird Management gRPC
+      - "80:80"      # HTTP (for ACME HTTP-01 challenge)
+      - "443:443"    # HTTPS (public, direct to clients)
+      - "8404:8404"  # Stats UI
     volumes:
       - /etc/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-      - /etc/haproxy/certs:/etc/haproxy/certs:ro
+      - /var/lib/acme:/var/lib/acme:rw  # Certificate storage
+    environment:
+      ACME_MAIL: "{{ acme_email }}"
+      ACME_DOMAIN: "{{ netbird_domain }}"
+      ACME_SERVER: "letsencrypt"  # Explicit Let's Encrypt (not ZeroSSL)
+    env_file: ""
   notify: Restart HAProxy
   when: netbird_state | default('present') == 'present'
 
-- name: Manage HTTP/HTTPS and gRPC ports (UFW)
+- name: Manage HTTP/HTTPS and stats ports (UFW)
   community.general.ufw:
     rule: allow
-    delete: \"{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}\"
-    port: \"{{ item }}\"
+    delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
+    port: "{{ item }}"
     proto: tcp
-    comment: \"NetBird HAProxy Load Balancer\"
+    comment: "NetBird HAProxy"
   loop:
-    - 80
-    - 443
-    - 33073
+    - 80     # HTTP (ACME challenges)
+    - 443    # HTTPS (public)
+    - 8404   # Stats
 
 - name: Remove HAProxy configuration directory
   ansible.builtin.file:
-    path: /etc/haproxy
+    path: "{{ item }}"
     state: absent
+  loop:
+    - /etc/haproxy
+    - /var/lib/acme
   when: netbird_state | default('present') == 'absent'

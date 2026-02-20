@@ -1,0 +1,6 @@
+---
+- name: Restart PgBouncer
+  community.docker.docker_container:
+    name: pgbouncer
+    state: restarted
+  listen: Restart PgBouncer

@@ -2,4 +2,5 @@
 - name: Restart HAProxy
   community.docker.docker_container:
     name: haproxy
-    state: restarted
+    state: started
+    restart: true

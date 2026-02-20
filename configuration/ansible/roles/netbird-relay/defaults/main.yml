@@ -1,5 +1,0 @@
----
-netbird_version: latest
-netbird_log_level: info
-relay_auth_secret: ""
-relay_domain: "{{ ansible_host }}"

@@ -47,7 +47,13 @@
   "Datadir": "/var/lib/netbird",
   "DataStoreEncryptionKey": "{{ netbird_encryption_key }}",
   "StoreConfig": {
-    "Engine": "{{ database_engine | default('sqlite') }}"
+    "Engine": "{{ database_engine | default('sqlite') }}"{% if database_engine in ['postgres', 'postgresql'] %},
+    "Postgres": {
+      "Dsn": "{{ database_dsn }}"
+    }{% elif database_engine == 'mysql' %},
+    "Mysql": {
+      "Dsn": "{{ database_dsn }}"
+    }{% endif %}
   },
   "HttpConfig": {
     "Address": ":80",
@@ -109,5 +115,13 @@
         "http://localhost:54000/"
       ]
     }
+  },
+  "ClusterConfig": {
+    "Enabled": {{ 'true' if enable_clustering | default(false) else 'false' }}{% if enable_clustering | default(false) %},
+    "Peers": [
+      {% for host in groups['management'] -%}
+      "{{ hostvars[host]['private_ip'] }}:{{ netbird_cluster_port | default(9090) }}"{{ "," if not loop.last else "" }}
+      {% endfor -%}
+    ]{% endif %}
   }
 }

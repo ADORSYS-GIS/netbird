@@ -13,6 +13,8 @@
     image: "netbirdio/relay:{{ netbird_version }}"
     state: "{{ 'started' if netbird_state | default('present') == 'present' else 'absent' }}"
     restart_policy: unless-stopped
+    pull: "{{ 'true' if netbird_state | default('present') == 'present' else 'false' }}"
+    recreate: "{{ 'true' if netbird_state | default('present') == 'present' else 'false' }}"
     networks:
       - name: netbird
     env:

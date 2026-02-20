@@ -187,3 +187,30 @@ resource "keycloak_user" "netbird_admin" {
     temporary = false
   }
 }
+
+# ---------------------------------------------------------------------------
+# Keycloak Health Validation
+# Ensures Keycloak is accessible before returning outputs
+# ---------------------------------------------------------------------------
+
+resource "null_resource" "keycloak_health_check" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo 'Checking Keycloak health at ${var.keycloak_url}...'
+      for i in {1..30}; do
+        curl -sf '${var.keycloak_url}' > /dev/null 2>&1 && echo 'Keycloak is healthy' && exit 0
+        echo "Attempt $i/30: Waiting for Keycloak..."
+        sleep 2
+      done
+      echo 'ERROR: Keycloak health check failed after 60 seconds' && exit 1
+    EOT
+    on_failure = fail
+  }
+
+  depends_on = [
+    keycloak_realm.netbird,
+    keycloak_openid_client.netbird_client,
+    keycloak_openid_client.netbird_backend,
+    keycloak_user.netbird_admin,
+  ]
+}

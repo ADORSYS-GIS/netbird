@@ -7,40 +7,28 @@ output "database_engine" {
 }
 
 output "database_dsn" {
-  value = local.use_sqlite ? module.sqlite[0].dsn : (
-    local.create_database ? module.postgresql_create[0].dsn : module.postgresql_existing[0].dsn
-  )
+  value     = local.use_sqlite ? module.sqlite[0].dsn : module.postgresql_existing[0].dsn
   sensitive = true
 }
 
 output "database_endpoint" {
-  value = local.use_sqlite ? "local" : (
-    local.create_database ? module.postgresql_create[0].endpoint : var.existing_postgresql_host
-  )
+  value = local.use_sqlite ? "local" : var.existing_postgresql_host
 }
 
 output "database_port" {
-  value = local.use_sqlite ? 0 : (
-    local.create_database ? 5432 : var.existing_postgresql_port
-  )
+  value = local.use_sqlite ? 0 : var.existing_postgresql_port
 }
 
 output "database_name" {
-  value = local.use_sqlite ? "" : (
-    local.create_database ? var.postgresql_database_name : var.existing_postgresql_database
-  )
+  value = local.use_sqlite ? "" : var.existing_postgresql_database
 }
 
 output "database_username" {
-  value = local.use_sqlite ? "" : (
-    local.create_database ? var.postgresql_username : var.existing_postgresql_username
-  )
+  value = local.use_sqlite ? "" : var.existing_postgresql_username
 }
 
 output "database_password" {
-  value = local.use_sqlite ? "" : (
-    local.create_database ? var.postgresql_password : var.existing_postgresql_password
-  )
+  value     = local.use_sqlite ? "" : var.existing_postgresql_password
   sensitive = true
 }
 

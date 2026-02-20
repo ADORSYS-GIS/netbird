@@ -14,6 +14,10 @@ all:
     relay_auth_secret: "${relay_auth_secret}"
     netbird_encryption_key: "${netbird_encryption_key}"
     coturn_password: "${coturn_password}"
+    coturn_port: ${coturn_port}
+    coturn_min_port: ${coturn_min_port}
+    coturn_max_port: ${coturn_max_port}
+    coturn_realm: "${coturn_realm}"
 
     # Paths
     netbird_data_dir: "/var/lib/netbird"

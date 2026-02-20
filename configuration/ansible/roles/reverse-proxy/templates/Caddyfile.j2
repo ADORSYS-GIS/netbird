@@ -20,70 +20,11 @@
         X-Frame-Options DENY
     }
 
-    # Management gRPC - HTTP/2 cleartext (h2c)
-    reverse_proxy /management.ManagementService/* {
-        to netbird-management:80
-        header_up Host {host}
-        header_up X-Real-IP {remote_ip}
-        transport http {
-            versions h2c
-        }
-    }
-
-    # Signal gRPC - HTTP/2 cleartext (h2c)
-    reverse_proxy /signalexchange.SignalExchange/* {
-        to netbird-signal:80
-        header_up Host {host}
-        header_up X-Real-IP {remote_ip}
-        transport http {
-            versions h2c
-        }
-    }
-
-    # Signal WebSocket
-    reverse_proxy /ws-proxy/signal* {
-        to netbird-signal:80
-        header_up Host {host}
-        header_up X-Real-IP {remote_ip}
-        header_up X-Forwarded-For {remote_ip}
-        header_up Upgrade {>Upgrade}
-        header_up Connection {>Connection}
-    }
-
-    # Management WebSocket
-    reverse_proxy /ws-proxy/management* {
-        to netbird-management:80
-        header_up Host {host}
-        header_up X-Real-IP {remote_ip}
-        header_up X-Forwarded-For {remote_ip}
-        header_up Connection {>Connection}
-        header_up Upgrade {>Upgrade}
-    }
-
-    # Relay WebSocket
-    reverse_proxy /relay* {
-        to netbird-relay:33080
-        header_up Host {host}
-        header_up X-Real-IP {remote_ip}
-        header_up X-Forwarded-For {remote_ip}
-        header_up Upgrade {>Upgrade}
-        header_up Connection {>Connection}
-    }
-
-    # Management REST API
-    reverse_proxy /api/* {
-        to netbird-management:80
-        header_up Host {host}
-        header_up X-Real-IP {remote_ip}
-        header_up X-Forwarded-For {remote_ip}
-        header_up X-Forwarded-Proto {scheme}
-        header_up X-Forwarded-Host {host}
-    }
-
-    # Dashboard UI - catch-all (must be last)
+    # All traffic reverse proxies to HAProxy for load balancing
+    # HAProxy handles: health checks, sticky sessions, load balancing to 3 management nodes
+    # Caddy handles: TLS termination, ACME certificate management, basic reverse proxy
     reverse_proxy /* {
-        to netbird-dashboard:80
-        header_up Host {host}
+        to localhost:8080
         header_up X-Real-IP {remote_ip}
         header_up X-Forwarded-For {remote_ip}
         header_up X-Forwarded-Proto {scheme}

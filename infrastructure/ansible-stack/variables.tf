@@ -34,9 +34,13 @@ variable "database_type" {
 }
 
 variable "database_mode" {
-  description = "For postgresql: 'create' (managed cloud DB) or 'existing'"
+  description = "Database mode ('existing' recommended)"
   type        = string
   default     = "existing"
+  validation {
+    condition     = contains(["existing"], var.database_mode)
+    error_message = "database_mode must be 'existing'."
+  }
 }
 
 variable "enable_ha" {
@@ -50,62 +54,6 @@ variable "sqlite_database_path" {
   description = "Path for SQLite DB on the management server"
   type        = string
   default     = "/var/lib/netbird/store.db"
-}
-
-# Managed PostgreSQL (Used only if database_mode = 'create')
-variable "cloud_provider" {
-  description = "Target cloud for managed DB (aws, gcp, azure)"
-  type        = string
-  default     = ""
-}
-
-variable "aws_region" {
-  description = "AWS Region (only needed if provider 'aws' is actively used)"
-  type        = string
-  default     = "us-east-1"
-}
-
-variable "postgresql_instance_class" {
-  description = "DB instance class"
-  type        = string
-  default     = "db.t3.medium"
-}
-
-variable "postgresql_storage_gb" {
-  description = "Storage in GB"
-  type        = number
-  default     = 20
-}
-
-variable "postgresql_database_name" {
-  description = "DB name"
-  type        = string
-  default     = "netbird"
-}
-
-variable "postgresql_username" {
-  description = "DB master username"
-  type        = string
-  default     = "netbird"
-}
-
-variable "postgresql_password" {
-  description = "DB master password"
-  type        = string
-  default     = ""
-  sensitive   = true
-}
-
-variable "postgresql_multi_az" {
-  description = "Enable DB HA"
-  type        = bool
-  default     = true
-}
-
-variable "postgresql_backup_retention_days" {
-  description = "Backup retention"
-  type        = number
-  default     = 7
 }
 
 # Existing PostgreSQL (Used only if database_mode = 'existing')
@@ -275,6 +223,104 @@ variable "netbird_encryption_key" {
   type        = string
   default     = ""
   sensitive   = true
+}
+
+# -----------------------------------------------------------------------------
+# HA CONFIGURATION (Critical for Multi-Node Deployments)
+# -----------------------------------------------------------------------------
+
+variable "enable_clustering" {
+  description = "Enable management service clustering for state synchronization"
+  type        = bool
+  default     = false
+}
+
+variable "netbird_cluster_port" {
+  description = "Port for inter-node clustering communication"
+  type        = number
+  default     = 9090
+}
+
+variable "enable_pgbouncer" {
+  description = "Enable PgBouncer connection pooler between management and database"
+  type        = bool
+  default     = false
+}
+
+variable "pgbouncer_listen_port" {
+  description = "Port for PgBouncer to listen on"
+  type        = number
+  default     = 6432
+}
+
+variable "pgbouncer_min_pool_size" {
+  description = "Minimum pool size for PgBouncer"
+  type        = number
+  default     = 10
+}
+
+variable "pgbouncer_default_pool_size" {
+  description = "Default pool size for PgBouncer (tuned for 2-3 management nodes)"
+  type        = number
+  default     = 25
+}
+
+variable "pgbouncer_reserve_pool_size" {
+  description = "Reserve pool size for PgBouncer"
+  type        = number
+  default     = 5
+}
+
+variable "pgbouncer_reserve_pool_timeout" {
+  description = "Timeout for reserve pool in seconds"
+  type        = number
+  default     = 3
+}
+
+variable "pgbouncer_pool_mode" {
+  description = "PgBouncer pool mode (transaction, session, or statement)"
+  type        = string
+  default     = "transaction"
+  validation {
+    condition     = contains(["transaction", "session", "statement"], var.pgbouncer_pool_mode)
+    error_message = "pgbouncer_pool_mode must be 'transaction', 'session', or 'statement'."
+  }
+}
+
+variable "haproxy_health_check_interval" {
+  description = "HAProxy health check interval in milliseconds"
+  type        = number
+  default     = 5000
+}
+
+variable "haproxy_health_check_timeout" {
+  description = "HAProxy health check timeout in milliseconds"
+  type        = number
+  default     = 3000
+}
+
+variable "haproxy_health_check_fall" {
+  description = "Number of consecutive failures before marking backend down"
+  type        = number
+  default     = 2
+}
+
+variable "haproxy_health_check_rise" {
+  description = "Number of consecutive successes before marking backend up"
+  type        = number
+  default     = 3
+}
+
+variable "haproxy_stick_table_size" {
+  description = "HAProxy stick table size for session persistence"
+  type        = string
+  default     = "100k"
+}
+
+variable "haproxy_stick_table_expire" {
+  description = "HAProxy stick table entry expiration time"
+  type        = string
+  default     = "30m"
 }
 
 # -----------------------------------------------------------------------------

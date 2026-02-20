@@ -5,6 +5,15 @@
   roles:
     - common
 
+- name: Deploy PgBouncer Connection Pooler (if enabled)
+  hosts: management
+  become: true
+  roles:
+    - role: pgbouncer
+      when: enable_pgbouncer | default(false) | bool
+  tags:
+    - pgbouncer
+
 - name: Deploy NetBird Management Servers
   hosts: management
   become: true
@@ -20,11 +29,14 @@
   roles:
     - netbird-relay
 
-- name: Deploy Load Balancer
+- name: Deploy Reverse Proxy & Load Balancer
   hosts: reverse_proxy
   become: true
   roles:
     - role: reverse-proxy
-      when: proxy_type | default('caddy') == 'caddy'
+      when: proxy_type | default('haproxy') == 'caddy'
     - role: haproxy
-      when: proxy_type | default('caddy') == 'haproxy'
+      # HAProxy with ACME: Direct HTTPS termination + load balancing
+      # No middleman = lower latency
+      # Flow: Client (443) → HAProxy → Management Nodes
+      when: proxy_type | default('haproxy') == 'haproxy'

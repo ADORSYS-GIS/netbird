@@ -1,9 +1,4 @@
 ---
-- name: Manage NetBird Docker network
-  community.docker.docker_network:
-    name: netbird
-    state: "{{ 'present' if netbird_state | default('present') == 'present' else 'absent' }}"
-
 - name: Manage SSH port (UFW)
   community.general.ufw:
     rule: allow
@@ -19,6 +14,11 @@
       community.general.ufw:
         state: disabled
       ignore_errors: true
+
+    - name: Remove any remaining NetBird containers
+      ansible.builtin.shell: |
+        docker ps -a --filter "name=netbird-" -q | xargs -r docker rm -f
+      failed_when: false
 
 - name: Check if Docker is installed
   ansible.builtin.command: which docker
@@ -87,6 +87,12 @@
         name: "{{ ansible_user }}"
         groups: docker
         append: true
+
+    - name: Manage NetBird Docker network
+      community.docker.docker_network:
+        name: netbird
+        state: present
+        force: false
 
     - name: Set UFW default policies
       community.general.ufw:

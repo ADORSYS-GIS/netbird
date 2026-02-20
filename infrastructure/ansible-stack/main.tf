@@ -14,22 +14,6 @@ module "database" {
   # SQLite
   sqlite_database_path = var.sqlite_database_path
 
-  # PostgreSQL Create
-  cloud_provider                   = var.cloud_provider
-  postgresql_instance_class        = var.postgresql_instance_class
-  postgresql_storage_gb            = var.postgresql_storage_gb
-  postgresql_database_name         = var.postgresql_database_name
-  postgresql_username              = var.postgresql_username
-  postgresql_password              = var.postgresql_password
-  postgresql_multi_az              = var.postgresql_multi_az
-  postgresql_backup_retention_days = var.postgresql_backup_retention_days
-
-  # Subnets/VPC (if needed for creation)
-  vpc_id                      = ""
-  database_subnet_ids         = []
-  database_security_group_ids = []
-  tags                        = { Environment = var.environment }
-
   # PostgreSQL Existing
   existing_postgresql_host     = var.existing_postgresql_host
   existing_postgresql_port     = var.existing_postgresql_port
@@ -53,18 +37,32 @@ module "keycloak" {
 }
 
 # Automated Secret Generation
+# NOTE: Keepers prevent regeneration on re-applies (critical for HA)
+# If you need to regenerate, change the version number in keepers
 resource "random_password" "relay_auth_secret" {
   length  = 32
   special = true
+
+  keepers = {
+    version = "1.0"
+  }
 }
 
 resource "random_id" "netbird_encryption_key" {
   byte_length = 32
+
+  keepers = {
+    version = "1.0"
+  }
 }
 
 resource "random_password" "coturn_password" {
   length  = 32
   special = true
+
+  keepers = {
+    version = "1.0"
+  }
 }
 
 locals {
@@ -104,6 +102,29 @@ locals {
     relay_auth_secret      = var.relay_auth_secret != "" ? var.relay_auth_secret : random_password.relay_auth_secret.result
     netbird_encryption_key = var.netbird_encryption_key != "" ? var.netbird_encryption_key : random_id.netbird_encryption_key.b64_std
     coturn_password        = random_password.coturn_password.result
+    coturn_port            = 3478
+    coturn_min_port        = 49152
+    coturn_max_port        = 65535
+    coturn_realm           = var.netbird_domain
+
+    # HA Configuration
+    enable_clustering              = var.enable_clustering
+    netbird_cluster_port           = var.netbird_cluster_port
+    enable_pgbouncer               = var.enable_pgbouncer
+    pgbouncer_listen_port          = var.pgbouncer_listen_port
+    pgbouncer_min_pool_size        = var.pgbouncer_min_pool_size
+    pgbouncer_default_pool_size    = var.pgbouncer_default_pool_size
+    pgbouncer_reserve_pool_size    = var.pgbouncer_reserve_pool_size
+    pgbouncer_reserve_pool_timeout = var.pgbouncer_reserve_pool_timeout
+    pgbouncer_pool_mode            = var.pgbouncer_pool_mode
+
+    # HAProxy Health Check Configuration
+    haproxy_health_check_interval = var.haproxy_health_check_interval
+    haproxy_health_check_timeout  = var.haproxy_health_check_timeout
+    haproxy_health_check_fall     = var.haproxy_health_check_fall
+    haproxy_health_check_rise     = var.haproxy_health_check_rise
+    haproxy_stick_table_size      = var.haproxy_stick_table_size
+    haproxy_stick_table_expire    = var.haproxy_stick_table_expire
 
     # Compute addresses for management.json
     relay_addresses = [for node in module.inventory.relay_nodes : "rels://${node.public_ip}:33080"]
