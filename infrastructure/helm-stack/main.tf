@@ -94,7 +94,7 @@ resource "helm_release" "netbird" {
       keycloak_client_id = module.keycloak.client_id
       keycloak_oidc_endpoint = module.keycloak.oidc_config_endpoint
       relay_auth_secret  = random_password.relay_auth_secret.result
-      netbird_encryption_key = random_id.netbird_encryption_key.b64_std
+      netbird_encryption_key = random_id.netbird_encryption_key.hex
     })
   ]
 

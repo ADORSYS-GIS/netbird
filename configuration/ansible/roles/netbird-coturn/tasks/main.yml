@@ -28,17 +28,27 @@
     name: coturn
     image: "coturn/coturn:{{ coturn_version }}"
     state: started
-    restart_policy: unless-stopped
+    restart_policy: on-failure
+    restart_retries: 5
     pull: true
-    recreate: true
+    recreate: false
     network_mode: host
+    memory: "1g"
+    memory_swap: "1g"
+    oom_killer: true
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "3478" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+      start_period: "30s"
     volumes:
       - /etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
     command: ["-c", "/etc/coturn/turnserver.conf"]
     log_driver: "json-file"
     log_options:
-      max-size: "500m"
-      max-file: "2"
+      max-size: "100m"
+      max-file: "5"
   when: netbird_state | default('present') == 'present'
 
 - name: Manage Coturn ports (UFW)

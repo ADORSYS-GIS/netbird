@@ -12,11 +12,16 @@
     name: netbird-relay
     image: "netbirdio/relay:{{ netbird_version }}"
     state: "{{ 'started' if netbird_state | default('present') == 'present' else 'absent' }}"
-    restart_policy: unless-stopped
+    restart_policy: on-failure
+    restart_retries: 5
     pull: "{{ 'true' if netbird_state | default('present') == 'present' else 'false' }}"
-    recreate: "{{ 'true' if netbird_state | default('present') == 'present' else 'false' }}"
+    recreate: false
     networks:
       - name: netbird
+    memory: "1g"
+    memory_reservation: "512m"
+    memory_swap: "1g"
+    oom_killer: true
     env:
       NB_LOG_LEVEL: "{{ netbird_log_level }}"
       NB_LISTEN_ADDRESS: ":33080"
@@ -24,7 +29,13 @@
       NB_AUTH_SECRET: "{{ relay_auth_secret }}"
     ports:
       - "33080:33080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:33080/status" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+      start_period: "30s"
     log_driver: "json-file"
     log_options:
-      max-size: "500m"
-      max-file: "2"
+      max-size: "100m"
+      max-file: "5"

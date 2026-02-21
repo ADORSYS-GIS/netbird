@@ -45,16 +45,64 @@ machinekey/
 Chart.lock
 monitor-netbird/kubernetes/helm/monitoring-stack/charts/_loki/
 
+# ============================================================================
+# TERRAFORM - SECRETS & STATE
+# ============================================================================
 # Ignore Terraform state and binaries
 **/.terraform/*
 *.tfstate
 *.tfstate.backup
 .terraform.lock.hcl
+
+# ⚠️ CRITICAL: Never commit Terraform variable files with secrets
+*.tfvars              # All .tfvars files (contains real secrets)
+*.tfvars.json         # JSON format .tfvars
+*.tfvars.secret       # Explicitly marked secret tfvars
+terraform.tfvars      # Default tfvars file
+terraform.tfvars.json # Default JSON tfvars
+
+# ============================================================================
+# ANSIBLE - SECRETS & INVENTORY
+# ============================================================================
+# Never commit generated Ansible inventory with real values
+**/inventory/terraform_inventory.yaml    # Auto-generated from Terraform
+**/inventory/terraform_inventory.json    # Auto-generated from Terraform
+
+# Ansible vault files and encrypted data
+**/*.vault
+**/*vault*
+**/ansible-vault
+**/vault-password*
+**/vault.yml
+
+# ============================================================================
+# SSH & CREDENTIALS
+# ============================================================================
+# Never commit private SSH keys
+**/private_key
+**/private_key.*
+**/id_rsa
+**/id_rsa.*
+**/*.pem
+**/*.key
+**/*_key
+
+# ============================================================================
+# ENVIRONMENT & CONFIGURATION
+# ============================================================================
 .env
+.env.local
+.env.*.local
+.env.production.local
+.env.secrets
+*.env
+
+# ============================================================================
+# IDE & EDITOR
+# ============================================================================
 .quodo
 .vivus
 .agent
-*.tfvars
 .elastic-copilot
 .zencoder
 .zenflow

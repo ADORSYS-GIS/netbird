@@ -17,7 +17,7 @@
 # SECTION 1: CORE CONFIGURATION [REQUIRED]
 # =============================================================================
 
-netbird_domain = "netbird.observe.camer.digital" # [REQUIRED] Your domain name
+netbird_domain = "your-domain.com" # [REQUIRED] Your domain name
 
 environment = "prod" # Environment: prod, staging, dev
 
@@ -27,21 +27,21 @@ netbird_hosts = {
   # HA Cluster Nodes (3 for quorum-based clustering)
   # Each node runs: management + relay + proxy services + PgBouncer
   "node-1" = {
-    public_ip  = "16.171.59.171"
-    private_ip = "172.31.4.141"
+    public_ip  = "YOUR.PUBLIC.IP.1"
+    private_ip = "YOUR.PRIVATE.IP.1"
     roles      = ["management", "relay", "proxy"]
     ssh_user   = "ubuntu"
   }
   "node-2" = {
-    public_ip  = "13.63.35.177"
-    private_ip = "172.31.11.58"
+    public_ip  = "YOUR.PUBLIC.IP.2"
+    private_ip = "YOUR.PRIVATE.IP.2"
     roles      = ["management", "relay", "proxy"]
     ssh_user   = "ubuntu"
   }
   "node-3" = {
-    public_ip  = "51.20.52.128"
-    private_ip = "172.31.20.213"
-    roles      = ["management", "relay", "proxy"]
+    public_ip  = "YOUR.PUBLIC.IP.3"
+    private_ip = "YOUR.PRIVATE.IP.3"
+    roles      = ["management", "relay"]
     ssh_user   = "ubuntu"
   }
 }
@@ -57,12 +57,12 @@ database_mode = "existing"
 enable_ha     = true
 
 # [REQUIRED] PostgreSQL database (AWS RDS, Azure, GCP, or self-hosted)
-existing_postgresql_host     = "ep-blue-recipe-aifgkckf-pooler.c-4.us-east-1.aws.neon.tech"  # FOR TESTING: Docker container name | PRODUCTION: Use external RDS endpoint
+existing_postgresql_host     = "your-db-host.region.aws.rds.amazonaws.com"  # Database endpoint
 existing_postgresql_port     = 5432
-existing_postgresql_database = "neondb"
-existing_postgresql_username = "neondb_owner"
-existing_postgresql_password = "npg_qAHLUgk5hTw6" # CHANGE THIS IN PRODUCTION
-existing_postgresql_sslmode  = "require"  # FOR TESTING ONLY | PRODUCTION: "require" with TLS enabled
+existing_postgresql_database = "netbird_db"
+existing_postgresql_username = "netbird_user"
+existing_postgresql_password = "CHANGE_ME_STRONG_PASSWORD" # [REQUIRED] Set via environment variable: TF_VAR_existing_postgresql_password
+existing_postgresql_sslmode  = "require"  # TLS encryption for DB connection
 
 # SQLite is NOT recommended for HA deployments (only for single-node)
 # sqlite_database_path = "/var/lib/netbird/store.db"
@@ -71,12 +71,12 @@ existing_postgresql_sslmode  = "require"  # FOR TESTING ONLY | PRODUCTION: "requ
 # SECTION 3: KEYCLOAK / IDENTITY PROVIDER [REQUIRED]
 # =============================================================================
 
-keycloak_url                 = "https://keycloak.net.observe.camer.digital/auth" # [REQUIRED] Keycloak server URL
+keycloak_url                 = "https://keycloak.your-domain.com/auth" # [REQUIRED] Keycloak server URL
 keycloak_admin_username      = "admin"
-keycloak_admin_password      = "password123!"                     # [REQUIRED] - Change in Keycloak UI after deployment
-keycloak_admin_client_secret = "rk9v8yewnXKOZ1oAbXktyHIIUl7rDVob" # Usually null unless using existing realm
+keycloak_admin_password      = "CHANGE_ME_STRONG_PASSWORD" # [REQUIRED] Set via environment variable: TF_VAR_keycloak_admin_password
+keycloak_admin_client_secret = "CHANGE_ME_KEYCLOAK_SECRET" # Set via environment variable: TF_VAR_keycloak_admin_client_secret
 keycloak_use_existing_realm  = true
-realm_name                   = "netbird2"
+realm_name                   = "netbird"
 
 # =============================================================================
 # SECTION 4: APPLICATION SECRETS & CREDENTIALS [REQUIRED FOR HA]
@@ -93,14 +93,17 @@ realm_name                   = "netbird2"
 # 3. Apply once: terraform apply
 # 4. NEVER CHANGE these values again (unless you want clients to reconnect)
 
-netbird_admin_email    = "admin@observe.camer.digital" # [REQUIRED]
-netbird_admin_password = "password123!"                # Strong password generated
+netbird_admin_email    = "admin@your-domain.com" # [REQUIRED]
+netbird_admin_password = "CHANGE_ME_STRONG_PASSWORD" # [REQUIRED] Set via environment variable: TF_VAR_netbird_admin_password
 
-# [OPTIONAL but RECOMMENDED for HA]
-# If you leave these commented, Terraform will generate random values.
-# This BREAKS HA on re-apply because all nodes get different secrets!
-# relay_auth_secret       = "your-permanent-32-byte-relay-secret-here"
-# netbird_encryption_key  = "your-permanent-32-byte-encryption-key-here"
+# [REQUIRED for HA] Permanent secrets that MUST NOT change between applies
+# If these change, all connected clients will lose connectivity
+# Generate using: openssl rand -hex 32
+# Store in environment variables or CI/CD secrets:
+#   TF_VAR_relay_auth_secret
+#   TF_VAR_netbird_encryption_key
+relay_auth_secret      = "CHANGE_ME_OPENSSL_RAND_HEX_32"
+netbird_encryption_key = "CHANGE_ME_OPENSSL_RAND_HEX_32"
 
 # =============================================================================
 # SECTION 5: VERSION CONFIGURATION
@@ -122,7 +125,7 @@ docker_compose_version = "v5.0.2"
 
 proxy_type    = "haproxy"                     # HAProxy with ACME support
 acme_provider = "letsencrypt"                 # ACME provider: letsencrypt only
-acme_email    = "admin@observe.camer.digital" # Email for certificate notifications
+acme_email    = "admin@your-domain.com"       # Email for certificate notifications
 
 # HAProxy ACME Configuration
 # Uses HTTP-01 challenge (port 80 must be accessible)
@@ -138,7 +141,7 @@ netbird_log_level = "info" # Options: debug, info, warn, error
 # SECTION 8: SSH / ANSIBLE CONFIGURATION [REQUIRED]
 # =============================================================================
 
-ssh_private_key_path = "~/.ssh/private_key" # [REQUIRED] Path to SSH private key
+ssh_private_key_path = "~/.ssh/your-key-name"  # [REQUIRED] Path to SSH private key for node access
 
 # =============================================================================
 # SECTION 9: HIGH AVAILABILITY CONFIGURATION [CRITICAL]
@@ -173,8 +176,6 @@ haproxy_health_check_rise     = 3      # consecutive successes before marking UP
 haproxy_stick_table_size      = "100k" # Max sessions per stick table
 haproxy_stick_table_expire    = "30m"  # Session timeout
 
-relay_auth_secret      = "ea4a85c5b5e75f33acaa7ba87ddb240ca3bb47f4bc65143328bdd2dedba3d24a"
-netbird_encryption_key = "c7e3143dc04c0d8d6b7c00a6384852fae300618765612e257e5f94231b6458ee"
 # =============================================================================
 # SECTION 11: MULTI-NODE HA DEPLOYMENT NOTES
 # =============================================================================

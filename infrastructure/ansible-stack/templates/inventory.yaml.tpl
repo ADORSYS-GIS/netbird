@@ -44,6 +44,51 @@ all:
     keycloak_backend_client_secret: "${keycloak_backend_client_secret}"
     keycloak_oidc_endpoint: "${keycloak_oidc_endpoint}"
     
+    # HA Configuration
+    enable_clustering: ${enable_clustering}
+    netbird_cluster_port: ${netbird_cluster_port}
+    enable_pgbouncer: ${enable_pgbouncer}
+    
+    # PgBouncer Configuration (ALL required variables)
+    netbird_state: "present"
+    pgbouncer_state: "present"
+    pgbouncer_version: "latest"
+    pgbouncer_listen_address: "0.0.0.0"
+    pgbouncer_listen_port: ${pgbouncer_listen_port}
+    pgbouncer_database_name: "${database_name}"
+    pgbouncer_database_host: "${database_endpoint}"
+    pgbouncer_database_port: ${database_port}
+    pgbouncer_database_user: "${database_username}"
+    pgbouncer_database_password: "${database_password}"
+    pgbouncer_database_sslmode: "${database_sslmode}"
+    pgbouncer_min_pool_size: ${pgbouncer_min_pool_size}
+    pgbouncer_default_pool_size: ${pgbouncer_default_pool_size}
+    pgbouncer_reserve_pool_size: ${pgbouncer_reserve_pool_size}
+    pgbouncer_reserve_pool_timeout: ${pgbouncer_reserve_pool_timeout}
+    pgbouncer_pool_mode: "${pgbouncer_pool_mode}"
+    pgbouncer_server_lifetime: 3600
+    pgbouncer_server_idle_timeout: 600
+    pgbouncer_query_timeout: 0
+    pgbouncer_query_wait_timeout: 120
+    pgbouncer_client_idle_timeout: 0
+    pgbouncer_max_client_conn: 1000
+    pgbouncer_max_db_connections: 100
+    pgbouncer_max_user_connections: 100
+    pgbouncer_log_connections: "1"
+    pgbouncer_log_disconnections: "1"
+    pgbouncer_log_pooler_errors: "1"
+    pgbouncer_stats_period: 60
+    pgbouncer_health_check_period: 10
+    pgbouncer_health_check_timeout: 5
+    
+    # HAProxy Configuration
+    haproxy_health_check_interval: ${haproxy_health_check_interval}
+    haproxy_health_check_timeout: ${haproxy_health_check_timeout}
+    haproxy_health_check_fall: ${haproxy_health_check_fall}
+    haproxy_health_check_rise: ${haproxy_health_check_rise}
+    haproxy_stick_table_size: "${haproxy_stick_table_size}"
+    haproxy_stick_table_expire: "${haproxy_stick_table_expire}"
+    
     # Relay & STUN Addresses
     relay_addresses: ${jsonencode(relay_addresses)}
     stun_addresses: ${jsonencode(stun_addresses)}

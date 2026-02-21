@@ -160,7 +160,7 @@ resource "terraform_data" "ansible_provisioning" {
       mkdir -p $(dirname ${local.inventory_path})
       echo "${base64encode(local.inventory_content)}" | base64 -d > ${local.inventory_path}
       chmod 600 ${local.inventory_path}
-      cd ../../configuration/ansible && ansible-playbook -i inventory/terraform_inventory.yaml playbooks/site.yml
+      cd ../../configuration/ansible && ansible-playbook -i inventory/terraform_inventory.yaml playbooks/site.yml || exit 1
     EOT
   }
 

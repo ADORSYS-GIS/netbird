@@ -18,11 +18,16 @@
     name: netbird-dashboard
     image: "netbirdio/dashboard:{{ netbird_version }}"
     state: started
-    restart_policy: unless-stopped
+    restart_policy: on-failure
+    restart_retries: 5
     pull: true
-    recreate: true
+    recreate: false
     networks:
       - name: netbird
+    memory: "512m"
+    memory_reservation: "256m"
+    memory_swap: "512m"
+    oom_killer: true
     env:
       NETBIRD_MGMT_API_ENDPOINT: "https://{{ netbird_domain }}"
       NETBIRD_MGMT_GRPC_API_ENDPOINT: "https://{{ netbird_domain }}"
@@ -38,10 +43,16 @@
       NGINX_SSL_PORT: "443"
     ports:
       - "8082:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+      start_period: "60s"
     log_driver: "json-file"
     log_options:
-      max-size: "500m"
-      max-file: "2"
+      max-size: "100m"
+      max-file: "5"
   when: netbird_state | default('present') == 'present'
 
 - name: Force environment variable substitution in JS files
@@ -54,6 +65,8 @@
         rm "$f".copy
     done
     '
+  register: dashboard_envsubst
+  failed_when: dashboard_envsubst.rc not in [0, 1]
+  changed_when: false
   when: netbird_state | default('present') == 'present'
-  changed_when: true
 

@@ -1,0 +1,178 @@
+# =============================================================================
+# NETBIRD MULTI-NODE HIGH AVAILABILITY - CONFIGURATION TEMPLATE
+# =============================================================================
+#
+# ⚠️  INSTRUCTIONS:
+# 1. Copy this file to terraform.tfvars
+# 2. Replace all [REQUIRED] values with your actual values
+# 3. NEVER commit terraform.tfvars to GitHub - it contains secrets!
+# 4. Add terraform.tfvars to .gitignore
+#
+# cp terraform.tfvars.example terraform.tfvars
+# vim terraform.tfvars  # Edit with your values
+#
+# =============================================================================
+
+# =============================================================================
+# SECTION 1: CORE CONFIGURATION [REQUIRED]
+# =============================================================================
+
+netbird_domain = "your-domain.com"  # [REQUIRED] Your domain name
+
+environment = "prod"  # Environment: prod, staging, dev
+
+# [REQUIRED] Multi-node host configuration
+# Define dedicated nodes (each node runs all roles: management, relay, proxy)
+netbird_hosts = {
+  # HA Cluster Nodes (3 for quorum-based clustering)
+  # Each node runs: management + relay + proxy services + PgBouncer
+  "node-1" = {
+    public_ip  = "YOUR.PUBLIC.IP.1"
+    private_ip = "YOUR.PRIVATE.IP.1"
+    roles      = ["management", "relay", "proxy"]
+    ssh_user   = "ubuntu"
+  }
+  "node-2" = {
+    public_ip  = "YOUR.PUBLIC.IP.2"
+    private_ip = "YOUR.PRIVATE.IP.2"
+    roles      = ["management", "relay", "proxy"]
+    ssh_user   = "ubuntu"
+  }
+  "node-3" = {
+    public_ip  = "YOUR.PUBLIC.IP.3"
+    private_ip = "YOUR.PRIVATE.IP.3"
+    roles      = ["management", "relay"]
+    ssh_user   = "ubuntu"
+  }
+}
+
+# =============================================================================
+# SECTION 2: DATABASE CONFIGURATION [REQUIRED]
+# =============================================================================
+# For HA deployments, you MUST use an external PostgreSQL database
+# with Multi-AZ failover capability
+
+database_type = "postgresql"
+database_mode = "existing"
+enable_ha     = true
+
+# [REQUIRED] PostgreSQL database (AWS RDS, Azure, GCP, or self-hosted)
+existing_postgresql_host     = "your-db-host.region.aws.rds.amazonaws.com"
+existing_postgresql_port     = 5432
+existing_postgresql_database = "netbird_db"
+existing_postgresql_username = "netbird_user"
+existing_postgresql_password = "CHANGE_ME_STRONG_PASSWORD"  # [REQUIRED]
+existing_postgresql_sslmode  = "require"
+
+# =============================================================================
+# SECTION 3: KEYCLOAK / IDENTITY PROVIDER [REQUIRED]
+# =============================================================================
+
+keycloak_url                 = "https://keycloak.your-domain.com"  # [REQUIRED]
+keycloak_admin_username      = "admin"
+keycloak_admin_password      = "CHANGE_ME_STRONG_PASSWORD"         # [REQUIRED]
+keycloak_admin_client_secret = "CHANGE_ME_KEYCLOAK_SECRET"
+keycloak_use_existing_realm  = true
+realm_name                   = "netbird"
+
+# =============================================================================
+# SECTION 4: APPLICATION SECRETS & CREDENTIALS [REQUIRED FOR HA]
+# =============================================================================
+# ⚠️ CRITICAL FOR HA: Set permanent values for these secrets!
+# If these secrets change on terraform re-apply, all clients will lose connectivity.
+#
+# To generate secure values:
+#   openssl rand -hex 32
+#
+# Steps:
+# 1. Generate 32-byte secrets using command above
+# 2. Paste your generated values below
+# 3. Apply once: terraform apply
+# 4. NEVER CHANGE these values again (unless you want clients to reconnect)
+
+netbird_admin_email    = "admin@your-domain.com"  # [REQUIRED]
+netbird_admin_password = "CHANGE_ME_STRONG_PASSWORD"  # [REQUIRED]
+
+# [REQUIRED for HA] Permanent secrets that MUST NOT change
+relay_auth_secret      = "CHANGE_ME_OPENSSL_RAND_HEX_32"        # Generate: openssl rand -hex 32
+netbird_encryption_key = "CHANGE_ME_OPENSSL_RAND_HEX_32"        # Generate: openssl rand -hex 32
+
+# =============================================================================
+# SECTION 5: VERSION CONFIGURATION
+# =============================================================================
+
+netbird_version        = "latest"  # NetBird version (e.g., "0.27.0" or "latest")
+caddy_version          = "2.8.0"
+haproxy_version        = "2.8.0"
+coturn_version         = "latest"
+docker_compose_version = "v2.20.0"
+
+# =============================================================================
+# SECTION 6: REVERSE PROXY & CERTIFICATE CONFIGURATION (HAPROXY + ACME)
+# =============================================================================
+
+proxy_type    = "haproxy"                      # HAProxy with ACME support
+acme_provider = "letsencrypt"                  # ACME provider: letsencrypt only
+acme_email    = "admin@your-domain.com"        # Email for certificate notifications
+
+# =============================================================================
+# SECTION 7: LOGGING CONFIGURATION
+# =============================================================================
+
+netbird_log_level = "info"  # Options: debug, info, warn, error
+
+# =============================================================================
+# SECTION 8: SSH / ANSIBLE CONFIGURATION [REQUIRED]
+# =============================================================================
+
+ssh_private_key_path = "~/.ssh/your-private-key"  # [REQUIRED] Path to SSH private key
+
+# =============================================================================
+# SECTION 9: HIGH AVAILABILITY CONFIGURATION
+# =============================================================================
+
+enable_clustering    = true   # MUST be true for HA
+netbird_cluster_port = 9090
+
+# PgBouncer Connection Pooling (CRITICAL for HA)
+enable_pgbouncer               = true
+pgbouncer_listen_port          = 6432
+pgbouncer_min_pool_size        = 10
+pgbouncer_default_pool_size    = 25
+pgbouncer_reserve_pool_size    = 5
+pgbouncer_reserve_pool_timeout = 3
+pgbouncer_pool_mode            = "transaction"
+
+# =============================================================================
+# SECTION 10: HAPROXY HEALTH CHECK CONFIGURATION
+# =============================================================================
+
+haproxy_health_check_interval = 5000   # milliseconds
+haproxy_health_check_timeout  = 3000   # milliseconds
+haproxy_health_check_fall     = 2      # consecutive failures
+haproxy_health_check_rise     = 3      # consecutive successes
+haproxy_stick_table_size      = "100k"
+haproxy_stick_table_expire    = "30m"
+
+# =============================================================================
+# SECURITY REMINDERS
+# =============================================================================
+#
+# ✓ This file should NOT be committed to GitHub
+# ✓ Add terraform.tfvars to .gitignore
+# ✓ Store actual values in:
+#   - Environment variables: TF_VAR_existing_postgresql_password
+#   - CI/CD secrets manager (GitHub Secrets, GitLab CI/CD Variables)
+#   - Terraform Cloud/Enterprise
+#   - HashiCorp Vault
+#
+# ✓ To use environment variables instead:
+#   export TF_VAR_existing_postgresql_password="your-password"
+#   terraform apply
+#
+# ✓ Example .gitignore entry:
+#   terraform.tfvars
+#   terraform.tfvars.json
+#   terraform.tfvars.secret
+#   **/terraform_inventory.yaml
+#

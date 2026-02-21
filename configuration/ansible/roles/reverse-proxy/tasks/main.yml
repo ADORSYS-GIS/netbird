@@ -25,13 +25,22 @@
 - name: Manage Caddy Docker container
   community.docker.docker_container:
     name: caddy
-    image: "caddy:{{ caddy_version | default('latest') }}"
+    image: "caddy:{{ caddy_version | default('2.8.0') }}"
     state: started
     restart_policy: unless-stopped
     pull: true
-    recreate: true
+    recreate: false
     networks:
       - name: netbird
+    memory: "512m"
+    memory_swap: "512m"
+    oom_killer: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/" ]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+      start_period: "15s"
     ports:
       - "80:80"
       - "443:443"

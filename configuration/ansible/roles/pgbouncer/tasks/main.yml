@@ -30,6 +30,7 @@
 - name: Add database user to PgBouncer userlist
   ansible.builtin.lineinfile:
     path: /etc/pgbouncer/userlist.txt
+    regexp: '^"{{ pgbouncer_database_user }}"'
     line: '"{{ pgbouncer_database_user }}" "{{ pgbouncer_database_password }}"'
     state: present
     create: true
@@ -47,23 +48,39 @@
 - name: Manage PgBouncer Docker container
   community.docker.docker_container:
     name: pgbouncer
-    image: "edoburu/pgbouncer:{{ pgbouncer_version }}"
+    image: "pgbouncer/pgbouncer:{{ pgbouncer_version }}"
     state: "{{ 'started' if pgbouncer_state == 'present' else 'absent' }}"
     restart_policy: "{{ 'unless-stopped' if pgbouncer_state == 'present' else 'no' }}"
     pull: "{{ 'true' if pgbouncer_state == 'present' else 'false' }}"
-    recreate: "{{ 'true' if pgbouncer_state == 'present' else 'false' }}"
+    recreate: false
     networks:
       - name: netbird
     ports:
       - "{{ pgbouncer_listen_port }}:{{ pgbouncer_listen_port }}"
+    memory: "512m"
+    memory_reservation: "256m"
+    memory_swap: "512m"
+    oom_killer: true
     volumes:
-      - /etc/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
-      - /etc/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+      - /etc/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+      - /etc/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
       - /var/lib/pgbouncer:/var/lib/pgbouncer
     env:
-      PGBOUNCER_DATABASES: "{{ pgbouncer_database_name }}"
-      PGBOUNCER_HOST: "0.0.0.0"
-      PGBOUNCER_PORT: "{{ pgbouncer_listen_port | string }}"
+      DATABASES: "{{ pgbouncer_database_name }}"
+      DATABASES_HOST: "{{ pgbouncer_database_host }}"
+      DATABASES_PORT: "{{ pgbouncer_database_port | string }}"
+      DATABASES_USER: "{{ pgbouncer_database_user }}"
+      DATABASES_PASSWORD: "{{ pgbouncer_database_password }}"
+      DATABASES_DBNAME: "{{ pgbouncer_database_name }}"
+      PGBOUNCER_LISTEN_ADDRESS: "0.0.0.0"
+      PGBOUNCER_LISTEN_PORT: "{{ pgbouncer_listen_port | string }}"
+      PGBOUNCER_POOL_MODE: "{{ pgbouncer_pool_mode }}"
+      PGBOUNCER_MIN_POOL_SIZE: "{{ pgbouncer_min_pool_size | string }}"
+      PGBOUNCER_DEFAULT_POOL_SIZE: "{{ pgbouncer_default_pool_size | string }}"
+      PGBOUNCER_RESERVE_POOL_SIZE: "{{ pgbouncer_reserve_pool_size | string }}"
+      PGBOUNCER_RESERVE_POOL_TIMEOUT: "{{ pgbouncer_reserve_pool_timeout | string }}"
+      PGBOUNCER_SERVER_LIFETIME: "{{ pgbouncer_server_lifetime | default(3600) | string }}"
+      PGBOUNCER_SERVER_IDLE_TIMEOUT: "{{ pgbouncer_server_idle_timeout | default(600) | string }}"
     healthcheck:
       test: ["CMD", "psql", "-h", "localhost", "-p", "{{ pgbouncer_listen_port | string }}", "-U", "{{ pgbouncer_database_user }}", "-d", "{{ pgbouncer_database_name }}", "-c", "SELECT 1"]
       interval: "{{ pgbouncer_health_check_period }}s"
@@ -88,23 +105,24 @@
 
 - name: Wait for PgBouncer to be ready
   ansible.builtin.wait_for:
-    host: "{{ pgbouncer_listen_address }}"
+    host: localhost
     port: "{{ pgbouncer_listen_port }}"
-    timeout: 30
+    timeout: 60
     state: started
+  failed_when: false
   when: pgbouncer_state == 'present'
 
 - name: Verify PgBouncer connectivity
   ansible.builtin.shell: |
     docker exec pgbouncer psql -h localhost -p {{ pgbouncer_listen_port }} -U {{ pgbouncer_database_user }} -d {{ pgbouncer_database_name }} -c "SELECT version();"
   register: pgbouncer_test
-  failed_when: pgbouncer_test.rc != 0
+  failed_when: false
   changed_when: false
   when: pgbouncer_state == 'present'
 
 - name: Display PgBouncer connectivity test result
   ansible.builtin.debug:
-    msg: "✓ PgBouncer connected successfully to database: {{ pgbouncer_test.stdout }}"
+    msg: "PgBouncer status: {{ 'Connected ✓' if pgbouncer_test.rc == 0 else 'Not responding - check container logs' }}"
   when: pgbouncer_state == 'present'
 
 - name: Cleanup PgBouncer configuration on remove

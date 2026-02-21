@@ -43,15 +43,26 @@
     name: netbird-management
     image: "netbirdio/management:{{ netbird_version }}"
     state: started
-    restart_policy: unless-stopped
+    restart_policy: on-failure
+    restart_retries: 5
     pull: true
-    recreate: true
+    recreate: false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: "10s"
+      timeout: "5s"
+      retries: 3
+      start_period: "30s"
     networks:
       - name: netbird
     ports:
       - "8081:80"
       - "10000:10000"
       - "9000:9000"
+    memory: "2g"
+    memory_reservation: "1g"
+    memory_swap: "2g"
+    oom_killer: true
     env:
       NETBIRD_STORE_ENGINE_POSTGRES_DSN: "{{ database_dsn if database_engine in ['postgres', 'postgresql'] else '' }}"
       NETBIRD_STORE_ENGINE_MYSQL_DSN: "{{ database_dsn if database_engine == 'mysql' else '' }}"
@@ -61,6 +72,6 @@
     command: ["--config", "/etc/netbird/management.json", "--log-file", "console"]
     log_driver: "json-file"
     log_options:
-      max-size: "500m"
-      max-file: "2"
+      max-size: "100m"
+      max-file: "5"
   when: netbird_state | default('present') == 'present'
