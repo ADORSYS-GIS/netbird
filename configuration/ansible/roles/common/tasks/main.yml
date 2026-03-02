@@ -1,101 +1,11 @@
 ---
-- name: Manage SSH port (UFW)
-  community.general.ufw:
-    rule: allow
-    delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
-    port: 22
-    proto: tcp
-    comment: "Allow SSH for management"
+# Common role entry point - foundation for all NetBird infrastructure
+# Installs Docker, configures firewall, and sets up base networking
 
-- name: Cleanup-only tasks
-  when: netbird_state | default('present') == 'absent'
-  block:
-    - name: Disable UFW
-      community.general.ufw:
-        state: disabled
-      ignore_errors: true
+- name: Include cleanup tasks
+  ansible.builtin.include_tasks: cleanup.yml
+  when: (netbird_state | default('present') == 'absent') or ('cleanup' in ansible_run_tags) or ('cleanup-common' in ansible_run_tags) or ('cleanup-all' in ansible_run_tags)
 
-    - name: Remove any remaining NetBird containers
-      ansible.builtin.shell: |
-        docker ps -a --filter "name=netbird-" -q | xargs -r docker rm -f
-      failed_when: false
-
-- name: Check if Docker is installed
-  ansible.builtin.command: which docker
-  register: docker_check
-  failed_when: false
-  changed_when: false
-
-- name: Deploy-only tasks
+- name: Include deployment tasks
+  ansible.builtin.include_tasks: deploy.yml
   when: netbird_state | default('present') == 'present'
-  block:
-    - name: Install dependencies
-      ansible.builtin.apt:
-        name:
-          - ca-certificates
-          - curl
-          - ufw
-          - python3-pip
-        state: present
-        update_cache: true
-
-    - name: Set up Docker repository
-      when: docker_check.rc != 0
-      block:
-        - name: Create directory for Docker GPG key
-          ansible.builtin.file:
-            path: /etc/apt/keyrings
-            state: directory
-            mode: '0755'
-
-        - name: Download Docker GPG key
-          ansible.builtin.get_url:
-            url: https://download.docker.com/linux/ubuntu/gpg
-            dest: /etc/apt/keyrings/docker.asc
-            mode: '0644'
-
-        - name: Add Docker repository
-          ansible.builtin.apt_repository:
-            repo: >-
-              deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}
-              signed-by=/etc/apt/keyrings/docker.asc]
-              https://download.docker.com/linux/ubuntu
-              {{ ansible_distribution_release }} stable
-            state: present
-            filename: docker
-
-    - name: Install Docker components
-      ansible.builtin.apt:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-compose-plugin
-          - docker-buildx-plugin
-        state: present
-        update_cache: true
-      when: docker_check.rc != 0
-
-    - name: Ensure Docker is started and enabled
-      ansible.builtin.service:
-        name: docker
-        state: started
-        enabled: true
-
-    - name: Add user to docker group
-      ansible.builtin.user:
-        name: "{{ ansible_user }}"
-        groups: docker
-        append: true
-
-    - name: Manage NetBird Docker network
-      community.docker.docker_network:
-        name: netbird
-        state: present
-        force: false
-
-    - name: Set UFW default policies
-      community.general.ufw:
-        policy: deny
-        direction: incoming
-        state: enabled

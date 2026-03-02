@@ -11,16 +11,15 @@ module "database" {
   database_mode = var.database_mode
   enable_ha     = var.enable_ha
 
-  # SQLite
   sqlite_database_path = var.sqlite_database_path
 
-  # PostgreSQL Existing
-  existing_postgresql_host     = var.existing_postgresql_host
-  existing_postgresql_port     = var.existing_postgresql_port
-  existing_postgresql_database = var.existing_postgresql_database
-  existing_postgresql_username = var.existing_postgresql_username
-  existing_postgresql_password = var.existing_postgresql_password
-  existing_postgresql_sslmode  = var.existing_postgresql_sslmode
+  existing_postgresql_host            = var.existing_postgresql_host
+  existing_postgresql_port            = var.existing_postgresql_port
+  existing_postgresql_database        = var.existing_postgresql_database
+  existing_postgresql_username        = var.existing_postgresql_username
+  existing_postgresql_password        = var.existing_postgresql_password
+  existing_postgresql_sslmode         = var.existing_postgresql_sslmode
+  existing_postgresql_channel_binding = var.existing_postgresql_channel_binding
 }
 
 module "keycloak" {
@@ -36,9 +35,7 @@ module "keycloak" {
   netbird_admin_password  = var.netbird_admin_password
 }
 
-# Automated Secret Generation
-# NOTE: Keepers prevent regeneration on re-applies (critical for HA)
-# If you need to regenerate, change the version number in keepers
+# Automated secret generation with keepers to prevent regeneration
 resource "random_password" "relay_auth_secret" {
   length  = 32
   special = true
@@ -48,8 +45,9 @@ resource "random_password" "relay_auth_secret" {
   }
 }
 
-resource "random_id" "netbird_encryption_key" {
-  byte_length = 32
+resource "random_password" "netbird_encryption_key" {
+  length  = 32
+  special = false
 
   keepers = {
     version = "1.0"
@@ -65,33 +63,56 @@ resource "random_password" "coturn_password" {
   }
 }
 
+resource "random_password" "haproxy_stats_password" {
+  length  = 24
+  special = true
+
+  keepers = {
+    version = "1.0"
+  }
+}
+
+# Read ACME thumbprint from file if it exists (persisted by Ansible)
+data "local_file" "acme_thumbprint" {
+  count    = var.acme_account_thumbprint == "" && fileexists("${path.module}/.acme_thumbprint") ? 1 : 0
+  filename = "${path.module}/.acme_thumbprint"
+}
+
 locals {
+  # Use thumbprint from: 1) tfvars, 2) persisted file, 3) empty (will be auto-generated)
+  final_acme_thumbprint = var.acme_account_thumbprint != "" ? var.acme_account_thumbprint : (
+    length(data.local_file.acme_thumbprint) > 0 ? trimspace(data.local_file.acme_thumbprint[0].content) : ""
+  )
+
   inventory_path = "${path.module}/../../configuration/ansible/inventory/terraform_inventory.yaml"
+
   inventory_content = templatefile("${path.module}/templates/inventory.yaml.tpl", {
-    netbird_domain         = var.netbird_domain
-    netbird_version        = var.netbird_version
-    coturn_version         = var.coturn_version
-    netbird_log_level      = var.netbird_log_level
-    caddy_version          = var.caddy_version
-    haproxy_version        = var.haproxy_version
-    proxy_type             = var.proxy_type
-    acme_provider          = var.acme_provider
-    acme_email             = var.acme_email
-    docker_compose_version = var.docker_compose_version
+    netbird_domain          = var.netbird_domain
+    netbird_version         = var.netbird_version
+    coturn_version          = var.coturn_version
+    netbird_log_level       = var.netbird_log_level
+    netbird_admin_email     = var.netbird_admin_email
+    netbird_admin_password  = var.netbird_admin_password
+    caddy_version           = var.caddy_version
+    haproxy_version         = var.haproxy_version
+    proxy_type              = var.proxy_type
+    acme_provider           = var.acme_provider
+    acme_email              = var.acme_email
+    acme_account_thumbprint = local.final_acme_thumbprint
+    docker_compose_version  = var.docker_compose_version
 
-    # Database
-    database_type        = module.database.database_type
-    database_engine      = module.database.database_engine
-    database_dsn         = module.database.database_dsn
-    database_endpoint    = module.database.database_endpoint
-    database_port        = module.database.database_port
-    database_name        = module.database.database_name
-    database_username    = module.database.database_username
-    database_password    = module.database.database_password
-    database_sslmode     = module.database.database_sslmode
-    sqlite_database_path = var.sqlite_database_path
+    database_type            = module.database.database_type
+    database_engine          = module.database.database_engine
+    database_dsn             = module.database.database_dsn
+    database_endpoint        = module.database.database_endpoint
+    database_port            = module.database.database_port
+    database_name            = module.database.database_name
+    database_username        = module.database.database_username
+    database_password        = module.database.database_password
+    database_sslmode         = module.database.database_sslmode
+    database_channel_binding = module.database.database_channel_binding
+    sqlite_database_path     = var.sqlite_database_path
 
-    # Keycloak
     keycloak_url                   = var.keycloak_url
     keycloak_realm                 = module.keycloak.realm_name
     keycloak_client_id             = module.keycloak.client_id
@@ -100,14 +121,13 @@ locals {
     keycloak_oidc_endpoint         = module.keycloak.oidc_config_endpoint
 
     relay_auth_secret      = var.relay_auth_secret != "" ? var.relay_auth_secret : random_password.relay_auth_secret.result
-    netbird_encryption_key = var.netbird_encryption_key != "" ? var.netbird_encryption_key : random_id.netbird_encryption_key.b64_std
+    netbird_encryption_key = var.netbird_encryption_key != "" ? var.netbird_encryption_key : random_password.netbird_encryption_key.result
     coturn_password        = random_password.coturn_password.result
-    coturn_port            = 3478
-    coturn_min_port        = 49152
-    coturn_max_port        = 65535
+    coturn_port            = var.coturn_port
+    coturn_min_port        = var.coturn_min_port
+    coturn_max_port        = var.coturn_max_port
     coturn_realm           = var.netbird_domain
 
-    # HA Configuration
     enable_clustering              = var.enable_clustering
     netbird_cluster_port           = var.netbird_cluster_port
     enable_pgbouncer               = var.enable_pgbouncer
@@ -117,16 +137,26 @@ locals {
     pgbouncer_reserve_pool_size    = var.pgbouncer_reserve_pool_size
     pgbouncer_reserve_pool_timeout = var.pgbouncer_reserve_pool_timeout
     pgbouncer_pool_mode            = var.pgbouncer_pool_mode
+    pgbouncer_server_lifetime      = var.pgbouncer_server_lifetime
+    pgbouncer_server_idle_timeout  = var.pgbouncer_server_idle_timeout
+    pgbouncer_query_timeout        = var.pgbouncer_query_timeout
+    pgbouncer_query_wait_timeout   = var.pgbouncer_query_wait_timeout
+    pgbouncer_client_idle_timeout  = var.pgbouncer_client_idle_timeout
+    pgbouncer_max_client_conn      = var.pgbouncer_max_client_conn
+    pgbouncer_max_db_connections   = var.pgbouncer_max_db_connections
+    pgbouncer_max_user_connections = var.pgbouncer_max_user_connections
+    pgbouncer_stats_period         = var.pgbouncer_stats_period
+    pgbouncer_health_check_period  = var.pgbouncer_health_check_period
+    pgbouncer_health_check_timeout = var.pgbouncer_health_check_timeout
 
-    # HAProxy Health Check Configuration
     haproxy_health_check_interval = var.haproxy_health_check_interval
     haproxy_health_check_timeout  = var.haproxy_health_check_timeout
     haproxy_health_check_fall     = var.haproxy_health_check_fall
     haproxy_health_check_rise     = var.haproxy_health_check_rise
     haproxy_stick_table_size      = var.haproxy_stick_table_size
     haproxy_stick_table_expire    = var.haproxy_stick_table_expire
+    haproxy_stats_password        = var.haproxy_stats_password != "" ? var.haproxy_stats_password : random_password.haproxy_stats_password.result
 
-    # Compute addresses for management.json
     relay_addresses = [for node in module.inventory.relay_nodes : "rels://${node.public_ip}:33080"]
     stun_addresses  = [for node in module.inventory.management_nodes : "stun:${node.public_ip}:3478"]
 
@@ -134,44 +164,46 @@ locals {
     reverse_proxy_nodes = module.inventory.reverse_proxy_nodes
     relay_nodes         = module.inventory.relay_nodes
 
-    ssh_private_key_path = var.ssh_private_key_path
+    ssh_private_key_path = pathexpand(var.ssh_private_key_path)
   })
 }
 
-# Automate Ansible Deployment and Cleanup
-resource "terraform_data" "ansible_provisioning" {
-  # We store the inventory content and path in the state so the destroy provisioner can recreate it if needed
-  input = {
-    content = local.inventory_content
-    path    = local.inventory_path
-  }
+# Write inventory file
+resource "local_file" "ansible_inventory" {
+  content         = local.inventory_content
+  filename        = local.inventory_path
+  file_permission = "0600"
+}
 
-  triggers_replace = [
-    local.inventory_content,
-    module.database.database_dsn,
-    module.keycloak.backend_client_secret,
-    sha256(file("${path.module}/../../configuration/ansible/roles/netbird-management/templates/management.json.j2")),
-    sha256(file("${path.module}/../../configuration/ansible/roles/reverse-proxy/templates/Caddyfile.j2")),
-    sha256(file("${path.module}/../../configuration/ansible/roles/netbird-dashboard/tasks/main.yml"))
-  ]
+# Trigger Ansible deployment when inventory changes
+resource "null_resource" "ansible_deployment" {
+  count = var.auto_deploy ? 1 : 0
 
-  provisioner "local-exec" {
-    command = <<EOT
-      mkdir -p $(dirname ${local.inventory_path})
-      echo "${base64encode(local.inventory_content)}" | base64 -d > ${local.inventory_path}
-      chmod 600 ${local.inventory_path}
-      cd ../../configuration/ansible && ansible-playbook -i inventory/terraform_inventory.yaml playbooks/site.yml || exit 1
-    EOT
+  triggers = {
+    inventory_version = local_file.ansible_inventory.id
   }
 
   provisioner "local-exec" {
-    when    = destroy
-    command = <<EOT
-      mkdir -p $(dirname ${self.input.path})
-      echo "${base64encode(self.input.content)}" | base64 -d > ${self.input.path}
-      chmod 600 ${self.input.path}
-      cd ../../configuration/ansible && ansible-playbook -i inventory/terraform_inventory.yaml playbooks/cleanup.yml || echo 'Cleanup failed, proceeding anyway'
-      rm -f ${self.input.path}
-    EOT
+    command     = "ansible-playbook -i ${local.inventory_path} playbooks/site.yml"
+    working_dir = "${path.module}/../../configuration/ansible"
+    environment = {
+      ANSIBLE_HOST_KEY_CHECKING = "False"
+    }
+  }
+
+  depends_on = [local_file.ansible_inventory]
+}
+
+# Cleanup on destroy
+resource "null_resource" "ansible_cleanup" {
+  count = var.auto_deploy ? 1 : 0
+
+  provisioner "local-exec" {
+    when        = destroy
+    command     = "ansible-playbook -i inventory/terraform_inventory.yaml playbooks/cleanup.yml || true"
+    working_dir = "${path.module}/../../configuration/ansible"
+    environment = {
+      ANSIBLE_HOST_KEY_CHECKING = "False"
+    }
   }
 }

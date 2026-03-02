@@ -1,86 +1,10 @@
 ---
-- name: Manage HAProxy (Cleanup)
-  community.docker.docker_container:
-    name: haproxy
-    state: absent
-  when: netbird_state | default('present') == 'absent'
+# HAProxy role entry point - routes to cleanup or deployment based on state
 
-- name: Manage HAProxy configuration and ACME directories
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: "{{ (netbird_state | default('present') == 'present') | ternary('directory', 'absent') }}"
-    owner: root
-    group: root
-    mode: '0755'
-  loop:
-    - /etc/haproxy
-    - /var/lib/acme
+- name: Include cleanup tasks
+  ansible.builtin.include_tasks: cleanup.yml
+  when: (netbird_state | default('present') == 'absent') or ('cleanup' in ansible_run_tags) or ('cleanup-haproxy' in ansible_run_tags) or ('cleanup-proxy' in ansible_run_tags)
+
+- name: Include deployment tasks
+  ansible.builtin.include_tasks: deploy.yml
   when: netbird_state | default('present') == 'present'
-
-- name: Manage HAProxy configuration file
-  ansible.builtin.template:
-    src: haproxy.cfg.j2
-    dest: /etc/haproxy/haproxy.cfg
-    mode: '0644'
-  notify: Restart HAProxy
-  when: netbird_state | default('present') == 'present'
-
-- name: Manage HAProxy Docker container with built-in ACME
-  community.docker.docker_container:
-    name: haproxy
-    image: "ghcr.io/flobernd/haproxy-acme-http01:v1.6.0"
-    state: started
-    restart_policy: on-failure
-    restart_retries: 5
-    pull: true
-    recreate: false
-    networks:
-      - name: netbird
-    memory: "512m"
-    memory_reservation: "256m"
-    memory_swap: "512m"
-    oom_killer: true
-    ports:
-      - "80:80"      # HTTP (for ACME HTTP-01 challenge)
-      - "443:443"    # HTTPS (public, direct to clients)
-      - "8404:8404"  # Stats UI
-    volumes:
-      - /etc/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:rw
-      - /var/lib/acme:/var/lib/acme:rw  # Certificate storage
-    env:
-      ACME_MAIL: "{{ acme_email }}"
-      ACME_DOMAIN: "{{ netbird_domain }}"
-      ACME_SERVER: "letsencrypt"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8404/stats"]
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-      start_period: "15s"
-    log_driver: "json-file"
-    log_options:
-      max-size: "100m"
-      max-file: "5"
-  notify: Restart HAProxy
-  when: netbird_state | default('present') == 'present'
-
-- name: Manage HTTP/HTTPS and stats ports (UFW)
-  community.general.ufw:
-    rule: allow
-    delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
-    port: "{{ item }}"
-    proto: tcp
-    comment: "NetBird HAProxy"
-  loop:
-    - 80     # HTTP (ACME challenges)
-    - 443    # HTTPS (public)
-    - 8404   # Stats
-
-- name: Remove HAProxy configuration directory
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - /etc/haproxy
-    - /var/lib/acme
-  when: netbird_state | default('present') == 'absent'

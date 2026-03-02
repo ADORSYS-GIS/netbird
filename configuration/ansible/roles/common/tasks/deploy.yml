@@ -1,0 +1,173 @@
+---
+# Common role deployment - installs Docker, base packages, and configures firewall
+# This role runs first and all other roles depend on it
+
+# Ensure SSH access before enabling firewall to prevent lockout
+- name: Ensure SSH port is always allowed before firewall configuration
+  community.general.ufw:
+    rule: allow
+    port: 22
+    proto: tcp
+    comment: "Allow SSH for management"
+  tags:
+    - common
+    - infrastructure
+    - firewall
+
+- name: Check if Docker is already installed
+  ansible.builtin.stat:
+    path: /usr/bin/docker
+  register: docker_check
+  changed_when: false
+  tags:
+    - common
+    - infrastructure
+    - docker
+
+- name: Install base system packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - ufw
+      - python3-pip
+      - python3-docker  # Required for community.docker modules
+      - python3-psycopg2  # Required for community.postgresql modules
+    state: present
+    update_cache: true
+  tags:
+    - common
+    - infrastructure
+
+# Docker repository setup - only runs if Docker is not already installed
+- name: Set up Docker repository
+  when: not docker_check.stat.exists
+  block:
+    - name: Create directory for APT keyrings
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+      tags:
+        - common
+        - infrastructure
+        - docker
+    
+    - name: Download Docker GPG key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+      tags:
+        - common
+        - infrastructure
+        - docker
+    
+    - name: Add Docker APT repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}
+          signed-by=/etc/apt/keyrings/docker.asc]
+          https://download.docker.com/linux/ubuntu
+          {{ ansible_distribution_release }} stable
+        state: present
+        filename: docker
+      tags:
+        - common
+        - infrastructure
+        - docker
+
+- name: Install Docker components
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+      - docker-buildx-plugin
+    state: present
+    update_cache: true
+  when: not docker_check.stat.exists
+  tags:
+    - common
+    - infrastructure
+    - docker
+
+- name: Ensure Docker service is started and enabled
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+  tags:
+    - common
+    - infrastructure
+    - docker
+
+- name: Add Ansible user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user }}"
+    groups: docker
+    append: true
+  tags:
+    - common
+    - infrastructure
+    - docker
+
+- name: Create NetBird Docker network
+  community.docker.docker_network:
+    name: netbird
+    state: present
+    force: false
+  tags:
+    - common
+    - infrastructure
+    - network
+    - docker
+
+- name: Check UFW status
+  ansible.builtin.systemd:
+    name: ufw
+  register: ufw_status
+  failed_when: false
+  tags:
+    - common
+    - infrastructure
+    - firewall
+
+- name: Enable UFW with default deny policy
+  community.general.ufw:
+    policy: deny
+    direction: incoming
+    state: enabled
+  when: "'Status: active' not in ufw_status.stdout | default('')"
+  tags:
+    - common
+    - infrastructure
+    - firewall
+
+- name: Verify Docker installation
+  community.docker.docker_host_info:
+  register: docker_verify
+  failed_when: false
+  tags:
+    - common
+    - infrastructure
+    - docker
+    - verify
+
+- name: Display Docker version
+  community.docker.docker_host_info:
+  register: docker_info
+  tags:
+    - common
+    - docker
+    - verify
+
+- name: Show Docker version
+  ansible.builtin.debug:
+    msg: "Docker version: {{ docker_info.host_info.ServerVersion }}"
+  tags:
+    - common
+    - infrastructure
+    - docker
+    - verify

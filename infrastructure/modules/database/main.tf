@@ -1,31 +1,39 @@
-# Unified database backend module
-# Supports: SQLite, PostgreSQL (create/existing)
-
 locals {
-  # Determine which backend to use
   use_sqlite     = var.database_type == "sqlite"
   use_postgresql = var.database_type == "postgresql"
-
-  # Determine if we connect to existing
-  use_existing = var.database_mode == "existing"
+  use_existing   = var.database_mode == "existing"
 }
 
-# Inclusion logic
-module "sqlite" {
-  source = "./sqlite"
-  count  = local.use_sqlite ? 1 : 0
-
-  database_path = var.sqlite_database_path
+# SQLite DSN - just the file path
+locals {
+  sqlite_dsn = var.sqlite_database_path
 }
 
-module "postgresql_existing" {
-  source = "./postgresql-existing"
-  count  = local.use_postgresql && local.use_existing ? 1 : 0
+# PostgreSQL DSN - standard URI format with URL-encoded password
+locals {
+  postgres_dsn = "postgresql://${var.existing_postgresql_username}:${urlencode(var.existing_postgresql_password)}@${var.existing_postgresql_host}:${var.existing_postgresql_port}/${var.existing_postgresql_database}?sslmode=${var.existing_postgresql_sslmode}&channel_binding=${var.existing_postgresql_channel_binding}"
+}
 
-  host     = var.existing_postgresql_host
-  port     = var.existing_postgresql_port
-  database = var.existing_postgresql_database
-  username = var.existing_postgresql_username
-  password = var.existing_postgresql_password
-  sslmode  = var.existing_postgresql_sslmode
+# Validation: Ensure PostgreSQL variables are set when using PostgreSQL
+resource "null_resource" "validate_postgres_config" {
+  count = local.use_postgresql ? 1 : 0
+
+  lifecycle {
+    precondition {
+      condition     = var.existing_postgresql_host != ""
+      error_message = "existing_postgresql_host must be set when database_type is 'postgresql'"
+    }
+    precondition {
+      condition     = var.existing_postgresql_database != ""
+      error_message = "existing_postgresql_database must be set when database_type is 'postgresql'"
+    }
+    precondition {
+      condition     = var.existing_postgresql_username != ""
+      error_message = "existing_postgresql_username must be set when database_type is 'postgresql'"
+    }
+    precondition {
+      condition     = var.existing_postgresql_password != ""
+      error_message = "existing_postgresql_password must be set when database_type is 'postgresql'"
+    }
+  }
 }

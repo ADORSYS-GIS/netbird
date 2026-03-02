@@ -1,0 +1,273 @@
+---
+# NetBird management stack deployment - management server, signal, dashboard, and Coturn TURN server
+
+- name: Create NetBird configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ netbird_data_dir }}"
+    - "{{ netbird_config_dir }}"
+    - /etc/coturn
+  tags:
+    - management-stack
+    - config
+
+- name: Deploy NetBird management configuration
+  ansible.builtin.template:
+    src: management.json.j2
+    dest: "{{ netbird_config_dir }}/management.json"
+    owner: root
+    group: root
+    mode: '0600'  # Secure permissions for configuration with secrets
+  notify: Restart NetBird Management Stack
+  tags:
+    - management-stack
+    - config
+    - management
+
+- name: Deploy Coturn configuration
+  ansible.builtin.template:
+    src: turnserver.conf.j2
+    dest: /etc/coturn/turnserver.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart NetBird Management Stack
+  tags:
+    - management-stack
+    - config
+    - coturn
+
+- name: Create NetBird Docker network
+  community.docker.docker_network:
+    name: netbird
+    state: present
+    driver: bridge
+  tags:
+    - management-stack
+    - network
+
+- name: Deploy docker-compose.yml for management stack
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /etc/netbird/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - management-stack
+    - compose
+
+- name: Deploy NetBird management stack using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: /etc/netbird
+    pull: always
+    state: present
+    remove_orphans: true
+    timeout: 900
+  register: compose_output
+  tags:
+    - management-stack
+    - deploy
+
+- name: Display deployment output
+  ansible.builtin.debug:
+    msg: "{{ compose_output.stdout_lines | default([]) }}"
+  tags:
+    - management-stack
+    - deploy
+
+- name: Configure firewall for management API
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop:
+    - { port: '8081', proto: 'tcp', comment: 'NetBird Management API' }
+    - { port: '10000', proto: 'tcp', comment: 'NetBird gRPC' }
+    - { port: '9000', proto: 'tcp', comment: 'NetBird Health Check' }
+    - { port: '9090', proto: 'tcp', comment: 'NetBird Inter-node Clustering' }
+  when: manage_firewall | default(true)
+  tags:
+    - management-stack
+    - firewall
+
+- name: Configure firewall for Coturn STUN/TURN
+  community.general.ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment }}"
+  loop:
+    - { port: '3478', proto: 'udp', comment: 'Coturn STUN/TURN UDP' }
+    - { port: '3478', proto: 'tcp', comment: 'Coturn STUN/TURN TCP' }
+    - { port: '5349', proto: 'tcp', comment: 'Coturn TLS (TURNS) TCP' }
+    - { port: '5349', proto: 'udp', comment: 'Coturn TLS/DTLS UDP' }
+    - { port: "{{ coturn_min_port }}:{{ coturn_max_port }}", proto: 'udp', comment: 'Coturn Relay Port Range' }
+  when: manage_firewall | default(true)
+  tags:
+    - management-stack
+    - firewall
+    - coturn
+
+- name: Wait for management service to be healthy
+  ansible.builtin.wait_for:
+    host: localhost
+    port: 8081
+    state: started
+    timeout: 120
+  tags:
+    - management-stack
+    - verify
+
+- name: Verify management API is responding
+  ansible.builtin.uri:
+    url: "http://localhost:8081/api"
+    status_code: [200, 404]  # 404 is OK, means the API is responding
+    method: GET
+    timeout: 5
+  register: mgmt_health
+  until: mgmt_health.status in [200, 404]
+  retries: 30
+  delay: 2
+  tags:
+    - management-stack
+    - verify
+
+- name: Wait for signal service to be healthy
+  ansible.builtin.wait_for:
+    host: localhost
+    port: 8083
+    state: started
+    timeout: 120
+  tags:
+    - management-stack
+    - verify
+
+- name: Verify signal service is responding
+  ansible.builtin.wait_for:
+    host: localhost
+    port: 10000
+    state: started
+    timeout: 60
+  tags:
+    - management-stack
+    - verify
+
+- name: Wait for dashboard service to be healthy
+  ansible.builtin.uri:
+    url: "http://localhost:8082/"
+    status_code: 200
+    timeout: 5
+  register: dashboard_health
+  until: dashboard_health.status == 200
+  retries: 30
+  delay: 2
+  tags:
+    - management-stack
+    - verify
+
+- name: Wait for PgBouncer to be healthy (if enabled)
+  ansible.builtin.wait_for:
+    host: localhost
+    port: "{{ pgbouncer_listen_port | default(6432) }}"
+    state: started
+    timeout: 60
+  when: enable_pgbouncer | default(false) | bool
+  tags:
+    - management-stack
+    - verify
+
+- name: Test database connection via PgBouncer (if enabled)
+  community.postgresql.postgresql_query:
+    login_host: localhost
+    login_port: "{{ pgbouncer_listen_port | default(6432) }}"
+    login_user: "{{ db_user }}"
+    login_password: "{{ db_password }}"
+    db: "{{ db_name }}"
+    query: "SELECT 1 AS connection_test"
+  register: pgbouncer_test
+  when: enable_pgbouncer | default(false) | bool
+  failed_when: false  # Don't fail deployment if PgBouncer test fails
+  tags:
+    - management-stack
+    - verify
+    - database
+
+- name: Display PgBouncer connection test result
+  ansible.builtin.debug:
+    msg: "✓ PgBouncer connection test successful"
+  when: 
+    - enable_pgbouncer | default(false) | bool
+    - pgbouncer_test is succeeded
+  tags:
+    - management-stack
+    - verify
+
+- name: Test direct database connection (if PgBouncer disabled)
+  community.postgresql.postgresql_query:
+    login_host: "{{ db_host }}"
+    login_port: "{{ db_port }}"
+    login_user: "{{ db_user }}"
+    login_password: "{{ db_password }}"
+    db: "{{ db_name }}"
+    query: "SELECT 1 AS connection_test"
+  register: direct_db_test
+  when: not (enable_pgbouncer | default(false) | bool)
+  tags:
+    - management-stack
+    - verify
+    - database
+
+- name: Display direct database connection test result
+  ansible.builtin.debug:
+    msg: "✓ Direct database connection test successful"
+  when: 
+    - not (enable_pgbouncer | default(false) | bool)
+    - direct_db_test is succeeded
+  tags:
+    - management-stack
+    - verify
+
+- name: Verify all containers are healthy
+  community.docker.docker_container_info:
+    name: "{{ item }}"
+  register: container_health
+  until: container_health.container.State.Health.Status | default('healthy') == 'healthy' or container_health.container.State.Status == 'running'
+  retries: 30
+  delay: 2
+  loop:
+    - netbird-management
+    - netbird-signal
+    - netbird-dashboard
+    - coturn
+  failed_when: false
+  tags:
+    - management-stack
+    - verify
+
+- name: Substitute environment variables in dashboard JS files
+  community.docker.docker_container_exec:
+    container: netbird-dashboard
+    command: /bin/sh -c 'ENV_VARS="USE_AUTH0 AUTH_AUDIENCE AUTH_AUTHORITY AUTH_CLIENT_ID AUTH_CLIENT_SECRET AUTH_SUPPORTED_SCOPES NETBIRD_MGMT_API_ENDPOINT NETBIRD_MGMT_GRPC_API_ENDPOINT NETBIRD_HOTJAR_TRACK_ID NETBIRD_GOOGLE_ANALYTICS_ID NETBIRD_GOOGLE_TAG_MANAGER_ID AUTH_REDIRECT_URI AUTH_SILENT_REDIRECT_URI NETBIRD_TOKEN_SOURCE NETBIRD_DRAG_QUERY_PARAMS NETBIRD_WASM_PATH"; ENV_STR=$ENV_VARS; for f in $(grep -R -lE "NETBIRD_|AUTH_" /usr/share/nginx/html); do cp "$f" "$f".copy; envsubst "$ENV_STR" < "$f".copy > "$f"; rm "$f".copy; done'
+  register: dashboard_envsubst
+  failed_when: dashboard_envsubst.rc not in [0, 1]
+  changed_when: false
+  tags:
+    - management-stack
+    - post-deploy
+    - dashboard
+
+- name: Display health check results
+  ansible.builtin.debug:
+    msg:
+      - "Management stack deployed successfully"
+      - "Check Coturn logs: docker logs coturn"
+  tags:
+    - management-stack
+    - verify

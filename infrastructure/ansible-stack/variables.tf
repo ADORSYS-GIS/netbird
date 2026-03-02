@@ -94,6 +94,16 @@ variable "existing_postgresql_sslmode" {
   default     = "require"
 }
 
+variable "existing_postgresql_channel_binding" {
+  description = "PostgreSQL channel binding mode (disable, prefer, require)"
+  type        = string
+  default     = "prefer"
+  validation {
+    condition     = contains(["disable", "prefer", "require"], var.existing_postgresql_channel_binding)
+    error_message = "Channel binding must be one of: disable, prefer, require"
+  }
+}
+
 # -----------------------------------------------------------------------------
 # IDENTITY PROVIDER (KEYCLOAK)
 # -----------------------------------------------------------------------------
@@ -141,6 +151,10 @@ variable "realm_name" {
 variable "netbird_admin_email" {
   description = "Default NetBird admin email"
   type        = string
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.netbird_admin_email))
+    error_message = "netbird_admin_email must be a valid email address."
+  }
 }
 
 variable "netbird_admin_password" {
@@ -187,16 +201,62 @@ variable "acme_provider" {
   }
 }
 
+variable "enable_acme" {
+  description = "Enable ACME certificate provisioning"
+  type        = bool
+  default     = true
+}
+
 variable "acme_email" {
   description = "Email address for ACME registration"
   type        = string
   default     = "admin@example.com"
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.acme_email))
+    error_message = "acme_email must be a valid email address."
+  }
+}
+
+variable "acme_account_thumbprint" {
+  description = "ACME account key thumbprint for HAProxy stateless ACME challenge (required for HA/multi-node HAProxy)"
+  type        = string
+  default     = ""
 }
 
 variable "coturn_version" {
   description = "Coturn Version"
   type        = string
   default     = "latest"
+}
+
+variable "coturn_port" {
+  description = "Port for Coturn to listen on"
+  type        = number
+  default     = 3478
+  validation {
+    condition     = var.coturn_port >= 1024 && var.coturn_port <= 65535
+    error_message = "coturn_port must be between 1024 and 65535."
+  }
+}
+
+variable "coturn_min_port" {
+  description = "Minimum port for Coturn relay range"
+  type        = number
+  default     = 49152
+  validation {
+    condition     = var.coturn_min_port >= 1024 && var.coturn_min_port <= 65535
+    error_message = "coturn_min_port must be between 1024 and 65535."
+  }
+}
+
+variable "coturn_max_port" {
+  description = "Maximum port for Coturn relay range"
+  type        = number
+  default     = 65535
+  validation {
+    condition     = var.coturn_max_port >= 1024 && var.coturn_max_port <= 65535
+    error_message = "coturn_max_port must be between 1024 and 65535."
+  }
 }
 
 variable "docker_compose_version" {
@@ -239,6 +299,10 @@ variable "netbird_cluster_port" {
   description = "Port for inter-node clustering communication"
   type        = number
   default     = 9090
+  validation {
+    condition     = var.netbird_cluster_port >= 1024 && var.netbird_cluster_port <= 65535
+    error_message = "netbird_cluster_port must be between 1024 and 65535."
+  }
 }
 
 variable "enable_pgbouncer" {
@@ -251,6 +315,10 @@ variable "pgbouncer_listen_port" {
   description = "Port for PgBouncer to listen on"
   type        = number
   default     = 6432
+  validation {
+    condition     = var.pgbouncer_listen_port >= 1024 && var.pgbouncer_listen_port <= 65535
+    error_message = "pgbouncer_listen_port must be between 1024 and 65535."
+  }
 }
 
 variable "pgbouncer_min_pool_size" {
@@ -287,28 +355,110 @@ variable "pgbouncer_pool_mode" {
   }
 }
 
+variable "pgbouncer_server_lifetime" {
+  description = "PgBouncer server lifetime in seconds"
+  type        = number
+  default     = 3600
+}
+
+variable "pgbouncer_server_idle_timeout" {
+  description = "PgBouncer server idle timeout in seconds"
+  type        = number
+  default     = 600
+}
+
+variable "pgbouncer_query_timeout" {
+  description = "PgBouncer query timeout in seconds"
+  type        = number
+  default     = 0
+}
+
+variable "pgbouncer_query_wait_timeout" {
+  description = "PgBouncer query wait timeout in seconds"
+  type        = number
+  default     = 120
+}
+
+variable "pgbouncer_client_idle_timeout" {
+  description = "PgBouncer client idle timeout in seconds"
+  type        = number
+  default     = 0
+}
+
+variable "pgbouncer_max_client_conn" {
+  description = "PgBouncer maximum client connections"
+  type        = number
+  default     = 1000
+}
+
+variable "pgbouncer_max_db_connections" {
+  description = "PgBouncer maximum database connections"
+  type        = number
+  default     = 100
+}
+
+variable "pgbouncer_max_user_connections" {
+  description = "PgBouncer maximum user connections"
+  type        = number
+  default     = 100
+}
+
+variable "pgbouncer_stats_period" {
+  description = "PgBouncer stats period in seconds"
+  type        = number
+  default     = 60
+}
+
+variable "pgbouncer_health_check_period" {
+  description = "PgBouncer health check period in seconds"
+  type        = number
+  default     = 10
+}
+
+variable "pgbouncer_health_check_timeout" {
+  description = "PgBouncer health check timeout in seconds"
+  type        = number
+  default     = 5
+}
+
 variable "haproxy_health_check_interval" {
   description = "HAProxy health check interval in milliseconds"
   type        = number
   default     = 5000
+  validation {
+    condition     = var.haproxy_health_check_interval >= 1000 && var.haproxy_health_check_interval <= 60000
+    error_message = "haproxy_health_check_interval must be between 1000ms and 60000ms."
+  }
 }
 
 variable "haproxy_health_check_timeout" {
   description = "HAProxy health check timeout in milliseconds"
   type        = number
   default     = 3000
+  validation {
+    condition     = var.haproxy_health_check_timeout >= 1000 && var.haproxy_health_check_timeout <= 30000
+    error_message = "haproxy_health_check_timeout must be between 1000ms and 30000ms."
+  }
 }
 
 variable "haproxy_health_check_fall" {
   description = "Number of consecutive failures before marking backend down"
   type        = number
   default     = 2
+  validation {
+    condition     = var.haproxy_health_check_fall >= 1 && var.haproxy_health_check_fall <= 10
+    error_message = "haproxy_health_check_fall must be between 1 and 10."
+  }
 }
 
 variable "haproxy_health_check_rise" {
   description = "Number of consecutive successes before marking backend up"
   type        = number
   default     = 3
+  validation {
+    condition     = var.haproxy_health_check_rise >= 1 && var.haproxy_health_check_rise <= 10
+    error_message = "haproxy_health_check_rise must be between 1 and 10."
+  }
 }
 
 variable "haproxy_stick_table_size" {
@@ -323,6 +473,13 @@ variable "haproxy_stick_table_expire" {
   default     = "30m"
 }
 
+variable "haproxy_stats_password" {
+  description = "HAProxy stats UI password (auto-generated if empty)"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 # -----------------------------------------------------------------------------
 # SSH / ANSIBLE
 # -----------------------------------------------------------------------------
@@ -330,4 +487,10 @@ variable "haproxy_stick_table_expire" {
 variable "ssh_private_key_path" {
   description = "Local path to the SSH private key for host access"
   type        = string
+}
+
+variable "auto_deploy" {
+  description = "Automatically run Ansible deployment after Terraform apply"
+  type        = bool
+  default     = false
 }

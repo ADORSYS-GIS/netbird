@@ -7,7 +7,7 @@ output "database_engine" {
 }
 
 output "database_dsn" {
-  value     = local.use_sqlite ? module.sqlite[0].dsn : module.postgresql_existing[0].dsn
+  value     = local.use_sqlite ? local.sqlite_dsn : local.postgres_dsn
   sensitive = true
 }
 
@@ -34,4 +34,8 @@ output "database_password" {
 
 output "database_sslmode" {
   value = local.use_postgresql && local.use_existing ? var.existing_postgresql_sslmode : "require"
+}
+
+output "database_channel_binding" {
+  value = local.use_postgresql && local.use_existing ? var.existing_postgresql_channel_binding : "prefer"
 }

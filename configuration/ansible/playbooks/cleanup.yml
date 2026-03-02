@@ -1,36 +1,86 @@
 ---
-- name: Cleanup NetBird Management Servers
+- name: Cleanup NetBird Management Stack
   hosts: management
   become: true
   vars:
     netbird_state: absent
-  roles:
-    - netbird-management
-    - netbird-signal
-    - netbird-dashboard
-    - netbird-coturn
+  tasks:
+    - name: Include netbird-mgmt role cleanup
+      ansible.builtin.include_role:
+        name: netbird-mgmt
+      tags:
+        - cleanup
+        - cleanup-management
+        - cleanup-mgmt
+
+- name: Cleanup PgBouncer Connection Pooler
+  hosts: management
+  become: true
+  vars:
+    pgbouncer_state: absent
+  tasks:
+    - name: Include pgbouncer role cleanup
+      ansible.builtin.include_role:
+        name: pgbouncer
+      when: enable_pgbouncer | default(false) | bool
+      tags:
+        - cleanup
+        - cleanup-pgbouncer
+        - cleanup-database
 
 - name: Cleanup NetBird Relay Servers
   hosts: relay
   become: true
   vars:
     netbird_state: absent
-  roles:
-    - netbird-relay
+  tasks:
+    - name: Include netbird-relay role cleanup
+      ansible.builtin.include_role:
+        name: netbird-relay
+      tags:
+        - cleanup
+        - cleanup-relay
 
-- name: Cleanup Load Balancer
+- name: Cleanup Reverse Proxy (Caddy)
   hosts: reverse_proxy
   become: true
   vars:
     netbird_state: absent
-  roles:
-    - reverse-proxy
-    - haproxy
+  tasks:
+    - name: Include reverse-proxy role cleanup
+      ansible.builtin.include_role:
+        name: reverse-proxy
+      when: proxy_type | default('haproxy') == 'caddy'
+      tags:
+        - cleanup
+        - cleanup-caddy
+        - cleanup-proxy
 
-- name: Cleanup NetBird Infrastructure (Common)
+- name: Cleanup Load Balancer (HAProxy)
+  hosts: reverse_proxy
+  become: true
+  vars:
+    netbird_state: absent
+  tasks:
+    - name: Include haproxy role cleanup
+      ansible.builtin.include_role:
+        name: haproxy
+      when: proxy_type | default('haproxy') == 'haproxy'
+      tags:
+        - cleanup
+        - cleanup-haproxy
+        - cleanup-proxy
+
+- name: Cleanup Common Infrastructure
   hosts: all
   become: true
   vars:
     netbird_state: absent
-  roles:
-    - common
+  tasks:
+    - name: Include common role cleanup
+      ansible.builtin.include_role:
+        name: common
+      tags:
+        - cleanup
+        - cleanup-common
+        - cleanup-all

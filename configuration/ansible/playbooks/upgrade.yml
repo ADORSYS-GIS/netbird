@@ -2,24 +2,36 @@
 - name: Upgrade NetBird with Rolling Update
   hosts: management
   serial: 1 # Upgrade one by one
-  become: yes
+  become: true
+  tags:
+    - upgrade
+    - management
   
   tasks:
     - name: Pull new images
-      command: docker compose pull
-      args:
-        chdir: /opt/netbird
+      community.docker.docker_compose_v2:
+        project_src: /etc/netbird
+        pull: always
+        state: present
+      tags:
+        - upgrade
+        - pull
 
     - name: Restart services
       community.docker.docker_compose_v2:
-        project_src: /opt/netbird
+        project_src: /etc/netbird
         state: restarted
+      tags:
+        - upgrade
+        - restart
 
-    - name: Wait for health check
-      uri:
-        url: "http://localhost:80/api/health" # Assuming health endpoint
-        status_code: 200
+    - name: Wait for Management service health check
+      ansible.builtin.wait_for:
+        host: localhost
+        port: 9000
+        state: started
+        timeout: 60
       register: result
-      until: result.status == 200
-      retries: 12
-      delay: 5
+      tags:
+        - upgrade
+        - verify

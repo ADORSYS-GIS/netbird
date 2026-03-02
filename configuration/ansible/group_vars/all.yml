@@ -1,3 +1,0 @@
-# This file is intentionally empty.
-# All variables are provided via terraform_inventory.yaml from Terraform.
-# Do not add variables here as they will override Terraform-generated values.

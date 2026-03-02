@@ -1,0 +1,64 @@
+---
+# Common role cleanup - removes NetBird containers and network
+# Docker itself and system packages are preserved
+
+- name: Get list of NetBird containers
+  community.docker.docker_host_info:
+    containers: yes
+    containers_filters:
+      name: netbird-
+  register: netbird_containers_info
+  tags:
+    - cleanup
+
+- name: Set fact for NetBird container names
+  ansible.builtin.set_fact:
+    netbird_containers: "{{ netbird_containers_info.containers | map(attribute='Names') | flatten | select('match', '^netbird-') | list }}"
+  failed_when: false
+  tags:
+    - cleanup
+    - cleanup-common
+    - docker
+
+- name: Remove NetBird containers
+  community.docker.docker_container:
+    name: "{{ item }}"
+    state: absent
+    force_kill: true
+  loop: "{{ netbird_containers }}"
+  when: netbird_containers | length > 0
+  failed_when: false
+  tags:
+    - cleanup
+    - cleanup-common
+    - docker
+
+- name: Remove NetBird Docker network
+  community.docker.docker_network:
+    name: netbird
+    state: absent
+  failed_when: false
+  tags:
+    - cleanup
+    - cleanup-common
+    - network
+    - docker
+
+- name: Verify NetBird containers are removed
+  community.docker.docker_host_info:
+    containers: yes
+    containers_filters:
+      name: netbird-
+  register: remaining_containers_info
+  tags:
+    - cleanup
+    - verify
+
+- name: Display cleanup result
+  ansible.builtin.debug:
+    msg: "{{ 'All NetBird containers removed' if remaining_containers_info.containers | length == 0 else 'Warning: Some containers remain' }}"
+  failed_when: false
+  tags:
+    - cleanup
+    - cleanup-common
+    - verify

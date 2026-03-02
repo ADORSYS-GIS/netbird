@@ -1,5 +1,5 @@
 [databases]
-{{ pgbouncer_database_name }} = host={{ pgbouncer_database_host }} port={{ pgbouncer_database_port }} user={{ pgbouncer_database_user }} password={{ pgbouncer_database_password }} sslmode={{ pgbouncer_database_sslmode }}
+{{ pgbouncer_database_name }} = host={{ pgbouncer_database_host }} port={{ pgbouncer_database_port }} dbname={{ pgbouncer_database_name }} user={{ pgbouncer_database_user }} password='{{ pgbouncer_database_password }}'
 
 [pgbouncer]
 listen_addr = {{ pgbouncer_listen_address }}
@@ -7,18 +7,10 @@ listen_port = {{ pgbouncer_listen_port }}
 listen_backlog = 2048
 
 auth_file = /etc/pgbouncer/userlist.txt
-auth_type = md5
+auth_type = scram-sha-256
+auth_user = {{ pgbouncer_database_user }}
 
 pool_mode = {{ pgbouncer_pool_mode }}
-server_lifetime = {{ pgbouncer_server_lifetime }}
-server_idle_timeout = {{ pgbouncer_server_idle_timeout }}
-server_connect_timeout = 15
-server_login_retry = 15
-
-query_timeout = {{ pgbouncer_query_timeout }}
-query_wait_timeout = {{ pgbouncer_query_wait_timeout }}
-client_idle_timeout = {{ pgbouncer_client_idle_timeout }}
-client_login_timeout = 60
 
 min_pool_size = {{ pgbouncer_min_pool_size }}
 default_pool_size = {{ pgbouncer_default_pool_size }}
@@ -29,18 +21,42 @@ max_client_conn = {{ pgbouncer_max_client_conn }}
 max_db_connections = {{ pgbouncer_max_db_connections }}
 max_user_connections = {{ pgbouncer_max_user_connections }}
 
+server_lifetime = {{ pgbouncer_server_lifetime }}
+server_idle_timeout = {{ pgbouncer_server_idle_timeout }}
+server_connect_timeout = 10
+server_login_retry = 15
+
+query_timeout = {{ pgbouncer_query_timeout }}
+query_wait_timeout = {{ pgbouncer_query_wait_timeout }}
+client_idle_timeout = {{ pgbouncer_client_idle_timeout }}
+client_login_timeout = 60
+
 log_connections = {{ pgbouncer_log_connections }}
 log_disconnections = {{ pgbouncer_log_disconnections }}
 log_pooler_errors = {{ pgbouncer_log_pooler_errors }}
+log_stats = 1
 stats_period = {{ pgbouncer_stats_period }}
 
-admin_users = postgres
-stats_users = postgres
+admin_users = {{ pgbouncer_database_user }}
+stats_users = {{ pgbouncer_database_user }}
 
-tcp_keepalives = 1
-tcp_keepalives_idle = 30
-tcp_keepalives_interval = 10
-tcp_keepalives_count = 5
+tcp_keepalive = 1
+tcp_keepidle = 30
+tcp_keepintvl = 10
+tcp_keepcnt = 5
 
 application_name_add_host = 1
 verbose = 1
+ignore_startup_parameters = extra_float_digits
+pkt_buf = 8192
+
+# Socket optimization for multiple PgBouncer instances
+so_reuseport = 1
+
+# SSL/TLS Configuration
+# PgBouncer to PostgreSQL server connection (not client to PgBouncer)
+# Note: client_tls_* would require certificates for PgBouncer itself
+# We use server_tls_* for PgBouncer's connection to the database
+server_tls_sslmode = {{ pgbouncer_database_sslmode }}
+server_tls_protocols = secure
+server_tls_ciphers = HIGH:!aNULL:!MD5

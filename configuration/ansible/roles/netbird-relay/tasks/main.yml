@@ -1,41 +1,10 @@
 ---
-- name: Manage Relay port (UFW)
-  community.general.ufw:
-    rule: allow
-    delete: "{{ 'no' if netbird_state | default('present') == 'present' else 'yes' }}"
-    port: '33080'
-    proto: tcp
-    comment: "NetBird Relay Service"
+# NetBird relay role entry point - deploys relay server for peer connections
 
-- name: Manage NetBird Relay container
-  community.docker.docker_container:
-    name: netbird-relay
-    image: "netbirdio/relay:{{ netbird_version }}"
-    state: "{{ 'started' if netbird_state | default('present') == 'present' else 'absent' }}"
-    restart_policy: on-failure
-    restart_retries: 5
-    pull: "{{ 'true' if netbird_state | default('present') == 'present' else 'false' }}"
-    recreate: false
-    networks:
-      - name: netbird
-    memory: "1g"
-    memory_reservation: "512m"
-    memory_swap: "1g"
-    oom_killer: true
-    env:
-      NB_LOG_LEVEL: "{{ netbird_log_level }}"
-      NB_LISTEN_ADDRESS: ":33080"
-      NB_EXPOSED_ADDRESS: "rels://{{ relay_domain | default(ansible_host) }}:33080"
-      NB_AUTH_SECRET: "{{ relay_auth_secret }}"
-    ports:
-      - "33080:33080"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:33080/status" ]
-      interval: "10s"
-      timeout: "5s"
-      retries: 3
-      start_period: "30s"
-    log_driver: "json-file"
-    log_options:
-      max-size: "100m"
-      max-file: "5"
+- name: Include cleanup tasks
+  ansible.builtin.include_tasks: cleanup.yml
+  when: (netbird_state | default('present') == 'absent') or ('cleanup' in ansible_run_tags) or ('cleanup-relay' in ansible_run_tags)
+
+- name: Include deployment tasks
+  ansible.builtin.include_tasks: deploy.yml
+  when: netbird_state | default('present') == 'present'

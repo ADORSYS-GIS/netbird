@@ -1,273 +1,178 @@
-# =============================================================================
-# NETBIRD MULTI-NODE HIGH AVAILABILITY - COMPLETE CONFIGURATION REFERENCE
-# =============================================================================
-#
-# This file contains ALL 48 configuration variables for NetBird HA.
-# Variables marked [REQUIRED] MUST be set before deployment.
-# All other variables have sensible defaults shown below.
-#
-# COPY & USE:
-#   cp multinoded.tfvars.example terraform.tfvars
-#   vim terraform.tfvars  (update ALL [REQUIRED] values)
-#   terraform plan && terraform apply
-#
-# =============================================================================
+# NetBird Infrastructure Configuration
+# Copy to terraform.tfvars and customize for your deployment
 
-# =============================================================================
-# SECTION 1: CORE CONFIGURATION [REQUIRED]
-# =============================================================================
+# Core Configuration
+netbird_domain = "netbird-dev.observe.camer.digital"
+environment    = "prod"
 
-netbird_domain = "your-domain.com" # [REQUIRED] Your domain name
-
-environment = "prod" # Environment: prod, staging, dev
-
-# [REQUIRED] Multi-node host configuration
-# Define dedicated nodes (each node runs all roles: management, relay, proxy)
+# Host definitions - define all servers and their roles
+# Roles: "management" (API/signal), "relay" (peer connections), "proxy" (load balancer)
 netbird_hosts = {
   # HA Cluster Nodes (3 for quorum-based clustering)
   # Each node runs: management + relay + proxy services + PgBouncer
   "node-1" = {
-    public_ip  = "YOUR.PUBLIC.IP.1"
-    private_ip = "YOUR.PRIVATE.IP.1"
+    public_ip  = "51.20.52.128"
+    private_ip = "172.31.20.213"
     roles      = ["management", "relay", "proxy"]
     ssh_user   = "ubuntu"
   }
   "node-2" = {
-    public_ip  = "YOUR.PUBLIC.IP.2"
-    private_ip = "YOUR.PRIVATE.IP.2"
+    public_ip  = "16.171.59.171"
+    private_ip = "172.31.4.141"
     roles      = ["management", "relay", "proxy"]
     ssh_user   = "ubuntu"
   }
   "node-3" = {
-    public_ip  = "YOUR.PUBLIC.IP.3"
-    private_ip = "YOUR.PRIVATE.IP.3"
-    roles      = ["management", "relay"]
+    public_ip  = "13.63.35.177"
+    private_ip = "172.31.11.58"
+    roles      = ["management", "relay", "proxy"]
     ssh_user   = "ubuntu"
   }
 }
 
-# =============================================================================
-# SECTION 2: DATABASE CONFIGURATION [REQUIRED]
-# =============================================================================
-# For HA deployments, you MUST use an external PostgreSQL database
-# with Multi-AZ failover capability
-
+# Database Configuration
+# Use PostgreSQL for production, SQLite only for development/testing
 database_type = "postgresql"
 database_mode = "existing"
-enable_ha     = true
+enable_ha     = true # Enable for multi-node deployments
 
-# [REQUIRED] PostgreSQL database (AWS RDS, Azure, GCP, or self-hosted)
-existing_postgresql_host     = "your-db-host.region.aws.rds.amazonaws.com"  # Database endpoint
-existing_postgresql_port     = 5432
-existing_postgresql_database = "netbird_db"
-existing_postgresql_username = "netbird_user"
-existing_postgresql_password = "CHANGE_ME_STRONG_PASSWORD" # [REQUIRED] Set via environment variable: TF_VAR_existing_postgresql_password
-existing_postgresql_sslmode  = "require"  # TLS encryption for DB connection
+# PostgreSQL connection (required when database_type = "postgresql")
+existing_postgresql_host            = "ep-mute-mode-aipe8ucx-pooler.c-4.us-east-1.aws.neon.tech"
+existing_postgresql_port            = 5432
+existing_postgresql_database        = "neondb"
+existing_postgresql_username        = "neondb_owner"
+existing_postgresql_password        = "npg_qLMck9Sj6rsX" # Use environment variable: TF_VAR_existing_postgresql_password
+existing_postgresql_sslmode         = "require"
+existing_postgresql_channel_binding = "require" # Options: disable, prefer, require (required for Neon)
 
-# SQLite is NOT recommended for HA deployments (only for single-node)
-# sqlite_database_path = "/var/lib/netbird/store.db"
+# SQLite path (only used when database_type = "sqlite")
+sqlite_database_path = "/var/lib/netbird/store.db"
 
-# =============================================================================
-# SECTION 3: KEYCLOAK / IDENTITY PROVIDER [REQUIRED]
-# =============================================================================
-
-keycloak_url                 = "https://keycloak.your-domain.com/auth" # [REQUIRED] Keycloak server URL
+# Identity Provider (Keycloak)
+# Must be accessible from management nodes
+keycloak_url                 = "https://keycloak.observe.camer.digital"
 keycloak_admin_username      = "admin"
-keycloak_admin_password      = "CHANGE_ME_STRONG_PASSWORD" # [REQUIRED] Set via environment variable: TF_VAR_keycloak_admin_password
-keycloak_admin_client_secret = "CHANGE_ME_KEYCLOAK_SECRET" # Set via environment variable: TF_VAR_keycloak_admin_client_secret
-keycloak_use_existing_realm  = true
+keycloak_admin_password      = "admin_password"                   # Use environment variable: TF_VAR_keycloak_admin_password
+keycloak_admin_client_secret = "O9w0jF65Nn1DAa6iLp4H0CK3FGIwS3jL" # Optional, uses password auth if null
 realm_name                   = "netbird"
+keycloak_use_existing_realm  = false
 
-# =============================================================================
-# SECTION 4: APPLICATION SECRETS & CREDENTIALS [REQUIRED FOR HA]
-# =============================================================================
-# ⚠️ CRITICAL FOR HA: Set permanent values for these secrets!
-# If these secrets change on terraform re-apply, all clients will lose connectivity.
-#
-# To generate secure values:
-#   openssl rand -base64 32
-#
-# Steps:
-# 1. Generate 32-byte secrets using command above
-# 2. Uncomment lines below and paste your generated values
-# 3. Apply once: terraform apply
-# 4. NEVER CHANGE these values again (unless you want clients to reconnect)
+# NetBird Application
+netbird_version        = "latest"
+netbird_log_level      = "info" # Options: debug, info, warn, error
+netbird_admin_email    = "admin@example.com"
+netbird_admin_password = "ChangMe123!" # Use environment variable: TF_VAR_netbird_admin_password
 
-netbird_admin_email    = "admin@your-domain.com" # [REQUIRED]
-netbird_admin_password = "CHANGE_ME_STRONG_PASSWORD" # [REQUIRED] Set via environment variable: TF_VAR_netbird_admin_password
+# Application Secrets
+# Leave empty for auto-generation, or set permanent values for HA deployments
+# WARNING: Changing these after deployment will disconnect all clients
+relay_auth_secret      = "GHSYrIfC2OwAPYLRbJ2o5ZO0RzcaYonzPI1crYXG+1M=" # Generate with: openssl rand -base64 32
+netbird_encryption_key = "uRzOR2zCY6zZbByqKnXhT3p2kM/4PBAMZnpVTO1foeI=" # Generate with: openssl rand -base64 32
 
-# [REQUIRED for HA] Permanent secrets that MUST NOT change between applies
-# If these change, all connected clients will lose connectivity
-# Generate using: openssl rand -hex 32
-# Store in environment variables or CI/CD secrets:
-#   TF_VAR_relay_auth_secret
-#   TF_VAR_netbird_encryption_key
-relay_auth_secret      = "CHANGE_ME_OPENSSL_RAND_HEX_32"
-netbird_encryption_key = "CHANGE_ME_OPENSSL_RAND_HEX_32"
+# Reverse Proxy Configuration
+# "caddy" for automatic HTTPS, "haproxy" for advanced load balancing
+proxy_type      = "haproxy"
+caddy_version   = "2.11"
+haproxy_version = "3.2.0"
 
-# =============================================================================
-# SECTION 5: VERSION CONFIGURATION
-# =============================================================================
+# ACME/TLS Configuration
+# Certificates obtained automatically from Let's Encrypt
+enable_acme             = true
+acme_provider           = "letsencrypt" # Options: letsencrypt, zerossl
+acme_email              = "onelsob57@gmail.com"
+acme_account_thumbprint = "" # Leave empty for auto-detection (Ansible will register account and persist thumbprint to .acme_thumbprint file)
 
-netbird_version        = "latest" # NetBird version to deploy (e.g., "1.0.0" or "latest")
-caddy_version          = "2.11"
-haproxy_version        = "3.2.0"
-coturn_version         = "latest"
+# HAProxy Health Checks
+# Controls how quickly failed nodes are detected and removed from rotation
+haproxy_health_check_interval = 5000 # Check every 5 seconds
+haproxy_health_check_timeout  = 3000 # Wait up to 3 seconds for response
+haproxy_health_check_fall     = 2    # Mark down after 2 failures
+haproxy_health_check_rise     = 3    # Mark up after 3 successes
+
+# HAProxy Session Persistence
+# Keeps client connections to the same backend for gRPC/WebSocket stability
+haproxy_stick_table_size   = "100k"
+haproxy_stick_table_expire = "30m"
+haproxy_stats_password     = "" # Leave empty for auto-generation
+
+# Management Clustering
+# Enables state synchronization between management nodes
+enable_clustering    = false # Enable for multi-node management
+netbird_cluster_port = 9090
+
+# PgBouncer Connection Pooling
+# Prevents database connection exhaustion with multiple management nodes
+enable_pgbouncer               = true # Enable for PostgreSQL deployments
+pgbouncer_listen_port          = 6432
+pgbouncer_pool_mode            = "transaction" # Options: transaction, session, statement
+pgbouncer_min_pool_size        = 10
+pgbouncer_default_pool_size    = 25
+pgbouncer_reserve_pool_size    = 5
+pgbouncer_reserve_pool_timeout = 3
+pgbouncer_max_client_conn      = 1000
+pgbouncer_max_db_connections   = 100
+pgbouncer_max_user_connections = 100
+pgbouncer_server_lifetime      = 3600 # Seconds before recycling connections
+pgbouncer_server_idle_timeout  = 600
+pgbouncer_query_timeout        = 0 # 0 = disabled
+pgbouncer_query_wait_timeout   = 120
+pgbouncer_client_idle_timeout  = 0 # 0 = disabled
+pgbouncer_stats_period         = 60
+pgbouncer_health_check_period  = 10
+pgbouncer_health_check_timeout = 5
+
+# COTURN (STUN/TURN)
+# Enables NAT traversal for peer connections
+coturn_version  = "latest"
+coturn_port     = 3478
+coturn_min_port = 49152 # Relay port range start
+coturn_max_port = 65535 # Relay port range end
+
+# Container Versions
 docker_compose_version = "v5.0.2"
 
-# =============================================================================
-# SECTION 6: REVERSE PROXY & CERTIFICATE CONFIGURATION (HAPROXY + ACME)
-# =============================================================================
-# Direct HAProxy with built-in ACME support (minimal latency, no middleman)
-#   - HAProxy (port 443): TLS termination + Load balancing + ACME certificates
-#   - Uses: ghcr.io/flobernd/haproxy-acme-http01 (HAProxy with ACME built-in)
-#   Flow: Client → HAProxy (443) → Management Nodes (no extra hops!)
+# SSH Configuration
+ssh_private_key_path = "~/.ssh/private_key"
 
-proxy_type    = "haproxy"                     # HAProxy with ACME support
-acme_provider = "letsencrypt"                 # ACME provider: letsencrypt only
-acme_email    = "admin@your-domain.com"       # Email for certificate notifications
+# Deployment Automation
+# Set to true to run Ansible automatically after Terraform apply
+auto_deploy = true
 
-# HAProxy ACME Configuration
-# Uses HTTP-01 challenge (port 80 must be accessible)
-# Automatic certificate renewal via cron
-
-# =============================================================================
-# SECTION 7: LOGGING CONFIGURATION
-# =============================================================================
-
-netbird_log_level = "info" # Options: debug, info, warn, error
-
-# =============================================================================
-# SECTION 8: SSH / ANSIBLE CONFIGURATION [REQUIRED]
-# =============================================================================
-
-ssh_private_key_path = "~/.ssh/your-key-name"  # [REQUIRED] Path to SSH private key for node access
-
-# =============================================================================
-# SECTION 9: HIGH AVAILABILITY CONFIGURATION [CRITICAL]
-# =============================================================================
-# ⚠️ ALL OF THESE MUST BE ENABLED FOR HA TO WORK
-# Disabling any of these will break HA functionality
-
-# Feature 1: Management Service Clustering
-enable_clustering    = true # MUST be true for HA
-netbird_cluster_port = 9090 # Port for inter-node communication
-
-# Feature 2: PgBouncer Connection Pooling
-# CRITICAL: Prevents database connection exhaustion with multiple nodes
-enable_pgbouncer               = true
-pgbouncer_listen_port          = 6432
-pgbouncer_min_pool_size        = 10 # Minimum idle connections
-pgbouncer_default_pool_size    = 25 # Target pool size (tuned for 3 mgmt nodes)
-pgbouncer_reserve_pool_size    = 5  # Extra connections for spikes
-pgbouncer_reserve_pool_timeout = 3
-pgbouncer_pool_mode            = "transaction" # Transaction-level pooling
-
-# =============================================================================
-# SECTION 10: HAPROXY HEALTH CHECK CONFIGURATION [CRITICAL]
-# =============================================================================
-# CRITICAL: Controls how quickly failed nodes are detected and removed
-# These settings enable automatic failover within 15 seconds
-
-haproxy_health_check_interval = 5000   # milliseconds: check every 5s
-haproxy_health_check_timeout  = 3000   # milliseconds: max 3s response time
-haproxy_health_check_fall     = 2      # consecutive failures before marking DOWN
-haproxy_health_check_rise     = 3      # consecutive successes before marking UP
-haproxy_stick_table_size      = "100k" # Max sessions per stick table
-haproxy_stick_table_expire    = "30m"  # Session timeout
-
-# =============================================================================
-# SECTION 11: MULTI-NODE HA DEPLOYMENT NOTES
-# =============================================================================
+# Deployment Scenarios:
 #
-# ✓ Typical HA Architecture:
-#   - 3 management nodes (for quorum-based clustering)
-#   - 2+ relay nodes (optional, for load distribution)
-#   - 2+ proxy nodes (for reverse proxy failover)
-#   - 1 external PostgreSQL database (Multi-AZ)
+# 1. Single-Node Development (Caddy + SQLite):
+#    - Set proxy_type = "caddy"
+#    - Set database_type = "sqlite"
+#    - Set enable_haproxy_ha = false
+#    - Set enable_clustering = false
+#    - Set enable_pgbouncer = false
+#    - Define 1 host with all roles
 #
-# ✓ What gets deployed:
-#   - NetBird management service (3 nodes)
-#   - NetBird signal server (3 nodes)
-#   - NetBird dashboard (3 nodes)
-#   - COTURN STUN/TURN servers (3 nodes)
-#   - PgBouncer connection pooler (on management nodes)
-#   - HAProxy load balancer (2 nodes)
-#   - Caddy reverse proxy (2 nodes)
-#   - External PostgreSQL database (Multi-AZ, automated backups)
+# 2. Single-Node Production (HAProxy + PostgreSQL):
+#    - Set proxy_type = "haproxy"
+#    - Set database_type = "postgresql"
+#    - Set enable_haproxy_ha = false
+#    - Set enable_clustering = false
+#    - Set enable_pgbouncer = true
+#    - Define 1 host with all roles
 #
-# ✓ What you get with HA:
-#   - Automatic failover (<15 seconds)
-#   - Zero-downtime rolling updates
-#   - Load balanced across all nodes
-#   - Session persistence (sticky sessions)
-#   - Connection pooling (prevents DB exhaustion)
-#   - Inter-node state synchronization (clustering)
-#   - Health monitoring and auto-recovery
+# 3. Multi-Node HA (HAProxy + PostgreSQL + Clustering):
+#    - Set proxy_type = "haproxy"
+#    - Set database_type = "postgresql"
+#    - Set enable_clustering = true
+#    - Set enable_pgbouncer = true
+#    - Define 3+ management nodes
+#    - Define 2+ proxy nodes
+#    - Define 2+ relay nodes (optional)
 #
-# ✓ Suitable for:
-#   - Production deployments (100-5000+ users)
-#   - Mission-critical setups
-#   - High availability requirements
-#   - Geographic distribution
+# Security Notes:
+# - Never commit terraform.tfvars to version control
+# - Use environment variables for sensitive values (TF_VAR_*)
+# - Generate strong secrets with: openssl rand -base64 32
+# - Keep relay_auth_secret and netbird_encryption_key permanent in HA setups
 #
-# ✓ Resource requirements per node:
-#   - CPU: 2+ vCPUs (4+ recommended)
-#   - RAM: 4-8 GB
-#   - Disk: 20-50 GB
-#   - Network: 10+ Mbps
-#
-# ✓ Database requirements:
-#   - PostgreSQL 12+ (external, not managed by Terraform)
-#   - Multi-AZ failover capability (AWS RDS, Azure, GCP)
-#   - Automated daily backups
-#   - At least 2 nodes for failover
-#
-# ✓ Critical configuration for HA:
-#   1. relay_auth_secret: MUST BE PERMANENT (same on all applies)
-#   2. netbird_encryption_key: MUST BE PERMANENT (same on all applies)
-#   3. enable_clustering = true: Inter-node communication enabled
-#   4. enable_pgbouncer = true: Connection pooling prevents exhaustion
-#   5. All health check settings: Enable automatic failover
-#   6. Sticky sessions: Keep gRPC/WebSocket connections stable
-#
-# ✓ Firewall rules needed (between nodes):
-#   - 9090/tcp (inter-node clustering)
-#   - 6432/tcp (PgBouncer connection pooling)
-#   - All external ports (80, 443, 3478, 33080)
-#
-# ✓ SSL certificates:
-#   - Caddy on proxy nodes obtains/renews Let's Encrypt certificates
-#   - One certificate per proxy node
-#   - Automatic renewal in background
-#
-# ✓ Backup strategy:
-#   - Database: Automated daily snapshots (30-day retention)
-#   - Configuration: Stored in Git with Terraform state
-#   - Restore tested quarterly
-#
-# ✓ Monitoring:
-#   - HAProxy stats: http://proxy-node:8404/stats
-#   - Health check: curl -f https://netbird.example.com/health
-#   - Database: SELECT count(*) FROM users
-#   - PgBouncer: SHOW POOLS (via PgBouncer CLI)
-#
-# ✓ Scaling:
-#   - Add management nodes: Increase count in netbird_hosts
-#   - Add relay nodes: Increases throughput
-#   - Add proxy nodes: Increases failover redundancy
-#   - Each node uses clustering for auto-discovery
-#
-# ✓ Testing failover:
-#   docker stop netbird-management-1  # Kill one node
-#   curl -f https://netbird.example.com/health  # Should still work
-#   HAProxy routes around the failed node automatically
-#
-# ✓ Common issues & solutions:
-#   - DB connection exhausted: Increase pgbouncer_default_pool_size
-#   - gRPC connections drop: Check haproxy_stick_table_* settings
-#   - Nodes not clustering: Verify port 9090 firewall rules
-#   - Secret mismatch: Ensure relay_auth_secret is permanent
-#   - Certificates failing: Verify domain DNS resolves
-#
-# =============================================================================
+# Network Requirements:
+# - DNS must point to proxy public IP or load balancer
+# - Firewall must allow: 80/tcp, 443/tcp, 3478/udp, 33080/tcp, 49152-65535/udp
+# - Management nodes need access to database and Keycloak
+# - Proxy nodes need access to management nodes

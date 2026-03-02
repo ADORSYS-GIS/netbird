@@ -7,10 +7,7 @@ terraform {
   }
 }
 
-# ---------------------------------------------------------------------------
-# Realm
-# ---------------------------------------------------------------------------
-
+# Realm configuration
 data "keycloak_realm" "existing" {
   count = var.use_existing_realm ? 1 : 0
   realm = var.realm_name
@@ -34,12 +31,8 @@ locals {
   realm_name = var.use_existing_realm ? data.keycloak_realm.existing[0].realm : keycloak_realm.netbird[0].realm
 }
 
-# ---------------------------------------------------------------------------
-# Client Scope: "api"
-# Adds an audience claim for netbird-client so management can validate tokens.
-# Ref: https://docs.netbird.io/selfhosted/identity-providers/advanced/keycloak#step-6-create-client-scope
-# ---------------------------------------------------------------------------
-
+# Client scope: api
+# Adds audience claim for netbird-client so management can validate tokens
 resource "keycloak_openid_client_scope" "api" {
   realm_id               = local.realm_id
   name                   = "api"
@@ -57,11 +50,8 @@ resource "keycloak_openid_audience_protocol_mapper" "api_audience" {
   add_to_id_token          = false
 }
 
-# ---------------------------------------------------------------------------
-# Client Scope: "groups"
-# Adds group membership claim to tokens.
-# ---------------------------------------------------------------------------
-
+# Client scope: groups
+# Adds group membership claim to tokens
 resource "keycloak_openid_client_scope" "groups" {
   realm_id               = local.realm_id
   name                   = "groups"
@@ -81,18 +71,13 @@ resource "keycloak_openid_group_membership_protocol_mapper" "group_mapper" {
   add_to_userinfo     = true
 }
 
-# ---------------------------------------------------------------------------
-# Client 1: netbird-client (PUBLIC — used by dashboard + CLI)
-# Ref: https://docs.netbird.io/selfhosted/identity-providers/advanced/keycloak#step-4-create-net-bird-client
-# ---------------------------------------------------------------------------
-
+# Public client for dashboard and CLI
 resource "keycloak_openid_client" "netbird_client" {
   realm_id  = local.realm_id
   client_id = "netbird-client"
   name      = "NetBird Client"
   enabled   = true
 
-  # PUBLIC: no client secret, uses PKCE for security
   access_type = "PUBLIC"
 
   standard_flow_enabled        = true
@@ -100,7 +85,6 @@ resource "keycloak_openid_client" "netbird_client" {
   direct_access_grants_enabled = true
   service_accounts_enabled     = false
 
-  # Ref: Step 5 — Access Settings
   root_url = "https://${var.netbird_domain}"
 
   valid_redirect_uris = [
@@ -119,8 +103,7 @@ resource "keycloak_openid_client" "netbird_client" {
   web_origins = ["+"]
 }
 
-# Attach "api" and "groups" scopes as defaults to netbird-client
-# Ref: Step 7 — Add Client Scope to NetBird Client
+# Attach api and groups scopes to netbird-client
 resource "keycloak_openid_client_default_scopes" "netbird_client_scopes" {
   realm_id  = local.realm_id
   client_id = keycloak_openid_client.netbird_client.id
@@ -135,28 +118,22 @@ resource "keycloak_openid_client_default_scopes" "netbird_client_scopes" {
   ]
 }
 
-# ---------------------------------------------------------------------------
-# Client 2: netbird-backend (CONFIDENTIAL — used by management service IDP API)
-# Ref: https://docs.netbird.io/selfhosted/identity-providers/advanced/keycloak#step-8-create-net-bird-backend-client
-# ---------------------------------------------------------------------------
-
+# Confidential client for management service IDP API
 resource "keycloak_openid_client" "netbird_backend" {
   realm_id  = local.realm_id
   client_id = "netbird-backend"
   name      = "NetBird Backend"
   enabled   = true
 
-  # CONFIDENTIAL: has a client secret, used server-to-server only
   access_type = "CONFIDENTIAL"
 
   standard_flow_enabled        = false
   implicit_flow_enabled        = false
   direct_access_grants_enabled = false
-  service_accounts_enabled     = true # Enables client_credentials grant
+  service_accounts_enabled     = true
 }
 
 # Assign view-users role to netbird-backend service account
-# Ref: Step 9 — Add View-Users Role
 data "keycloak_openid_client" "realm_management" {
   realm_id  = local.realm_id
   client_id = "realm-management"
@@ -169,10 +146,7 @@ resource "keycloak_openid_client_service_account_role" "netbird_backend_view_use
   role                    = "view-users"
 }
 
-# ---------------------------------------------------------------------------
-# Default Admin User
-# ---------------------------------------------------------------------------
-
+# Default admin user
 resource "keycloak_user" "netbird_admin" {
   realm_id = local.realm_id
   username = "netbird-admin"
@@ -186,31 +160,4 @@ resource "keycloak_user" "netbird_admin" {
     value     = var.netbird_admin_password
     temporary = false
   }
-}
-
-# ---------------------------------------------------------------------------
-# Keycloak Health Validation
-# Ensures Keycloak is accessible before returning outputs
-# ---------------------------------------------------------------------------
-
-resource "null_resource" "keycloak_health_check" {
-  provisioner "local-exec" {
-    command = <<-EOT
-      echo 'Checking Keycloak health at ${var.keycloak_url}...'
-      for i in {1..30}; do
-        curl -sf '${var.keycloak_url}' > /dev/null 2>&1 && echo 'Keycloak is healthy' && exit 0
-        echo "Attempt $i/30: Waiting for Keycloak..."
-        sleep 2
-      done
-      echo 'ERROR: Keycloak health check failed after 60 seconds' && exit 1
-    EOT
-    on_failure = fail
-  }
-
-  depends_on = [
-    keycloak_realm.netbird,
-    keycloak_openid_client.netbird_client,
-    keycloak_openid_client.netbird_backend,
-    keycloak_user.netbird_admin,
-  ]
 }

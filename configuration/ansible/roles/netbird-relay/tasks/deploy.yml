@@ -1,0 +1,62 @@
+---
+# NetBird relay deployment - relay server for peer-to-peer connections
+
+- name: Create NetBird relay configuration directory
+  ansible.builtin.file:
+    path: /etc/netbird-relay
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - relay
+    - netbird-relay
+    - config
+
+- name: Deploy docker-compose.yml for relay
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /etc/netbird-relay/docker-compose.yml
+    owner: root
+    group: root
+    mode: '0644'
+  tags:
+    - relay
+    - netbird-relay
+    - config
+
+- name: Deploy NetBird relay using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: /etc/netbird-relay
+    pull: always
+    state: present
+  register: relay_compose_output
+  tags:
+    - relay
+    - netbird-relay
+    - deploy
+
+- name: Wait for relay container to be running
+  community.docker.docker_container_info:
+    name: netbird-relay
+  register: relay_info
+  until: relay_info.container.State.Running | default(false)
+  retries: 30
+  delay: 2
+  tags:
+    - relay
+    - netbird-relay
+    - verify
+
+- name: Wait for relay health check to pass
+  community.docker.docker_container_info:
+    name: netbird-relay
+  register: relay_container_info
+  until: relay_container_info.container.State.Health.Status | default('') == 'healthy'
+  retries: 30
+  delay: 2
+  failed_when: false
+  tags:
+    - relay
+    - netbird-relay
+    - verify

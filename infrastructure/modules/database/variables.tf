@@ -66,3 +66,9 @@ variable "existing_postgresql_sslmode" {
   type        = string
   default     = "require"
 }
+
+variable "existing_postgresql_channel_binding" {
+  description = "PostgreSQL channel binding mode (disable, prefer, require)"
+  type        = string
+  default     = "prefer"
+}

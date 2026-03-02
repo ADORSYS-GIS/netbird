@@ -1,0 +1,70 @@
+---
+# Caddy reverse proxy deployment - handles TLS termination for NetBird management UI
+# Caddy automatically obtains and renews Let's Encrypt certificates
+
+- name: Create Caddy configuration directory
+  ansible.builtin.file:
+    path: /etc/caddy
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - reverse-proxy
+    - caddy
+    - proxy
+    - config
+
+- name: Deploy Caddyfile configuration
+  ansible.builtin.template:
+    src: Caddyfile.j2
+    dest: /etc/caddy/Caddyfile
+    mode: '0644'
+  register: caddyfile_config
+  tags:
+    - reverse-proxy
+    - caddy
+    - proxy
+    - config
+
+- name: Deploy docker-compose.yml for Caddy
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /etc/caddy/docker-compose.yml
+    mode: '0644'
+  register: compose_config
+  tags:
+    - reverse-proxy
+    - caddy
+    - proxy
+    - config
+
+- name: Deploy Caddy using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: /etc/caddy
+    pull: always
+    state: present
+    recreate: "{{ 'always' if (caddyfile_config.changed or compose_config.changed) else 'auto' }}"
+  register: caddy_compose_output
+  # Force recreation when configs change to ensure new config is loaded
+  tags:
+    - reverse-proxy
+    - caddy
+    - proxy
+    - deploy
+
+- name: Configure firewall for HTTP/HTTPS
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    comment: "NetBird Reverse Proxy"
+  loop:
+    - "80"   # HTTP (redirects to HTTPS)
+    - "443"  # HTTPS (TLS termination)
+  when: manage_firewall | default(true)
+  tags:
+    - reverse-proxy
+    - caddy
+    - proxy
+    - firewall

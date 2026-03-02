@@ -1,9 +1,8 @@
+# NOTE: You must create this bucket manually or via a separate bootstrap script before running terraform init.
+# Alternatively, comment this out for local state during initial development.
 terraform {
-  backend "s3" {
-    bucket         = "netbird-terraform-state"
-    key            = "helm-stack/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "terraform-state-lock"
-    encrypt        = true
+  backend "gcs" {
+    bucket  = "netbird" # Replace with your unique GCS bucket name
+    prefix  = "terraform/state"
   }
 }

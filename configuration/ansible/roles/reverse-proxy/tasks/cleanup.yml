@@ -1,0 +1,55 @@
+---
+# Caddy reverse proxy cleanup - removes containers, volumes, and configuration
+
+- name: Stop and remove Caddy containers
+  community.docker.docker_compose_v2:
+    project_src: /etc/caddy
+    state: absent
+  failed_when: false
+  tags:
+    - cleanup
+    - cleanup-caddy
+    - cleanup-reverse-proxy
+    - proxy
+
+- name: Remove firewall rules for HTTP/HTTPS
+  community.general.ufw:
+    rule: allow
+    delete: yes
+    port: "{{ item }}"
+    proto: tcp
+  loop:
+    - "80"
+    - "443"
+  failed_when: false
+  when: manage_firewall | default(true)
+  tags:
+    - cleanup
+    - cleanup-caddy
+    - cleanup-reverse-proxy
+    - firewall
+
+- name: Remove Caddy configuration directory
+  ansible.builtin.file:
+    path: /etc/caddy
+    state: absent
+  tags:
+    - cleanup
+    - cleanup-caddy
+    - cleanup-reverse-proxy
+    - proxy
+
+- name: Remove Caddy Docker volumes
+  community.docker.docker_volume:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - caddy_data
+    - caddy_config
+  failed_when: false
+  # Volumes contain certificates and Caddy configuration
+  tags:
+    - cleanup
+    - cleanup-caddy
+    - cleanup-reverse-proxy
+    - proxy

@@ -1,59 +1,67 @@
-# Infrastructure
+# NetBird Infrastructure
 
-Terraform infrastructure code for NetBird deployment automation.
+Terraform modules and configurations for deploying NetBird.
 
-## Ansible Stack
+## Stacks
 
-Deploy NetBird on existing VMs using Terraform for discovery and Ansible for configuration.
+### Ansible Stack (`ansible-stack/`)
 
-**Directory**: `ansible-stack/`
+VM-based deployment using Terraform + Ansible + Docker Compose.
 
-**Usage**:
-```bash
-cd ansible-stack
-terraform init
-terraform plan
-terraform apply
-```
+**Use for:**
+- Production deployments on VMs
+- Multi-cloud or on-premise infrastructure
+- Full control over configuration
 
-This generates an Ansible inventory at `../../configuration/ansible/inventory/terraform_inventory.yaml`.
+**Features:**
+- High availability with HAProxy load balancing
+- Automatic TLS certificates via ACME
+- PgBouncer connection pooling
+- Multi-node management cluster
 
-Then deploy with Ansible:
-```bash
-cd ../../configuration/ansible
-ansible-playbook -i inventory/terraform_inventory.yaml playbooks/site.yml
-```
+[Documentation](ansible-stack/README.md)
 
-**Documentation**: See [ansible-stack/docs/](./ansible-stack/docs/) for complete guide.
+### Helm Stack (`helm-stack/`)
+
+Kubernetes-native deployment using Helm charts.
+
+**Use for:**
+- Kubernetes environments
+- Cloud-native deployments
+- Container orchestration platforms
+
+[Documentation](helm-stack/README.md)
 
 ## Modules
 
-### inventory
+Reusable Terraform modules:
 
-Multi-cloud VM discovery supporting AWS, GCP, Azure, and manual hosts.
+- `modules/database/` - Database configuration (SQLite, PostgreSQL)
+- `modules/inventory/` - Host inventory management
+- `modules/keycloak/` - Keycloak SSO integration
 
-### database
+## Quick Start
 
-Unified database backend supporting SQLite, PostgreSQL, and MySQL.
-
-### keycloak
-
-Keycloak SSO configuration for NetBird authentication.
-
-## Testing
+Choose your deployment stack:
 
 ```bash
-# From project root
-make test-terraform
-
-# Or manually
+# VM-based deployment
 cd ansible-stack
-terraform fmt -check -recursive
-terraform validate
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars
+terraform init
+terraform apply
+
+# Kubernetes deployment
+cd helm-stack
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars
+terraform init
+terraform apply
 ```
 
-## Related Documentation
+## Documentation
 
-- [Deployment Guide](./ansible-stack/docs/getting-started.md) - Complete deployment walkthrough
-- [Configuration Reference](./ansible-stack/docs/configuration-reference.md) - All variables
-- [Architecture Documentation](../docs/architecture.md) - architecture and operations
+- [NetBird Official Docs](https://docs.netbird.io/)
+- [Terraform Documentation](https://www.terraform.io/docs)
+- [Ansible Documentation](https://docs.ansible.com/)

@@ -20,11 +20,9 @@
         X-Frame-Options DENY
     }
 
-    # All traffic reverse proxies to HAProxy for load balancing
-    # HAProxy handles: health checks, sticky sessions, load balancing to 3 management nodes
-    # Caddy handles: TLS termination, ACME certificate management, basic reverse proxy
+    # Reverse proxy to NetBird management API (port 8081)
     reverse_proxy /* {
-        to localhost:8080
+        to localhost:8081
         header_up X-Real-IP {remote_ip}
         header_up X-Forwarded-For {remote_ip}
         header_up X-Forwarded-Proto {scheme}

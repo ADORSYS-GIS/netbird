@@ -1,0 +1,165 @@
+
+services:
+  # NetBird Management Server
+  # Central control plane: REST API, gRPC, admin interface
+  netbird-management:
+    image: "netbirdio/management:{{ netbird_version }}"
+    container_name: netbird-management
+    restart: unless-stopped
+    networks:
+      - netbird
+    ports:
+      - "8081:80"      # REST API
+      - "10000:10000"  # gRPC
+      - "9000:9000"    # Health check
+    volumes:
+      - {{ netbird_data_dir }}:/var/lib/netbird
+      - {{ netbird_config_dir }}/management.json:/etc/netbird/management.json:ro
+    environment:
+      NETBIRD_STORE_ENGINE_POSTGRES_DSN: "{{ database_dsn if database_engine in ['postgres', 'postgresql'] else '' }}"
+      NETBIRD_STORE_ENGINE_MYSQL_DSN: "{{ database_dsn if database_engine == 'mysql' else '' }}"
+    command: ["--config", "/etc/netbird/management.json", "--log-file", "console"]
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 3
+    #   start_period: 30s
+    mem_limit: 2g
+    memswap_limit: 2g
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+    depends_on:
+      {% if enable_pgbouncer | default(false) | bool %}
+      - pgbouncer
+      {% else %}
+      - netbird-signal
+      {% endif %}
+
+  {% if enable_pgbouncer | default(false) | bool %}
+  # PgBouncer - PostgreSQL Connection Pooler
+  # Manages database connection pools for high performance and scalability
+  # Only deployed when enable_pgbouncer is true
+  pgbouncer:
+    image: "pgbouncer/pgbouncer:{{ pgbouncer_version | default('latest') }}"
+    container_name: pgbouncer
+    restart: unless-stopped
+    networks:
+      - netbird
+    ports:
+      - "{{ pgbouncer_listen_port | default(6432) }}:{{ pgbouncer_listen_port | default(6432) }}"
+    volumes:
+      - /etc/pgbouncer:/etc/pgbouncer:rw
+      - /var/lib/pgbouncer:/var/lib/pgbouncer:rw
+    entrypoint: ["/opt/pgbouncer/pgbouncer", "/etc/pgbouncer/pgbouncer.ini"]
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 {{ pgbouncer_listen_port | default(6432) }} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 512m
+    memswap_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+  {% endif %}
+
+  # NetBird Signal Server
+  # Peer discovery and connection coordination via WebSocket
+  netbird-signal:
+    image: "netbirdio/signal:{{ netbird_version }}"
+    container_name: netbird-signal
+    restart: unless-stopped
+    networks:
+      - netbird
+    ports:
+      - "8083:80"  # Internal only, proxied via HAProxy
+    command: ["--port", "80"]
+    # healthcheck:
+    #   test: ["CMD-SHELL", "nc -z 127.0.0.1 80 || exit 1"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 3
+    #   start_period: 30s
+    mem_limit: 1g
+    memswap_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # NetBird Dashboard
+  # Web UI for user management and configuration
+  # Requires environment variable substitution for OIDC integration
+  netbird-dashboard:
+    image: "netbirdio/dashboard:{{ netbird_version }}"
+    container_name: netbird-dashboard
+    restart: unless-stopped
+    networks:
+      - netbird
+    ports:
+      - "8082:80"  # Internal only, proxied via HAProxy
+    environment:
+      NETBIRD_MGMT_API_ENDPOINT: "https://{{ netbird_domain }}"
+      NETBIRD_MGMT_GRPC_API_ENDPOINT: "https://{{ netbird_domain }}"
+      USE_AUTH0: "false"
+      AUTH_AUDIENCE: "{{ keycloak_client_id }}"
+      AUTH_CLIENT_ID: "{{ keycloak_client_id }}"
+      AUTH_AUTHORITY: "{{ keycloak_url }}/realms/{{ keycloak_realm }}"
+      AUTH_SUPPORTED_SCOPES: "openid profile email offline_access api"
+      AUTH_REDIRECT_URI: "/nb-auth"
+      AUTH_SILENT_REDIRECT_URI: "/nb-silent-auth"
+      LETSENCRYPT_DOMAIN: "none"
+      NETBIRD_TOKEN_SOURCE: "idToken"
+      NGINX_SSL_PORT: "443"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    mem_limit: 512m
+    memswap_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+    depends_on:
+      - netbird-management
+
+  # Coturn STUN/TURN Server
+  # NAT traversal: assists with peer-to-peer connectivity through firewalls
+  # Uses host network mode for direct UDP access
+  coturn:
+    image: "coturn/coturn:{{ coturn_version }}"
+    container_name: coturn
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /etc/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+    healthcheck:
+      test: ["CMD-SHELL", "kill -0 $(cat /var/tmp/turnserver.pid 2>/dev/null) 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    mem_limit: 1g
+    memswap_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+networks:
+  netbird:
+    external: true

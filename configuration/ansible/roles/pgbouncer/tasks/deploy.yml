@@ -1,0 +1,87 @@
+---
+# PgBouncer deployment - PostgreSQL connection pooler configuration
+# Reduces database connection overhead and improves performance
+
+- name: Create PgBouncer configuration directory
+  ansible.builtin.file:
+    path: /etc/pgbouncer
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - pgbouncer
+    - database
+    - config
+
+- name: Deploy PgBouncer configuration file
+  ansible.builtin.template:
+    src: pgbouncer.ini.j2
+    dest: /etc/pgbouncer/pgbouncer.ini
+    owner: "70"  # postgres user in PgBouncer container
+    group: "70"  # postgres group in PgBouncer container
+    mode: '0644'
+  notify: Restart PgBouncer
+  register: pgbouncer_config
+  tags:
+    - pgbouncer
+    - database
+    - config
+
+- name: Deploy PgBouncer userlist with credentials
+  ansible.builtin.template:
+    src: userlist.txt.j2
+    dest: /etc/pgbouncer/userlist.txt
+    owner: "70"  # postgres user in PgBouncer container
+    group: "70"  # postgres group in PgBouncer container
+    mode: '0600'  # Secure permissions for credentials file
+  tags:
+    - pgbouncer
+    - database
+    - config
+
+- name: Validate PgBouncer configuration structure
+  ansible.builtin.lineinfile:
+    path: /etc/pgbouncer/pgbouncer.ini
+    regexp: "{{ item.regexp }}"
+    state: present
+    line: "{{ item.line }}"
+  check_mode: yes
+  register: config_check
+  failed_when: config_check is changed
+  loop:
+    - { regexp: '^\[databases\]', line: '[databases]' }
+    - { regexp: '^\[pgbouncer\]', line: '[pgbouncer]' }
+    - { regexp: '^auth_file', line: 'auth_file = /etc/pgbouncer/userlist.txt' }
+  tags:
+    - pgbouncer
+    - database
+    - verify
+
+- name: Create PgBouncer data directory
+  ansible.builtin.file:
+    path: /var/lib/pgbouncer
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags:
+    - pgbouncer
+    - database
+    - config
+
+- name: Configure firewall for PgBouncer
+  community.general.ufw:
+    rule: allow
+    port: "{{ pgbouncer_listen_port | string }}"
+    proto: tcp
+    comment: "PgBouncer Connection Pooler"
+  when: manage_firewall | default(true)
+  tags:
+    - pgbouncer
+    - database
+    - firewall
+
+# NOTE: PgBouncer container is started by netbird-mgmt docker-compose.yml
+# Health checks and connection tests are performed in netbird-mgmt role post-tasks
+# after the container is actually running

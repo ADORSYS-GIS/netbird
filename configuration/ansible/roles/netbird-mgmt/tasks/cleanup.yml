@@ -1,0 +1,36 @@
+---
+# NetBird management stack cleanup - removes containers, configuration, and network
+
+- name: Stop NetBird management stack
+  community.docker.docker_compose_v2:
+    project_src: /etc/netbird
+    state: absent
+  failed_when: false
+  tags:
+    - cleanup
+    - cleanup-mgmt
+    - management-stack
+
+- name: Remove NetBird configuration files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/netbird/docker-compose.yml
+    - /etc/netbird/management.json
+    - /etc/coturn/turnserver.conf
+    - /etc/coturn
+  tags:
+    - cleanup
+    - cleanup-mgmt
+    - management-stack
+
+- name: Remove NetBird Docker network
+  community.docker.docker_network:
+    name: netbird
+    state: absent
+  failed_when: false
+  tags:
+    - cleanup
+    - cleanup-mgmt
+    - management-stack
