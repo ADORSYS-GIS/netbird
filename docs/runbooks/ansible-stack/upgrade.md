@@ -1,5 +1,5 @@
 # 📕 UPGRADE-01 | NetBird Ansible Stack Rolling Update
-**Action Type**: Upgrade | **Risk**: Medium | **Ops Book**: [NetBird Ops](../operations/netbird-ansible-ops.md)
+**Action Type**: Upgrade | **Risk**: Medium | **Ops Book**: [Ansible Stack Ops](../../operations-book/ansible-stack/README.md)
 
 [[_TOC_]]
 

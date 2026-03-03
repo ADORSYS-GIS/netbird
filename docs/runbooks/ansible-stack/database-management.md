@@ -140,7 +140,7 @@ Always watch the `pgbouncer_pools_client_waiting_connections` metric in Promethe
 | Document | Description |
 |----------|-------------|
 | [Architecture](../architecture.md) | HA Design Overview |
-| [Disaster Recovery](../operations/disaster-recovery.md) | Backup & Restore procedures |
+| [Disaster Recovery](../../operations-book/disaster-recovery.md) | Backup & Restore procedures |
 
 </details>
 

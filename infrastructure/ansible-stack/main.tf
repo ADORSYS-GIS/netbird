@@ -67,7 +67,9 @@ resource "random_password" "haproxy_stats_password" {
   length  = 24
   special = true
 
-  keepers = {
+  keepers = {kubectl get pods -n netbird
+kubectl get pods -A | grep netbird
+
     version = "1.0"
   }
 }

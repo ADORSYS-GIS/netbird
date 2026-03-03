@@ -15,6 +15,8 @@ This directory contains tactical procedures for NetBird infrastructure managemen
 ## 02. Configuration Actions
 - [**KO01 | Kubernetes Operator Integration**](kubernetes-operator.md)
   - Automating service exposure and HA routing inside the cluster.
+- [**KC01 | Kubernetes Cluster as a NetBird Peer**](kubernetes-cluster-peer.md)
+  - Step-by-step guide to joining an external Kubernetes cluster (e.g., k3s) to the NetBird mesh network using the operator.
 - [**KI01 | Keycloak OIDC Integration**](keycloak-integration.md)
   - Deep dive into IdP setup and troubleshooting.
 - [**AI01 | AWS VPC Integration**](aws-vpc-integration.md)
@@ -31,4 +33,4 @@ This directory contains tactical procedures for NetBird infrastructure managemen
   - Diagnosis and resolution for OIDC, Ingress, and Connectivity issues.
 
 ---
-*Last Updated: 2026-02-27*
+*Last Updated: 2026-03-03*

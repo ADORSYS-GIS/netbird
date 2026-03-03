@@ -1,6 +1,6 @@
-# Global Gateway Documentation Index
+# NetBird Infrastructure Documentation Index
 
-Welcome to the centralized documentation for Global Gateway Infrastructure. This repository manages the strategic and tactical guidance for both Kubernetes-native and VM-based production environments.
+Welcome to the centralized documentation for NetBird Infrastructure. This repository manages the strategic and tactical guidance for both Kubernetes-native and VM-based production environments.
 
 [[_TOC_]]
 

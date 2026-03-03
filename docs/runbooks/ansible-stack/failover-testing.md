@@ -184,6 +184,6 @@ Configure Prometheus alerts for `haproxy_backend_active_servers < 3`. An HA clus
 | Document | Description |
 |----------|-------------|
 | [Architecture](../architecture.md) | HA Design Overview |
-| [Monitoring](../operations/monitoring-alerting.md) | Alerting setup |
+| [Monitoring](../../operations-book/monitoring-alerting.md) | Alerting setup |
 
 </details>

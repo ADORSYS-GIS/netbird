@@ -1,5 +1,5 @@
 # 📕 DEPLOY-01 | NetBird Ansible Stack Deployment
-**Action Type**: Deployment | **Risk**: Medium | **Ops Book**: [NetBird Ops](../operations/netbird-ansible-ops.md)
+**Action Type**: Deployment | **Risk**: Medium | **Ops Book**: [Ansible Stack Ops](../../operations-book/ansible-stack/README.md)
 
 [[_TOC_]]
 
