@@ -15,7 +15,7 @@ keycloak_url        = "https://keycloak.observe.camer.digital"
 keycloak_realm      = "netbird3"
 keycloak_admin_user = "admin"
 # IMPORTANT: Move this to a .tfvars.secret file or use environment variable
-keycloak_admin_password = "admin_password"
+keycloak_admin_password      = "admin_password"
 keycloak_admin_client_secret = "O9w0jF65Nn1DAa6iLp4H0CK3FGIwS3jL"
 
 # Keycloak Client IDs (following official docs naming)
@@ -28,8 +28,8 @@ letsencrypt_email = "rjagoum@gmail.com"
 # Database Configuration
 # db_type: Type of database ('sqlite' or 'postgres')
 # create_db: Whether to create a new database instance (true) or use an existing one (false)
-db_type   = "postgres"
-create_db = false
+db_type          = "postgres"
+create_db        = false
 external_db_dsn  = "postgresql://neondb_owner:npg_JniRyf3F7NHU@ep-noisy-dew-agyd3m98-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 db_password      = "highly-secure-db-password"
 db_instance_tier = "db-f1-micro"
@@ -66,4 +66,4 @@ stun_servers = ["stun:stun.l.google.com:19302"]
 # Optional: Initial Admin User
 netbird_admin_email    = "emmanuelodon943@gmail.com"
 netbird_admin_password = "ChangeMe123!"
-                        
+

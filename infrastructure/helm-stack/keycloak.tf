@@ -14,10 +14,10 @@ resource "keycloak_realm" "netbird" {
   reset_password_allowed   = true
   remember_me              = true
   verify_email             = false
-  
+
   # Security settings
   password_policy = "upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and length(12) and forceExpiredPasswordChange(365) and notUsername"
-  
+
   # Brute-force protection
   security_defenses {
     brute_force_detection {
@@ -30,15 +30,15 @@ resource "keycloak_realm" "netbird" {
       failure_reset_time_seconds       = 43200
     }
   }
-  
+
   # Token settings
-  access_token_lifespan         = "5m"
+  access_token_lifespan                   = "5m"
   access_token_lifespan_for_implicit_flow = "5m"
-  sso_session_idle_timeout      = "30m"
-  sso_session_max_lifespan      = "10h"
-  offline_session_idle_timeout  = "720h"
-  offline_session_max_lifespan_enabled = true
-  offline_session_max_lifespan  = "1440h"
+  sso_session_idle_timeout                = "30m"
+  sso_session_max_lifespan                = "10h"
+  offline_session_idle_timeout            = "720h"
+  offline_session_max_lifespan_enabled    = true
+  offline_session_max_lifespan            = "1440h"
 }
 
 # =============================================================================
@@ -79,17 +79,17 @@ resource "keycloak_openid_group_membership_protocol_mapper" "group_membership_ma
 # =============================================================================
 
 resource "keycloak_openid_client" "netbird_backend" {
-  realm_id                        = keycloak_realm.netbird.id
-  client_id                       = var.keycloak_mgmt_client_id
-  name                            = "NetBird Backend"
-  description                     = "NetBird Management Backend Client"
-  enabled                         = true
-  access_type                     = "CONFIDENTIAL"
-  standard_flow_enabled           = true
-  implicit_flow_enabled           = false
-  direct_access_grants_enabled    = true
-  service_accounts_enabled        = true
-  
+  realm_id                     = keycloak_realm.netbird.id
+  client_id                    = var.keycloak_mgmt_client_id
+  name                         = "NetBird Backend"
+  description                  = "NetBird Management Backend Client"
+  enabled                      = true
+  access_type                  = "CONFIDENTIAL"
+  standard_flow_enabled        = true
+  implicit_flow_enabled        = false
+  direct_access_grants_enabled = true
+  service_accounts_enabled     = true
+
   # Device Authorization Grant for CLI login
   oauth2_device_authorization_grant_enabled = true
 
@@ -141,7 +141,7 @@ resource "keycloak_openid_client" "netbird_dashboard" {
   standard_flow_enabled        = true
   implicit_flow_enabled        = false
   direct_access_grants_enabled = true
-  
+
   # Device Authorization Grant for CLI login
   oauth2_device_authorization_grant_enabled = true
 

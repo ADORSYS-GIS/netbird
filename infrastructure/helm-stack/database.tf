@@ -100,8 +100,8 @@ resource "kubernetes_secret" "netbird_secrets" {
     # Otherwise, if db_type is postgres and create_db is true, build the Cloud SQL DSN.
     # Otherwise, default to empty (SQLite).
     dsn = var.external_db_dsn != "" ? var.external_db_dsn : (
-      (var.db_type == "postgres" && var.create_db && var.external_db_dsn == "") ? 
-      "postgresql://${google_sql_user.netbird[0].name}:${google_sql_user.netbird[0].password}@${google_sql_database_instance.netbird_db[0].public_ip_address}:5432/${google_sql_database.netbird[0].name}?sslmode=disable" : 
+      (var.db_type == "postgres" && var.create_db && var.external_db_dsn == "") ?
+      "postgresql://${google_sql_user.netbird[0].name}:${google_sql_user.netbird[0].password}@${google_sql_database_instance.netbird_db[0].public_ip_address}:5432/${google_sql_database.netbird[0].name}?sslmode=disable" :
       ""
     )
 

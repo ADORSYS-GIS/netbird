@@ -1,6 +1,6 @@
 resource "kubectl_manifest" "netbird_dashboard_master_ingress" {
   depends_on = [helm_release.netbird]
-  
+
   yaml_body = <<-YAML
     apiVersion: networking.k8s.io/v1
     kind: Ingress
@@ -28,7 +28,7 @@ resource "kubectl_manifest" "netbird_dashboard_minion_ingress" {
     helm_release.netbird,
     kubectl_manifest.netbird_dashboard_master_ingress
   ]
-  
+
   yaml_body = <<-YAML
     apiVersion: networking.k8s.io/v1
     kind: Ingress

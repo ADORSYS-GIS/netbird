@@ -2,7 +2,7 @@
 # Alternatively, comment this out for local state during initial development.
 terraform {
   backend "gcs" {
-    bucket  = "netbird" # Replace with your unique GCS bucket name
-    prefix  = "terraform/state"
+    bucket = "netbird" # Replace with your unique GCS bucket name
+    prefix = "terraform/state"
   }
 }
