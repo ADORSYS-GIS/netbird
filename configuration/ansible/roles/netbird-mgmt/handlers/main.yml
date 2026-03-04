@@ -1,0 +1,17 @@
+---
+- name: Stop NetBird management stack
+  community.docker.docker_compose_v2:
+    project_src: /etc/netbird
+    state: absent
+  listen: Restart NetBird Management Stack
+  tags:
+    - management-stack
+
+- name: Start NetBird management stack
+  community.docker.docker_compose_v2:
+    project_src: /etc/netbird
+    pull: always
+    state: present
+  listen: Restart NetBird Management Stack
+  tags:
+    - management-stack

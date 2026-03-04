@@ -1,0 +1,152 @@
+
+all:
+  vars:
+    # NetBird Configuration
+    netbird_domain: "netbird-dev.observe.camer.digital"
+    netbird_version: "latest"
+    coturn_version: "latest"
+    caddy_version: "2.11"
+    haproxy_version: "3.2.0"
+    haproxy_image: "haproxy:3.2.0"
+    proxy_type: "haproxy"
+    acme_provider: "letsencrypt"
+    acme_server: "https://acme-v02.api.letsencrypt.org/directory"
+    acme_email: "onelsob57@gmail.com"
+    acme_account_thumbprint: "BJ3-aHaUhPHw494twhMEWbfoUrA6sB0RCqOQymS3g_I"
+    docker_compose_version: "v5.0.2"
+    netbird_log_level: "info"
+    netbird_admin_email: "admin@example.com"
+    netbird_admin_password: "ChangMe123!"
+    relay_auth_secret: "GHSYrIfC2OwAPYLRbJ2o5ZO0RzcaYonzPI1crYXG+1M="
+    netbird_encryption_key: "uRzOR2zCY6zZbByqKnXhT3p2kM/4PBAMZnpVTO1foeI="
+    coturn_password: "{>C:ouXTp0wX+n$CH#:J13SxgJ!*Pr!3"
+    coturn_port: 3478
+    coturn_min_port: 49152
+    coturn_max_port: 65535
+    coturn_realm: "netbird-dev.observe.camer.digital"
+
+    # Database Configuration
+    database_type: "postgresql"
+    database_engine: "postgres"
+    database_dsn: "postgresql://neondb_owner:npg_qLMck9Sj6rsX@ep-mute-mode-aipe8ucx-pooler.c-4.us-east-1.aws.neon.tech:5432/neondb?sslmode=require&channel_binding=require"
+    database_endpoint: "ep-mute-mode-aipe8ucx-pooler.c-4.us-east-1.aws.neon.tech"
+    db_host: "ep-mute-mode-aipe8ucx-pooler.c-4.us-east-1.aws.neon.tech"
+    db_port: 5432
+    db_name: "neondb"
+    db_user: "neondb_owner"
+    db_password: "npg_qLMck9Sj6rsX"
+    db_sslmode: "require"
+    db_channel_binding: "require"
+    sqlite_database_path: "/var/lib/netbird/store.db"
+
+    # Keycloak Configuration
+    keycloak_url: "https://keycloak.observe.camer.digital"
+    keycloak_realm: "netbird"
+    keycloak_client_id: "netbird-client"
+    keycloak_backend_client_id: "netbird-backend"
+    keycloak_backend_client_secret: "mPgWHGNStJ3lxGJKJCrlJwIrafiAzxU9"
+    keycloak_oidc_endpoint: "https://keycloak.observe.camer.digital/realms/netbird/.well-known/openid-configuration"
+    
+    # HA Configuration
+    enable_clustering: false
+    netbird_cluster_port: 9090
+    enable_pgbouncer: true
+    
+    # PgBouncer Configuration (ALL required variables)
+    netbird_state: "present"
+    pgbouncer_state: "present"
+    pgbouncer_version: "latest"
+    pgbouncer_listen_address: "0.0.0.0"
+    pgbouncer_listen_port: 6432
+    pgbouncer_database_name: "neondb"
+    pgbouncer_database_host: "ep-mute-mode-aipe8ucx-pooler.c-4.us-east-1.aws.neon.tech"
+    pgbouncer_database_port: 5432
+    pgbouncer_database_user: "neondb_owner"
+    pgbouncer_database_password: "npg_qLMck9Sj6rsX"
+    pgbouncer_database_sslmode: "require"
+    pgbouncer_database_channel_binding: "require"
+    pgbouncer_min_pool_size: 10
+    pgbouncer_default_pool_size: 25
+    pgbouncer_reserve_pool_size: 5
+    pgbouncer_reserve_pool_timeout: 3
+    pgbouncer_pool_mode: "transaction"
+    pgbouncer_server_lifetime: 3600
+    pgbouncer_server_idle_timeout: 600
+    pgbouncer_query_timeout: 0
+    pgbouncer_query_wait_timeout: 120
+    pgbouncer_client_idle_timeout: 0
+    pgbouncer_max_client_conn: 1000
+    pgbouncer_max_db_connections: 100
+    pgbouncer_max_user_connections: 100
+    pgbouncer_log_connections: "1"
+    pgbouncer_log_disconnections: "1"
+    pgbouncer_log_pooler_errors: "1"
+    pgbouncer_stats_period: 60
+    pgbouncer_health_check_period: 10
+    pgbouncer_health_check_timeout: 5
+    
+    # HAProxy Configuration
+    haproxy_health_check_interval: 5000
+    haproxy_health_check_timeout: 3000
+    haproxy_health_check_fall: 2
+    haproxy_health_check_rise: 3
+    haproxy_stick_table_size: "100k"
+    haproxy_stick_table_expire: "30m"
+    haproxy_stats_uri: "/stats"
+    haproxy_stats_refresh: 5
+    haproxy_stats_password: "AlcV&4*SEYSW3@(lvfZOYw7Y"
+    
+    # Relay & STUN Addresses
+    relay_addresses: ["rels://51.20.52.128:33080","rels://16.171.59.171:33080","rels://13.63.35.177:33080"]
+    stun_addresses: ["stun:51.20.52.128:3478","stun:16.171.59.171:3478","stun:13.63.35.177:3478"]
+
+    # Ansible Connection
+    ansible_ssh_private_key_file: "/home/goats4rust/.ssh/private_key"
+    
+  children:
+    management:
+      hosts:
+        node-1:
+          ansible_host: 51.20.52.128
+          private_ip: 172.31.20.213
+          ansible_user: ubuntu
+        node-2:
+          ansible_host: 16.171.59.171
+          private_ip: 172.31.4.141
+          ansible_user: ubuntu
+        node-3:
+          ansible_host: 13.63.35.177
+          private_ip: 172.31.11.58
+          ansible_user: ubuntu
+    reverse_proxy:
+      hosts:
+        node-1:
+          ansible_host: 51.20.52.128
+          private_ip: 172.31.20.213
+          ansible_user: ubuntu
+        node-2:
+          ansible_host: 16.171.59.171
+          private_ip: 172.31.4.141
+          ansible_user: ubuntu
+        node-3:
+          ansible_host: 13.63.35.177
+          private_ip: 172.31.11.58
+          ansible_user: ubuntu
+    relay:
+      hosts:
+        node-1:
+          ansible_host: 51.20.52.128
+          private_ip: 172.31.20.213
+          ansible_user: ubuntu
+          relay_domain: 51.20.52.128
+        node-2:
+          ansible_host: 16.171.59.171
+          private_ip: 172.31.4.141
+          ansible_user: ubuntu
+          relay_domain: 16.171.59.171
+        node-3:
+          ansible_host: 13.63.35.177
+          private_ip: 172.31.11.58
+          ansible_user: ubuntu
+          relay_domain: 13.63.35.177
+

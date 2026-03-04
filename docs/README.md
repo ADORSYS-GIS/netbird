@@ -1,20 +1,21 @@
-# NetBird Documentation Index
+# NetBird Infrastructure Documentation Index
 
-This directory contains detailed documentation for determining the architecture and deploying NetBird services.
+Welcome to the centralized documentation for NetBird Infrastructure. This repository manages the strategic and tactical guidance for both Kubernetes-native and VM-based production environments.
 
-## Core Documentation
+## Operations Book (The Strategy)
+Architecture, SLOs, security hardening, and maintenance planning.
+- [**Operations Strategy Index**](operations-book/README.md)
+  - [**Helm Stack Strategy**](operations-book/helm-stack/README.md)
+  - [**Ansible Stack Strategy**](operations-book/ansible-stack/README.md)
+  - [**Security & Hardening**](operations-book/security-hardening.md)
 
-- [**Architecture**](architecture.md)
-  An in-depth look at the system components (Management, Signal, Relay, Coturn), their interactions, and the Caddy reverse proxy setup.
+## Runbooks (The Action)
+Tactical tasks for deployment, upgrades, failover, and incident response.
+- [**Runbook Index**](runbooks/README.md)
+  - [**Helm Stack Runbooks**](runbooks/helm-stack/README.md)
+  - [**Ansible Stack Runbooks**](runbooks/ansible-stack/README.md)
 
-- [**Manual Caddy Deployment**](caddy-deployment.md)
-  A step-by-step specific guide for manually deploying NetBird behind a Caddy reverse proxy, including required modifications to the official NetBird configuration.
-
-
-## Infrastructure Documentation
-
-- [**Ansible Deployment**](../infrastructure/ansible/README.md)
-  Instructions for using the provided Ansible playbooks to automate the deployment of NetBird, Caddy, and Keycloak.
-
-- [**Quickstart with Zitadel**](../infrastructure/scripts/README.md)
-  A script-based approach to bootstrapping a full monitoring and testing environment with an integrated Zitadel Identity Provider.
+## Infrastructure Stacks
+Source code and technical READMEs for the deployment stacks.
+- [**Helm Stack (GKE)**](../infrastructure/helm-stack/README.md)
+- [**Ansible Stack (VMs)**](../infrastructure/ansible-stack/README.md)

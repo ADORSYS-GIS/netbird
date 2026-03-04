@@ -1,165 +1,145 @@
-# NetBird Deployment Architecture with Caddy
+# NetBird Infrastructure Architecture
 
-This document outlines the architecture of a self-hosted NetBird deployment using Docker Compose and Caddy as a reverse proxy. The goal is to provide a secure, scalable, and easily manageable VPN solution.
+This document provides a high-level overview of the NetBird infrastructure automation architecture.
 
-## 1. Overview of NetBird
+## Overview
 
-NetBird is an open-source VPN solution built on WireGuard®. It creates a secure overlay network that allows devices to communicate directly and securely, regardless of their physical location. Key components of NetBird include:
+NetBird is a WireGuard-based VPN platform that provides secure peer-to-peer connectivity. This repository automates the deployment of NetBird's management infrastructure using two different approaches: VM-based (Ansible) and Kubernetes-based (Helm).
 
-*   **Management Service**: The central control plane for NetBird. It manages users, devices, network routes, and authentication.
-*   **Signal Service**: Facilitates the initial handshake and peer discovery between NetBird clients.
-*   **STUN/TURN/Relay Service (CoTURN)**: Handles NAT traversal for peer-to-peer connections. If a direct peer-to-peer connection cannot be established (e.g., due to strict NATs), the TURN server relays traffic.
-*   **NetBird Client**: Software running on each device that connects to the NetBird network, establishing WireGuard tunnels.
+## Deployment Options
 
-## 2. System Architecture Diagram
-
-The following diagram illustrates the high-level architecture of the NetBird deployment:
+<details>
+<summary>Click to expand High-Level Architecture</summary>
 
 ```mermaid
-graph TD
-    subgraph Internet
-        A[NetBird Client] --> B(Caddy Reverse Proxy)
-        B --> C(NetBird Management Service)
-        B --> D(NetBird Signal Service)
-        B --> E(CoTURN Service)
-        A --> E
-    end
-
-    subgraph "NetBird Server (Docker Host)"
-        B
-        C
-        D
-        E
-        F[PostgreSQL Database] 
-    end
-
-    C --> F
-    C --> G["External Identity Provider (Keycloak)"]
-    A --> G
+graph TB
+    Internet[Internet Users & Clients]
+    LB[Load Balancer / DNS]
+    Proxy[Reverse Proxy - HAProxy or Ingress]
+    Management[Management Services - API + Signal + Dashboard]
+    Relay[Relay Services - TURN Servers]
+    Pool[Connection Pool - PgBouncer]
+    Database[(Database - PostgreSQL)]
+    Auth[Identity Provider - Keycloak]
+    
+    Internet --> LB
+    LB --> Proxy
+    Proxy --> Management
+    Proxy --> Relay
+    Management --> Pool
+    Pool --> Database
+    Management -.auth.-> Auth
 ```
 
-## 3. Component Breakdown and Functionality
+**Ansible Stack**: VM-based deployment using Terraform + Ansible + Docker Compose
+- Best for: Multi-cloud, on-premise, VM-based infrastructure
+- [Detailed Documentation](../infrastructure/ansible-stack/README.md)
 
-### 3.1. Caddy Reverse Proxy
+**Helm Stack**: Kubernetes deployment using Helm charts
+- Best for: Cloud-native, auto-scaling, Kubernetes environments
+- [Detailed Documentation](../infrastructure/helm-stack/README.md)
 
-Caddy acts as the entry point for all external HTTP/HTTPS traffic to the NetBird services. Its primary functions include:
+</details>
 
-*   **SSL/TLS Termination**: Automatically obtains and renews Let's Encrypt certificates, encrypting all traffic between clients and the NetBird services.
-*   **Traffic Routing**: Routes incoming requests to the appropriate NetBird backend service (Management, Signal) based on the domain and path.
-*   **Security Headers**: Adds essential HTTP security headers to protect against common web vulnerabilities.
+## Common Components
+
+### Management Services
+- **Management API**: Core NetBird management service (REST API + gRPC, ports 8081/10000)
+- **Signal Server**: WebRTC signaling for peer connections (WebSocket, port 8083)
+- **Dashboard**: Web UI for administration (React SPA, port 8082)
+
+### Identity Provider
+- **Keycloak**: OIDC authentication and user management
+- **Configuration**: Automated realm (`netbird`) and client setup via Terraform
+
+### Database
+- **Options**: SQLite (development), PostgreSQL (production)
+- **High Availability**: PgBouncer connection pooling for transaction-level pooling (Ansible stack)
+
+### Networking
+- **Load Balancing**: HAProxy (Ansible) or Ingress (Kubernetes) with health checks and failover
+- **TLS**: Automatic certificates via ACME/Let's Encrypt with 90-day lifecycle
+- **Relay Servers**: Optional TURN servers for NAT traversal (Coturn, ports 3478, 49152-65535, 33080)
+
+## Security Architecture
+
+1. **Network Security**: Cloud security groups and firewall rules
+   - Ingress rules: Only ports 80, 443, 3478, 33080
+   - Egress rules: Restricted to necessary services
+   - Private networking for internal communication
+
+2. **Host Firewalls**: UFW on VMs (Ansible stack)
+   - Default deny policy
+   - Explicit allow rules per service
+   - SSH access restricted to management IPs
+
+3. **Private Networking**: Services bind to private IPs
+   - Management services on private network
+   - Database on private network
+   - Only reverse proxy exposed publicly
+
+4. **TLS Encryption**: All communication encrypted
+   - TLS 1.2+ minimum
+   - Strong cipher suites only
+   - Perfect forward secrecy
+
+5. **Zero Trust**: Identity-based access control
+   - OIDC authentication required
+   - JWT token validation
+   - Role-based authorization
+
+See [Security Hardening Guide](./operations-book/security-hardening.md) for detailed security practices.
+
+## Deployment Model
+
+<details>
+<summary>Click to expand Deployment Workflow Comparison</summary>
 
 ```mermaid
-graph TD
-    subgraph External Client
-        Client[Browser / NetBird Client]
+graph LR
+    subgraph "Ansible Stack - Discovery-Based"
+        A1[Existing VMs] --> A2[Terraform Discovers via Tags]
+        A2 --> A3[Generate Inventory]
+        A3 --> A4[Ansible Configures]
+        A4 --> A5[Docker Compose Deploys]
     end
-
-    subgraph Caddy Server
-        Caddy[Caddy Reverse Proxy]
+    
+    subgraph "Helm Stack - Provisioned"
+        H1[Terraform Provisions] --> H2[GKE Cluster + Cloud SQL]
+        H2 --> H3[Helm Install]
+        H3 --> H4[K8s Deploys Pods]
     end
-
-    subgraph "NetBird Services (Docker Containers)"
-        Management[NetBird Management Service]
-        Signal[NetBird Signal Service]
-    end
-
-    Client -- HTTPS (443) --> Caddy
-    Caddy -- "/api/admin, /api/vps" --> Management
-    Caddy -- "/signal" --> Signal
-    Caddy -- "WebSocket (for UI)" --> Management
-    Caddy -- "WebSocket (for client communication)" --> Signal
 ```
 
-### 3.2. NetBird Management Service
+</details>
 
-The core of the NetBird control plane. It is responsible for:
+### Discovery-Based (Ansible Stack)
 
-*   **User and Device Management**: Stores information about registered users and devices.
-*   **Network Configuration**: Manages network routes, peer configurations, and access policies.
-*   **Authentication**: Integrates with an external Identity Provider (e.g., Keycloak) for user authentication.
-*   **API Endpoints**: Provides RESTful APIs for the NetBird UI and clients.
+- Terraform discovers existing VMs via cloud provider tags/labels
+- Ansible configures software on discovered infrastructure
+- No infrastructure provisioning - uses existing resources
+- Multi-cloud support (AWS, GCP, Azure, on-premise)
+- Idempotent deployments
 
-### 3.3. NetBird Signal Service
+### Provisioned (Helm Stack)
 
-The Signal service facilitates the initial communication between NetBird clients and the Management service. It's crucial for:
+- Terraform provisions GKE cluster and Cloud SQL
+- Helm deploys NetBird services
+- Fully automated infrastructure and application deployment
+- Cloud-native patterns (auto-scaling, self-healing)
+- Kubernetes-native monitoring and logging
 
-*   **Peer Discovery**: Helps clients find and establish connections with other peers in the network.
-*   **WireGuard Key Exchange**: Securely exchanges WireGuard public keys between peers.
-*   **NAT Traversal Assistance**: Works with the CoTURN service to help clients behind NATs establish connections.
+## Related Documentation
 
-### 3.4. CoTURN Service (STUN/TURN/Relay)
+### Operations
+- [Operations Book](./operations-book/README.md) - Strategic operations guidance
+- [Runbooks](./runbooks/README.md) - Tactical deployment procedures
+- [Security Hardening](./operations-book/security-hardening.md) - Security best practices
 
-The CoTURN server is essential for establishing peer-to-peer connections, especially when devices are behind different types of Network Address Translators (NATs).
+### Deployment
+- [Ansible Stack Deployment](./runbooks/ansible-stack/deployment.md)
+- [Helm Stack Deployment](./runbooks/helm-stack/deployment.md)
+- [Configuration Reference](../infrastructure/ansible-stack/README.md)
 
-*   **STUN (Session Traversal Utilities for NAT)**: Helps clients discover their public IP address and port, enabling direct peer-to-peer connections.
-*   **TURN (Traversal Using Relays around NAT)**: If STUN fails to establish a direct connection, TURN acts as a relay, forwarding traffic between peers. This ensures connectivity even in complex network environments.
-
-### 3.5. PostgreSQL Database
-
-A PostgreSQL database is used by the NetBird Management service to persist all critical data, including:
-
-*   User accounts
-*   Device registrations
-*   Network configurations
-*   Access rules
-
-### 3.6. External Identity Provider (Keycloak)
-
-While not part of the automated deployment in this specific Ansible suite, an external Identity Provider (IdP) like Keycloak is crucial for user authentication and authorization in NetBird.
-
-*   **OIDC (OpenID Connect)**: NetBird uses OIDC to delegate user authentication to the IdP.
-*   **SSO (Single Sign-On)**: Allows users to authenticate once with the IdP and gain access to NetBird and other integrated applications.
-
-## 4. How NetBird Provides VPN Solution
-
-NetBird leverages the components described above to deliver a robust VPN solution:
-
-1.  **Client Registration & Authentication**:
-    *   A user attempts to log in to the NetBird UI or client.
-    *   The NetBird Management service redirects the user to the configured external IdP (e.g., Keycloak) for authentication.
-    *   Upon successful authentication, the IdP issues an OIDC token to the NetBird Management service.
-    *   The Management service registers the client device and issues a unique WireGuard key pair and configuration.
-
-2.  **Network Configuration & Peer Discovery**:
-    *   The NetBird client connects to the Management service (via Caddy) to retrieve its network configuration and a list of other peers.
-    *   The Signal service (via Caddy) facilitates the exchange of WireGuard public keys and endpoint information between peers.
-    *   The CoTURN service assists in NAT traversal, providing STUN services to discover public IPs and TURN relay services if direct peer-to-peer connections are not possible.
-
-3.  **Secure Peer-to-Peer Tunnels**:
-    *   Using the exchanged WireGuard keys and endpoint information, NetBird clients establish direct, encrypted WireGuard tunnels with each other.
-    *   All traffic between devices within the NetBird network is encrypted and routed through these secure tunnels.
-
-4.  **Access Control**:
-    *   The Management service enforces access policies, ensuring that devices can only communicate with authorized peers and services.
-    *   This creates a "zero-trust" network where access is granted based on identity and policy, not network location.
-
-```mermaid
-sequenceDiagram
-    participant NBClient as NetBird Client
-    participant Caddy as Caddy Reverse Proxy
-    participant NBManagement as NetBird Management
-    participant IdP as Identity Provider (Keycloak)
-    participant NBSignal as NetBird Signal
-    participant CoTURN as CoTURN Service
-
-    NBClient->>Caddy: Connect to NetBird UI/API
-    Caddy->>NBManagement: Proxy request
-    NBManagement->>IdP: Redirect for OIDC Authentication
-    IdP-->>NBClient: User authenticates
-    NBClient->>IdP: Authentication successful
-    IdP-->>NBManagement: OIDC Token
-    NBManagement-->>NBClient: Device registered, WireGuard config issued
-
-    NBClient->>Caddy: Request peer list & config
-    Caddy->>NBManagement: Proxy request
-    NBManagement-->>NBClient: Peer list & config
-
-    NBClient->>Caddy: Connect to Signal Service (WebSocket)
-    Caddy->>NBSignal: Proxy WebSocket
-    NBSignal-->>NBClient: Facilitate peer discovery & key exchange
-
-    NBClient->>CoTURN: STUN/TURN for NAT traversal
-    CoTURN-->>NBClient: Public IP / Relay info
-
-    NBClient->>NBClient: Establish WireGuard Tunnel (Peer-to-Peer)
-    NBClient-->>NBClient: Encrypted VPN Traffic
+### Use Cases
+- [Use Cases Guide](./use-cases.md) - Common deployment scenarios 

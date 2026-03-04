@@ -1,0 +1,10 @@
+---
+# NetBird relay role entry point - deploys relay server for peer connections
+
+- name: Include cleanup tasks
+  ansible.builtin.include_tasks: cleanup.yml
+  when: (netbird_state | default('present') == 'absent') or ('cleanup' in ansible_run_tags) or ('cleanup-relay' in ansible_run_tags)
+
+- name: Include deployment tasks
+  ansible.builtin.include_tasks: deploy.yml
+  when: netbird_state | default('present') == 'present'

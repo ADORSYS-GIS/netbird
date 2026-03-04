@@ -1,0 +1,20 @@
+---
+- name: Check if NetBird compose file exists
+  ansible.builtin.stat:
+    path: /etc/netbird/docker-compose.yml
+  register: netbird_compose_stat
+  listen: Restart PgBouncer
+
+- name: Restart PgBouncer container
+  community.docker.docker_compose_v2:
+    project_src: /etc/netbird
+    state: present
+    recreate: always
+    remove_orphans: true
+    services:
+      - pgbouncer
+  when: 
+    - enable_pgbouncer | default(false) | bool
+    - pgbouncer_state | default('present') == 'present'
+    - netbird_compose_stat.stat.exists
+  listen: Restart PgBouncer

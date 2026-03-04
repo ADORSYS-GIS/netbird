@@ -1,0 +1,186 @@
+---
+# NetBird Infrastructure Deployment - Main Playbook
+# Deploys complete NetBird stack with HA support
+
+- name: Deploy NetBird Infrastructure
+  hosts: all
+  become: true
+  gather_facts: true
+  
+  pre_tasks:
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+# Deploy NetBird Management Services FIRST (they don't need HAProxy)
+- name: Deploy NetBird Management
+  hosts: management
+  become: true
+  
+  roles:
+    - role: common
+      tags: [common]
+    - role: pgbouncer
+      when: enable_pgbouncer | default(false)
+      tags: [pgbouncer, database]
+    - role: netbird-mgmt
+      tags: [netbird, management]
+      
+  post_tasks:
+    - name: Wait for NetBird management to be healthy
+      community.docker.docker_container_info:
+        name: netbird-management
+      register: mgmt_health
+      until: mgmt_health.container.State.Status | default('') == 'running'
+      retries: 30
+      delay: 2
+      
+    - name: Wait for NetBird signal to be healthy
+      community.docker.docker_container_info:
+        name: netbird-signal
+      register: signal_health
+      until: signal_health.container.State.Status | default('') == 'running'
+      retries: 30
+      delay: 2
+    
+    - name: Verify management API is responding
+      ansible.builtin.uri:
+        url: "http://localhost:8081/"
+        status_code: [200, 404]  # 404 is OK, means API is responding
+        timeout: 5
+      register: mgmt_api_health
+      until: mgmt_api_health.status in [200, 404]
+      retries: 30
+      delay: 2
+
+# Deploy NetBird Relay Services (need management API)
+- name: Deploy NetBird Relay
+  hosts: relay
+  become: true
+  
+  roles:
+    - role: common
+      tags: [common]
+    - role: netbird-relay
+      tags: [netbird, relay]
+      
+  post_tasks:
+    - name: Wait for relay to be healthy
+      community.docker.docker_container_info:
+        name: netbird-relay
+      register: relay_health
+      until: relay_health.container.State.Health.Status | default('') == 'healthy'
+      retries: 30
+      delay: 2
+
+# Deploy HAProxy LAST (load balances existing services)
+- name: Deploy HAProxy
+  hosts: reverse_proxy
+  become: true
+  
+  pre_tasks:
+    - name: Check if this is initial deployment
+      stat:
+        path: /opt/haproxy/docker-compose.yml
+      register: haproxy_exists
+      
+  roles:
+    - role: haproxy
+      tags: [haproxy, proxy, ha]
+      
+  post_tasks:
+    - name: Wait for HAProxy to be healthy
+      community.docker.docker_container_info:
+        name: haproxy
+      register: haproxy_health
+      until: haproxy_health.container.State.Health.Status | default('') == 'healthy'
+      retries: 30
+      delay: 2
+    
+    # Sync ACME account from primary node to all other nodes AFTER deployment
+    # This ensures the primary node has created an account first via the acme-sh container
+    - name: Wait for ACME account to be created on primary node
+      ansible.builtin.wait_for:
+        path: /root/.acme.sh/ca/acme-v02.api.letsencrypt.org/directory/account.key
+        timeout: 120
+      delegate_to: "{{ play_hosts[0] }}"
+      run_once: true
+      when: play_hosts | length > 1
+      tags: [haproxy, proxy, ha, acme]
+    
+    - name: Sync ACME account to all nodes
+      when: 
+        - play_hosts | length > 1
+        - inventory_hostname != play_hosts[0]
+      block:
+        - name: Archive ACME account data on primary node
+          ansible.builtin.archive:
+            path: /root/.acme.sh
+            dest: /tmp/acme-account-sync.tar.gz
+            format: gz
+          delegate_to: "{{ play_hosts[0] }}"
+          run_once: true
+          tags: [haproxy, proxy, ha, acme]
+
+        - name: Fetch ACME account archive to Ansible controller
+          ansible.builtin.fetch:
+            src: /tmp/acme-account-sync.tar.gz
+            dest: /tmp/acme-account-sync.tar.gz
+            flat: true
+          delegate_to: "{{ play_hosts[0] }}"
+          run_once: true
+          tags: [haproxy, proxy, ha, acme]
+
+        - name: Copy ACME account archive to this node
+          ansible.builtin.copy:
+            src: /tmp/acme-account-sync.tar.gz
+            dest: /tmp/acme-account-sync.tar.gz
+            mode: '0600'
+          tags: [haproxy, proxy, ha, acme]
+
+        - name: Extract ACME account on this node
+          ansible.builtin.unarchive:
+            src: /tmp/acme-account-sync.tar.gz
+            dest: /root
+            remote_src: true
+          tags: [haproxy, proxy, ha, acme]
+
+        - name: Cleanup ACME account archive on this node
+          ansible.builtin.file:
+            path: /tmp/acme-account-sync.tar.gz
+            state: absent
+          tags: [haproxy, proxy, ha, acme]
+        
+        - name: Cleanup ACME account archive on primary node
+          ansible.builtin.file:
+            path: /tmp/acme-account-sync.tar.gz
+            state: absent
+          delegate_to: "{{ play_hosts[0] }}"
+          run_once: true
+          tags: [haproxy, proxy, ha, acme]
+        
+        - name: Restart acme-sh container on this node to use synced account
+          community.docker.docker_container:
+            name: acme-sh
+            state: started
+            restart: true
+          tags: [haproxy, proxy, ha, acme]
+
+# Final summary
+- name: Deployment Summary
+  hosts: localhost
+  gather_facts: false
+  
+  tasks:
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "✅ NetBird deployment complete!"
+          - "Dashboard: https://{{ netbird_domain }}"
+          - "HAProxy Stats: http://{{ netbird_domain }}:8404/stats"
+          - ""
+          - "Management nodes: {{ groups['management'] | length }}"
+          - "Proxy nodes: {{ groups['reverse_proxy'] | length }}"
+          - "Relay nodes: {{ groups['relay'] | length }}"

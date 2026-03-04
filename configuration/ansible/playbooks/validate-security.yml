@@ -1,0 +1,180 @@
+---
+- name: Validate Network Security Configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - validate
+    - security
+  
+  tasks:
+    - name: Validate Reverse Proxy has public IP
+      ansible.builtin.assert:
+        that:
+          - hostvars[item].public_ip is defined
+          - hostvars[item].public_ip != ""
+        msg: "Reverse Proxy {{ item }} must have a public IP"
+      loop: "{{ groups['reverse_proxy'] | default([]) }}"
+      tags:
+        - validate
+        - network
+    
+    - name: Validate Management nodes use Private IPs for deployment
+      ansible.builtin.debug:
+        msg: "Management node {{ item }} is configured with private IP {{ hostvars[item].private_ip }}"
+      loop: "{{ groups['management'] | default([]) }}"
+      tags:
+        - validate
+        - network
+
+- name: Validate Port Exposure
+  hosts: management
+  become: true
+  tags:
+    - validate
+    - security
+    - ports
+  
+  tasks:
+    - name: Get listening ports information
+      ansible.builtin.wait_for:
+        host: "0.0.0.0"
+        port: "{{ item }}"
+        state: started
+        timeout: 1
+      register: exposed_ports
+      failed_when: false
+      changed_when: false
+      loop:
+        - 8080
+        - 8081
+        - 8083
+        - 10000
+      tags:
+        - validate
+        - ports
+    
+    - name: Fail if ports are exposed on 0.0.0.0
+      ansible.builtin.fail:
+        msg: "CRITICAL SECURITY RISK: Port {{ item.item }} is listening on 0.0.0.0! It should bind to {{ ansible_default_ipv4.address }}."
+      when: item.state is defined and item.state == "started"
+      loop: "{{ exposed_ports.results }}"
+      tags:
+        - validate
+        - ports
+
+    - name: Get Docker container port bindings
+      community.docker.docker_host_info:
+        containers: yes
+      register: docker_containers
+      tags:
+        - validate
+        - ports
+      
+    - name: Check Docker containers for public port bindings
+      ansible.builtin.set_fact:
+        exposed_container_ports: "{{ docker_containers.containers | selectattr('Ports', 'defined') | map(attribute='Ports') | flatten | selectattr('IP', 'defined') | selectattr('IP', 'equalto', '0.0.0.0') | list }}"
+      tags:
+        - validate
+        - ports
+      
+    - name: Fail if Docker binds to 0.0.0.0
+      ansible.builtin.fail:
+        msg: "CRITICAL SECURITY RISK: Docker containers are binding to 0.0.0.0! Check docker-compose.yml. Exposed: {{ exposed_container_ports }}"
+      when: exposed_container_ports | length > 0
+      tags:
+        - validate
+        - ports
+
+- name: Validate UFW Status
+  hosts: all
+  become: true
+  tags:
+    - validate
+    - security
+    - firewall
+    
+  tasks:
+    - name: Check UFW status
+      community.general.ufw:
+        state: enabled
+      check_mode: yes
+      register: ufw_status
+      tags:
+        - validate
+        - firewall
+      
+    - name: Verify UFW is enabled
+      ansible.builtin.assert:
+        that:
+          - ufw_status is defined
+        fail_msg: "UFW firewall is not properly configured"
+        success_msg: "✅ UFW firewall is active"
+      tags:
+        - validate
+        - firewall
+      
+    - name: Verify SSH port is allowed
+      community.general.ufw:
+        rule: allow
+        port: 22
+        proto: tcp
+      check_mode: yes
+      register: ssh_rule
+      tags:
+        - validate
+        - firewall
+      
+    - name: Confirm SSH rule exists
+      ansible.builtin.assert:
+        that:
+          - ssh_rule is defined
+        fail_msg: "SSH port 22 is not allowed in UFW"
+        success_msg: "✅ SSH port is allowed"
+      tags:
+        - validate
+        - firewall
+
+- name: Validate Certificates
+  hosts: reverse_proxy
+  become: true
+  tags:
+    - validate
+    - security
+    - certificates
+    
+  tasks:
+    - name: Check if certificate exists
+      ansible.builtin.stat:
+        path: "/etc/haproxy/certs/{{ netbird_domain }}.pem"
+      register: cert_file
+      when: proxy_type | default('haproxy') == 'haproxy'
+      tags:
+        - validate
+        - certificates
+    
+    - name: Verify certificate is not expired
+      community.crypto.x509_certificate_info:
+        path: "/etc/haproxy/certs/{{ netbird_domain }}.pem"
+      register: cert_info
+      when: 
+        - proxy_type | default('haproxy') == 'haproxy'
+        - cert_file.stat.exists
+      tags:
+        - validate
+        - certificates
+    
+    - name: Check certificate expiry (must be valid for at least 1 day)
+      ansible.builtin.assert:
+        that:
+          - cert_info.not_after is defined
+          - (cert_info.not_after | to_datetime('%Y%m%d%H%M%SZ')) > (ansible_date_time.iso8601 | to_datetime('%Y-%m-%dT%H:%M:%SZ') + timedelta(days=1))
+        fail_msg: "Certificate expires within 1 day!"
+        success_msg: "✅ Certificate is valid"
+      when: 
+        - proxy_type | default('haproxy') == 'haproxy'
+        - cert_file.stat.exists
+        - cert_info.not_after is defined
+      tags:
+        - validate
+        - certificates

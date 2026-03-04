@@ -1,0 +1,170 @@
+global
+    log stdout local0
+    log stdout local1 notice
+
+    stats socket /tmp/haproxy/admin.sock mode 666 level admin
+    stats timeout 30s
+
+    user haproxy
+    group haproxy
+
+    # ACME account thumbprint for stateless HTTP-01 challenge response
+    # Ansible will set this after creating the ACME account
+    {% if acme_account_thumbprint is defined and acme_account_thumbprint %}
+    setenv ACCOUNT_THUMBPRINT '{{ acme_account_thumbprint }}'
+    {% endif %}
+
+    # Connection tuning
+    maxconn 4096
+
+    # SSL/TLS Configuration (HAProxy 3.2+ modern standards)
+    ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384
+    ssl-default-bind-options ssl-min-ver TLSv1.2 no-tls-tickets
+    tune.ssl.default-dh-param 2048
+    tune.ssl.capture-buffer-size 256
+    tune.ssl.cachesize 1000000
+
+    # HTTP Tuning
+    tune.http.maxhdr 32
+
+    # Buffer tuning
+    tune.bufsize 16384
+    tune.maxrewrite 1024
+
+defaults
+    log     global
+    mode    http
+    option  httplog
+    option  dontlognull
+    option  forwardfor except 127.0.0.1
+    option  redispatch
+    retries 2
+    timeout connect 5000ms
+    timeout client  50000ms
+    timeout server  50000ms
+    timeout tunnel  3600000ms
+    timeout http-keep-alive 60s
+
+listen stats
+    bind 0.0.0.0:8404
+    stats enable
+    stats uri {{ haproxy_stats_uri }}
+    stats refresh {{ haproxy_stats_refresh }}s
+    {% if haproxy_stats_password %}
+    stats auth admin:{{ haproxy_stats_password }}
+    stats admin if TRUE
+    {% else %}
+    # WARNING: stats password not set - enable auth by setting haproxy_stats_password
+    {% endif %}
+
+# HTTP frontend: ACME HTTP-01 challenges + redirect everything else to HTTPS
+# This is the exact pattern from the HAProxy ACME article:
+#   - HAProxy answers .well-known/acme-challenge/ directly using the account thumbprint
+#   - All other traffic is redirected 301 to HTTPS
+frontend http_in
+    bind 0.0.0.0:80
+    mode http
+
+    # ACME HTTP-01 Challenge Response (Stateless Mode)
+    # HAProxy responds directly: TOKEN.ACCOUNT_THUMBPRINT
+    # No separate HTTP server needed - acme.sh --stateless uses this
+    http-request return status 200 content-type text/plain lf-string "%[path,field(-1,/)].${ACCOUNT_THUMBPRINT}\n" if { path_beg '/.well-known/acme-challenge/' }
+
+    # Redirect all other HTTP traffic to HTTPS
+    http-request redirect scheme https code 301
+
+# HTTPS frontend: TLS termination + all NetBird service routing
+# strict-sni: HAProxy starts with empty /etc/haproxy/certs/ - no cert required at boot
+# acme-sh deploys the cert hot via Runtime API (stats socket) - no reload needed
+frontend public_https
+    bind 0.0.0.0:443 ssl crt /etc/haproxy/certs/ strict-sni alpn h2,http/1.1
+    mode http
+
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https
+    http-request set-header X-Forwarded-For %[src]
+    http-request set-header X-Forwarded-Host %[req.hdr(Host)]
+    http-request set-header X-Real-IP %[src]
+
+    # ACLs for NetBird service routing
+    acl is_grpc_mgmt    path_beg /management.ManagementService/
+    acl is_grpc_signal  path_beg /signalexchange.SignalExchange/
+    acl is_ws_signal    path_beg /ws-proxy/signal
+    acl is_ws_mgmt      path_beg /ws-proxy/management
+    acl is_relay        path_beg /relay
+    acl is_api          path_beg /api/
+
+    use_backend mgmt_grpc       if is_grpc_mgmt
+    use_backend signal_grpc     if is_grpc_signal
+    use_backend signal_ws       if is_ws_signal
+    use_backend mgmt_ws         if is_ws_mgmt
+    use_backend relay_backend   if is_relay
+    use_backend mgmt_api        if is_api
+
+    default_backend dashboard_backend
+
+# Management gRPC backend (HTTP/2 required for gRPC)
+backend mgmt_grpc
+    mode http
+    balance source
+    stick-table type ip size 100k expire 30m
+    stick on src
+    {% for host in groups['management'] %}
+    server {{ host }} {{ hostvars[host]['private_ip'] }}:8081 proto h2 check inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
+    {% endfor %}
+
+# Signal gRPC backend (HTTP/2 required for gRPC)
+backend signal_grpc
+    mode http
+    balance source
+    stick-table type ip size 100k expire 30m
+    stick on src
+    {% for host in groups['management'] %}
+    server {{ host }} {{ hostvars[host]['private_ip'] }}:8083 proto h2 check inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
+    {% endfor %}
+
+# Signal WebSocket backend
+backend signal_ws
+    mode http
+    balance source
+    stick-table type ip size 100k expire 30m
+    stick on src
+    {% for host in groups['management'] %}
+    server {{ host }} {{ hostvars[host]['private_ip'] }}:8083 check inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
+    {% endfor %}
+
+# Management WebSocket backend
+backend mgmt_ws
+    mode http
+    balance source
+    stick-table type ip size 100k expire 30m
+    stick on src
+    {% for host in groups['management'] %}
+    server {{ host }} {{ hostvars[host]['private_ip'] }}:8081 check inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
+    {% endfor %}
+
+# Relay backend
+backend relay_backend
+    mode http
+    balance roundrobin
+    {% for host in groups['relay'] %}
+    server {{ host }} {{ hostvars[host]['private_ip'] }}:33080 check inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
+    {% endfor %}
+
+# Management API backend
+backend mgmt_api
+    mode http
+    balance roundrobin
+    {% for host in groups['management'] %}
+    server {{ host }} {{ hostvars[host]['private_ip'] }}:8081 check inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
+    {% endfor %}
+
+# Dashboard backend
+backend dashboard_backend
+    mode http
+    balance source
+    stick-table type ip size 100k expire 30m
+    stick on src
+    {% for host in groups['management'] %}
+    server {{ host }} {{ hostvars[host]['private_ip'] }}:8082 check inter {{ haproxy_health_check_interval | default(5000) }}ms fall {{ haproxy_health_check_fall | default(2) }} rise {{ haproxy_health_check_rise | default(3) }}
+    {% endfor %}

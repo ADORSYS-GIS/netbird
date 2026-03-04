@@ -1,0 +1,31 @@
+{
+    email {{ acme_email }}
+    {% if acme_provider == 'letsencrypt' %}
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
+    {% elif acme_provider == 'zerossl' %}
+    acme_ca https://acme.zerossl.com/v2/DV90
+    {% endif %}
+}
+
+{{ netbird_domain }} {
+    # SSL Configuration for AWS ephemeral domains
+    {% if "compute.amazonaws.com" in netbird_domain %}
+    tls internal
+    {% endif %}
+
+    # Security headers
+    header {
+        Strict-Transport-Security max-age=31536000;
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+    }
+
+    # Reverse proxy to NetBird management API (port 8081)
+    reverse_proxy /* {
+        to localhost:8081
+        header_up X-Real-IP {remote_ip}
+        header_up X-Forwarded-For {remote_ip}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+}

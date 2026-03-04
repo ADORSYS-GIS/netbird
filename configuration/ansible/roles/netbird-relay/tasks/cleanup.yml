@@ -1,0 +1,19 @@
+---
+# NetBird relay cleanup - removes relay container and configuration
+
+- name: Stop NetBird relay
+  community.docker.docker_compose_v2:
+    project_src: /etc/netbird-relay
+    state: absent
+  failed_when: false
+  tags:
+    - cleanup
+    - cleanup-relay
+
+- name: Remove NetBird relay configuration directory
+  ansible.builtin.file:
+    path: /etc/netbird-relay
+    state: absent
+  tags:
+    - cleanup
+    - cleanup-relay

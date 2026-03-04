@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  caddy:
+    image: "caddy:{{ caddy_version | default('2.8.0') }}"
+    container_name: caddy
+    restart: unless-stopped
+    networks:
+      - netbird
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+networks:
+  netbird:
+    external: true
+
+volumes:
+  caddy_data:
+  caddy_config:
