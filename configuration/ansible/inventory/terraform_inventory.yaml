@@ -1,3 +1,4 @@
+
 all:
   vars:
     # NetBird Configuration
@@ -148,3 +149,4 @@ all:
           private_ip: 172.31.11.58
           ansible_user: ubuntu
           relay_domain: 13.63.35.177
+
