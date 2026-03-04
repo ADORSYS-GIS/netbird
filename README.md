@@ -1,42 +1,36 @@
-# NetBird Infrastructure
+# NetBird Infrastructure Automation
 
-## Overview
+Production-grade automation framework for deploying NetBird on any infrastructure.
 
-Production-grade infrastructure automation for NetBird deployments.
+## Deployment Guide
 
-This repository provides comprehensive deployment solutions for NetBird with Caddy setup as reverse proxy.
+Choose the deployment method that matches your infrastructure:
 
-## NetBird Features
+### [Option A: VM Deployment (Recommended)](./docs/runbooks/ansible-stack/deployment.md)
+Deploy on standard Virtual Machines (AWS EC2, Google Compute Engine, Azure VMs, or On-Prem) using **Terraform** for discovery and **Ansible** for configuration.
 
-Explore the core functionalities and security benefits of NetBird.
+*   [**Start VM Deployment**](./docs/runbooks/ansible-stack/deployment.md)
+*   [**Infrastructure README**](./infrastructure/ansible-stack/README.md)
 
-- **Use Cases**: Discover the primary use cases for NetBird, from creating a simple point-to-site VPN to establishing a complex mesh network for your entire infrastructure. [Learn more...](docs/use-cases/netbird-use-cases.md)
+### [Option B: Kubernetes Deployment](./docs/runbooks/helm-stack/deployment.md)
+Deploy on a Kubernetes cluster using **Terraform** and **Helm**.
 
-- **Secure Application Access**: A step-by-step guide to leveraging NetBird for secure, zero-trust access to your private applications. [Learn more...](docs/use-cases/netbird-secure-access-guide.md)
+*   [**Kubernetes Guide**](./docs/runbooks/helm-stack/deployment.md)
 
-## Deployment Options
+## Documentation
 
-### 1. Automated Deployment (Recommended)
+*   [**Architecture Overview**](./docs/architecture.md)
+*   [**Security Hardening**](./docs/operations-book/security-hardening.md)
+*   [**Configuration Reference**](./infrastructure/ansible-stack/README.md)
+*   [**Troubleshooting**](./docs/runbooks/ansible-stack/troubleshooting-restoration.md)
 
-Use Ansible to automatically provision NetBird with Caddy, Keycloak, and all required configurations.
+## Features
 
-- **Guide**: [Ansible Deployment Guide](infrastructure/ansible/README.md)
+-   **Multi-Cloud Discovery**: Automatically discovers existing VMs via tags/labels
+-   **Security First**: Private IP binding, UFW firewall, defense-in-depth architecture
+-   **Automated Identity**: Terraform configures Keycloak realms and clients
+-   **Hybrid Ready**: Supports AWS, GCP, Azure, and manual/on-premises hosts
 
-### 2. Quickstart (Test/Dev)
+## Acknowledgments
 
-Quickly bootstrap a full stack including Zitadel IdP using the setup script.
-
-- **Guide**: [Quickstart with Zitadel](infrastructure/scripts/README.md)
-
-### 3. Manual Deployment
-
-Manually deploy NetBird with Caddy reverse proxy on a single host.
-
-- **Guide**: [Manual Caddy Deployment Guide](docs/caddy-deployment.md)
-
-
-## Support and Contributions
-
-- Documentation: [docs/](docs/)
-- Issues: GitHub issue tracker
-- NetBird: [Official documentation](https://docs.netbird.io/)
+Built with [NetBird](https://netbird.io) - Open-source VPN management platform.

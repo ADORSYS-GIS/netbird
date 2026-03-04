@@ -1,0 +1,70 @@
+# =============================================================================
+# NetBird Terraform Configuration - Example
+# Copy this file to terraform.tfvars and fill in your values
+# =============================================================================
+
+# GCP Configuration
+project_id   = "your-gcp-project-id"
+region       = "us-central1"
+cluster_name = "your-gke-cluster-name"
+
+# NetBird Domain (must be a valid domain you control)
+netbird_domain = "netbird.example.com"
+
+# Keycloak Configuration
+keycloak_url            = "https://keycloak.example.com"
+keycloak_realm          = "netbird"
+keycloak_admin_user     = "admin"
+keycloak_admin_password = "your-keycloak-admin-password"
+
+# Keycloak Client IDs (as per official docs)
+keycloak_client_id      = "netbird-dashboard"
+keycloak_mgmt_client_id = "netbird-backend"
+
+# Let's Encrypt Configuration
+letsencrypt_email = "admin@example.com"
+
+# Database Configuration
+# db_type: Type of database ('sqlite' or 'postgres')
+# create_db: Whether to create a new database instance (true) or use an existing one (false)
+db_type         = "postgres"
+create_db       = true
+external_db_dsn = "" # Optional: Full PostgreSQL connection string (overrides Cloud SQL if provided)
+db_password      = "secure-database-password"
+db_instance_tier = "db-f1-micro"  # Use db-custom-2-7680 for production
+
+# High Availability
+# SQLite: must be 1
+# PostgreSQL: 3+ recommended for production
+replica_count = 1
+
+# Namespace
+namespace = "netbird"
+
+# Encryption key (32 characters, leave empty for auto-generation)
+management_database_encryption_key = ""
+
+# Helm Chart Version
+netbird_chart_version = "1.9.0"
+
+# Infrastructure Toggles
+# Set to true if you need Terraform to install these components
+install_cert_manager  = false
+install_ingress_nginx = false
+create_cert_issuer    = true
+ingress_class_name    = "nginx"
+cert_issuer_name      = "letsencrypt-prod"
+
+# Logging (debug, info, warn, error)
+log_level = "info"
+
+# Metrics (enable if you have Prometheus installed)
+enable_metrics = false
+
+# Relay/TURN Configuration
+enable_relay = true
+stun_servers = ["stun:stun.l.google.com:19302"]
+
+# Initial Admin User (required — user is always created)
+netbird_admin_email    = "admin@example.com"
+netbird_admin_password = "ChangeMeN0w!!"  # Min 12 chars, upper+lower+digit+special

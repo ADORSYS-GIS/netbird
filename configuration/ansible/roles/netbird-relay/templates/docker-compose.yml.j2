@@ -1,0 +1,38 @@
+services:
+  netbird-relay:
+    image: "netbirdio/relay:{{ netbird_version }}"
+    container_name: netbird-relay
+    restart: unless-stopped
+    networks:
+      - netbird
+    ports:
+      - "33080:33080"
+    environment:
+      NB_LOG_LEVEL: "{{ netbird_log_level }}"
+      NB_LISTEN_ADDRESS: ":33080"
+      # Exposed address must point to HAProxy frontend, not direct relay IP
+      # Clients connect via: rels://domain:443/relay (through HAProxy with TLS)
+      NB_EXPOSED_ADDRESS: "rels://{{ netbird_domain }}:443/relay"
+      NB_AUTH_SECRET: "{{ relay_auth_secret }}"
+    healthcheck:
+      # Relay returns HTTP 426 (Upgrade Required) for WebSocket endpoint
+      test: ["CMD", "sh", "-c", "wget --proxy off --no-verbose --tries=1 --spider http://localhost:33080/relay 2>&1 | grep 426"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+networks:
+  netbird:
+    external: true

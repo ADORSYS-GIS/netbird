@@ -1,0 +1,32 @@
+# NetBird Coturn configuration
+listening-port={{ coturn_port }}
+
+listening-ip=0.0.0.0
+
+# External IP for relay candidate advertisement (critical for Docker/Cloud)
+# Advertises this IP to clients so they can reach relay from external networks
+external-ip={{ hostvars[inventory_hostname]['ansible_host'] }}/0.0.0.0
+
+# Realm for the TURN server
+realm={{ coturn_realm }}
+
+# Fingerprint in messages (required for WebRTC compatibility)
+fingerprint
+
+# CRITICAL: Use static-auth-secret ONLY (NOT lt-cred-mech - they conflict!)
+# NetBird relay uses static auth secret, not long-term credentials
+use-auth-secret
+
+# Static auth secret for NetBird relay
+static-auth-secret={{ relay_auth_secret }}
+
+# Port range for relay
+min-port={{ coturn_min_port }}
+max-port={{ coturn_max_port }}
+
+# Logging - keep stdout for Docker container logging
+# Docker captures stdout automatically via logging driver
+log-file=stdout
+
+# Recommended security settings
+no-multicast-peers

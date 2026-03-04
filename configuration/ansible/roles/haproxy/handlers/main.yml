@@ -1,0 +1,8 @@
+---
+- name: Restart HAProxy
+  community.docker.docker_compose_v2:
+    project_src: /opt/haproxy
+    state: present
+    recreate: always
+    pull: never
+  listen: Restart HAProxy

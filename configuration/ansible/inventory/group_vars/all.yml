@@ -1,0 +1,176 @@
+---
+# ============================================================================
+# NETBIRD ANSIBLE SYSTEM DEFAULTS
+# ============================================================================
+# PURPOSE: System-level defaults that do not change between deployments.
+#          These are internal settings (Docker config, TLS, timeouts, paths).
+#
+# WHAT BELONGS HERE:
+#   - Docker runtime config (image names, memory limits, restart policies)
+#   - File system paths (cert dirs, socket paths)
+#   - TLS cipher suites and protocol versions
+#   - Internal timeouts and connection limits
+#   - Monitoring/observability defaults
+#
+# WHAT DOES NOT BELONG HERE:
+#   - Anything set in terraform.tfvars (domain, IPs, credentials, versions,
+#     feature flags, pool sizes, health check thresholds, etc.)
+#   - Ansible connection vars (ansible_ssh_private_key_file — Terraform manages this)
+#
+# VARIABLE PRECEDENCE (lowest → highest):
+#   role defaults → inventory all.vars (Terraform) → group_vars/all ← YOU ARE HERE
+#                                                   → host_vars → extra_vars
+#
+# IMPORTANT: group_vars/all OVERRIDES inventory all.vars. Do NOT define here
+# any variable that Terraform injects via terraform_inventory.yaml, or it
+# will silently override the Terraform-managed value.
+# ============================================================================
+
+# ============================================================================
+# NETBIRD APPLICATION DEFAULTS
+# ============================================================================
+
+netbird_state: present
+netbird_additional_domains: []
+
+netbird_data_dir: "/var/lib/netbird"
+netbird_config_dir: "/etc/netbird"
+
+# ============================================================================
+# DOCKER RUNTIME CONFIGURATION
+# ============================================================================
+
+docker_restart_policy: "unless-stopped"
+docker_log_driver: "json-file"
+docker_log_max_size: "100m"
+docker_log_max_file: "5"
+docker_memory_default: "512m"
+docker_memory_reservation_default: "256m"
+
+# ============================================================================
+# PGBOUNCER — SYSTEM DEFAULTS
+# (pool sizes, pool mode, and listen port come from tfvars via Terraform)
+# ============================================================================
+
+pgbouncer_state: present
+pgbouncer_container_name: pgbouncer
+pgbouncer_memory: "256m"
+pgbouncer_memory_reservation: "128m"
+# pgbouncer_listen_address: "0.0.0.0"
+
+# Internal timeouts (seconds) — Moved to tfvars/inventory
+# Hard connection ceilings — Moved to tfvars/inventory
+# Logging & stats — Moved to tfvars/inventory
+# Health check internals — Moved to tfvars/inventory
+
+# Performance internals
+pgbouncer_statement_cache_size: 100
+pgbouncer_statement_hash_size: 65536
+pgbouncer_server_round_robin: true
+pgbouncer_so_reuseport: true
+
+# Prometheus exporter
+pgbouncer_enable_prometheus_metrics: true
+pgbouncer_prometheus_port: 9127
+
+# ============================================================================
+# HAPROXY — SYSTEM DEFAULTS
+# (health check thresholds, stick table settings, and stats password
+#  come from tfvars via Terraform)
+# ============================================================================
+
+haproxy_image: "haproxy:3.2-alpine"
+haproxy_container_name: haproxy
+haproxy_memory: "512m"
+haproxy_memory_reservation: "256m"
+haproxy_memory_swap: "512m"
+
+# Global connection limits
+haproxy_maxconn: 4096
+haproxy_connect_timeout: 5000
+haproxy_client_timeout: 50000
+haproxy_server_timeout: 50000
+
+# Certificate directories (inside container)
+haproxy_certs_dir: "/etc/haproxy/certs"
+haproxy_private_dir: "/etc/haproxy/private"
+haproxy_sock_dir: "/var/run/haproxy"
+
+# Certificate directories (on host)
+haproxy_certs_host_dir: "/etc/haproxy/certs"
+haproxy_private_host_dir: "/etc/haproxy/private"
+
+# Stats UI
+haproxy_stats_enabled: true
+haproxy_stats_port: 8404
+haproxy_stats_uri: "/stats"
+haproxy_stats_refresh: 10
+haproxy_stats_socket: "/var/run/haproxy/stats.sock"
+
+# Log format
+haproxy_log_format: "%ci:%cp [%tr] %ft %b/%s %TR/%Tw/%Tc/%Tr/%Ta %ST %B %CC %CS %tsc %ac/%fc/%bc/%sc/%rc %sq/%bq %{+Q}r"
+
+# ============================================================================
+# TLS CONFIGURATION
+# ============================================================================
+
+tls_min_version: "TLSv1.2"
+tls_ciphers: "ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384"
+tls_options: "ssl-min-ver {{ tls_min_version }} no-tls-tickets"
+
+# ============================================================================
+# ACME / CERTIFICATE RENEWAL — SYSTEM DEFAULTS
+# (acme_email and acme_provider come from tfvars via Terraform)
+# ============================================================================
+
+enable_acme: true
+acme_server: "letsencrypt"  # production - can be overridden by inventory
+# acme_server: "letsencrypt_test"  # staging (for testing)
+
+acme_renew_days: 30
+acme_renew_hours: 72
+acme_http01_port: 80
+acme_http01_timeout: 30
+
+enable_acme_monitoring: true
+acme_status_check_interval: 3600
+
+# ACME Account Thumbprint (for stateless mode)
+# Managed by Terraform - passed via inventory template
+# Do NOT set here - it will be overridden by Terraform values
+
+# ============================================================================
+# COTURN — SYSTEM DEFAULTS
+# (coturn_port, coturn_min_port, coturn_max_port, coturn_realm,
+#  coturn_password come from Terraform)
+# ============================================================================
+
+# Coturn port ranges are managed by Terraform
+# Do NOT set coturn_min_port or coturn_max_port here
+
+# ============================================================================
+# FIREWALL
+# ============================================================================
+
+manage_firewall: true
+ufw_enabled: true
+firewall_comment: "NetBird Infrastructure"
+
+# ============================================================================
+# ANSIBLE CONNECTION DEFAULTS
+# (ansible_ssh_private_key_file is managed by Terraform — do NOT set here)
+# ============================================================================
+
+ansible_user: ubuntu
+ansible_python_interpreter: /usr/bin/python3
+
+# ============================================================================
+# MONITORING & OBSERVABILITY
+# ============================================================================
+
+enable_prometheus_metrics: true
+prometheus_port: 9091
+
+health_check_interval: 10
+health_check_timeout: 5
+health_check_retries: 3

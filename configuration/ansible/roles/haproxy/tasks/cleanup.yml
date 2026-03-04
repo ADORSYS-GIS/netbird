@@ -1,0 +1,50 @@
+---
+# HAProxy cleanup - removes containers, networks, configurations, and ACME data
+
+- name: Stop and remove HAProxy containers
+  community.docker.docker_compose_v2:
+    project_src: /opt/haproxy
+    state: absent
+    remove_images: local
+    remove_volumes: true
+  failed_when: false
+  tags:
+    - cleanup
+    - cleanup-haproxy
+    - proxy
+
+- name: Remove HAProxy Docker network
+  community.docker.docker_network:
+    name: haproxy
+    state: absent
+  failed_when: false
+  tags:
+    - cleanup
+    - cleanup-haproxy
+    - proxy
+
+- name: Cleanup HAProxy configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/haproxy
+    - /opt/haproxy
+    - /tmp/haproxy
+  tags:
+    - cleanup
+    - cleanup-haproxy
+    - proxy
+
+- name: Remove ACME.sh data
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /root/.acme.sh
+    - /var/log/acme
+  # Note: This removes the ACME account, so thumbprint will need regeneration on redeploy
+  tags:
+    - cleanup
+    - cleanup-haproxy
+    - proxy

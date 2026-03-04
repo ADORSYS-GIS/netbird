@@ -1,0 +1,128 @@
+{
+  "Stuns": [
+    {% for addr in stun_addresses %}
+    {
+      "URI": "{{ addr }}",
+      "Username": "",
+      "Password": ""
+    }{{ "," if not loop.last else "" }}
+    {% else %}
+    {
+      "URI": "stun:{{ netbird_domain }}:3478",
+      "Username": "",
+      "Password": ""
+    }
+    {% endfor %}
+  ],
+  "Relay": {
+    "Addresses": [
+      {% for addr in relay_addresses %}
+      "{{ addr }}"{{ "," if not loop.last else "" }}
+      {% else %}
+      "rels://{{ netbird_domain }}:443/relay"
+      {% endfor %}
+    ],
+    "CredentialsTTL": "24h",
+    "Secret": "{{ relay_auth_secret }}"
+  },
+  "Signal": {
+    "Proto": "https",
+    "URI": "{{ netbird_domain }}:443",
+    "Username": "",
+    "Password": ""
+  },
+  "IdpManagerConfig": {
+    "ManagerType": "keycloak",
+    "ClientConfig": {
+       "Issuer": "{{ keycloak_url }}/realms/{{ keycloak_realm }}",
+       "TokenEndpoint": "{{ keycloak_url }}/realms/{{ keycloak_realm }}/protocol/openid-connect/token",
+       "ClientID": "{{ keycloak_backend_client_id }}",
+       "ClientSecret": "{{ keycloak_backend_client_secret }}",
+       "GrantType": "client_credentials"
+    },
+    "ExtraConfig": {
+       "AdminEndpoint": "{{ keycloak_url }}/admin/realms/{{ keycloak_realm }}"
+    }
+  },
+  "Datadir": "/var/lib/netbird",
+  "DataStoreEncryptionKey": "{{ netbird_encryption_key }}",
+  "StoreConfig": {
+    "Engine": "{{ database_engine | default('sqlite') }}"{% if database_engine in ['postgres', 'postgresql'] %},
+    "Postgres": {
+      "Dsn": "{% if enable_pgbouncer | default(false) %}postgresql://{{ db_user }}:{{ db_password }}@pgbouncer:{{ pgbouncer_listen_port | default(6432) }}/{{ db_name }}?sslmode=disable{% else %}{{ database_dsn }}{% endif %}"
+    }{% elif database_engine == 'mysql' %},
+    "Mysql": {
+      "Dsn": "{{ database_dsn }}"
+    }{% endif %}
+  },
+  "HttpConfig": {
+    "Address": ":80",
+    "AuthIssuer": "{{ keycloak_url }}/realms/{{ keycloak_realm }}",
+    "AuthAudience": "{{ keycloak_client_id }}",
+    "AuthUserIDClaim": "sub",
+    "OIDCConfigEndpoint": "{{ keycloak_oidc_endpoint }}",
+    "IdpSignKeyRefreshEnabled": true
+  },
+  "ReverseProxy": {
+    "TrustedHTTPProxies": [
+      {% for host in groups['reverse_proxy'] | default([]) %}
+      "{{ hostvars[host]['ansible_host'] }}/32"{{ "," if not loop.last else "" }}
+      {% endfor %}
+      {% if groups['reverse_proxy'] | default([]) | length > 0 %},{% endif %}
+      "127.0.0.1/32",
+      "172.16.0.0/12",
+      "10.0.0.0/8"
+    ],
+    "TrustedHTTPProxiesCount": {{ groups['reverse_proxy'] | length if 'reverse_proxy' in groups else 0 }},
+    "TrustedPeers": [
+      "0.0.0.0/0"
+    ]
+  },
+  "ListenAddress": ":80",
+  "ExposedAddress": "https://{{ netbird_domain }}:443",
+  "MetricsPort": {{ netbird_metrics_port | default(9091) }},
+  "HealthcheckAddress": ":9000",
+  "LogLevel": "{{ netbird_log_level | default('info') }}",
+  "LogFile": "console",
+  "Auth": {
+    "Issuer": "{{ keycloak_url }}/realms/{{ keycloak_realm }}",
+    "Audience": "{{ keycloak_client_id }}",
+    "UserIDClaim": "sub",
+    "SignKeyRefreshEnabled": true,
+    "DashboardRedirectURIs": [
+      "https://{{ netbird_domain }}/nb-auth",
+      "https://{{ netbird_domain }}/nb-silent-auth"
+    ],
+    "CliRedirectURIs": [
+      "http://localhost:53000/",
+      "http://localhost:54000/"
+    ]
+  },
+  "DeviceAuthorizationFlow": {
+    "Provider": "hosted",
+    "ProviderConfig": {
+      "Audience": "{{ keycloak_client_id }}",
+      "ClientID": "{{ keycloak_client_id }}",
+      "Scope": "openid profile email offline_access"
+    }
+  },
+  "PKCEAuthorizationFlow": {
+    "ProviderConfig": {
+      "Audience": "{{ keycloak_client_id }}",
+      "ClientID": "{{ keycloak_client_id }}",
+      "Scope": "openid profile email offline_access api",
+      "RedirectURLs": [
+        "http://localhost:53000/",
+        "http://localhost:54000/"
+      ]
+    }
+  },
+  "ClusterConfig": {
+    "Enabled": {{ 'true' if enable_clustering | default(false) else 'false' }}{% if enable_clustering | default(false) %},
+    "Peers": [
+      {% for host in groups['management'] -%}
+      "{{ hostvars[host]['private_ip'] }}:{{ netbird_cluster_port | default(9090) }}"{{ "," if not loop.last else "" }}
+      {% endfor -%}
+    ]{% endif %}
+  }
+}

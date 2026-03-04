@@ -1,0 +1,11 @@
+---
+# Common role entry point - foundation for all NetBird infrastructure
+# Installs Docker, configures firewall, and sets up base networking
+
+- name: Include cleanup tasks
+  ansible.builtin.include_tasks: cleanup.yml
+  when: (netbird_state | default('present') == 'absent') or ('cleanup' in ansible_run_tags) or ('cleanup-common' in ansible_run_tags) or ('cleanup-all' in ansible_run_tags)
+
+- name: Include deployment tasks
+  ansible.builtin.include_tasks: deploy.yml
+  when: netbird_state | default('present') == 'present'

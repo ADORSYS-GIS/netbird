@@ -1,0 +1,28 @@
+---
+# PgBouncer cleanup - removes configuration and data directories
+
+- name: Remove firewall rule for PgBouncer
+  community.general.ufw:
+    rule: allow
+    delete: yes
+    port: "{{ pgbouncer_listen_port | string }}"
+    proto: tcp
+  failed_when: false
+  when: manage_firewall | default(true)
+  tags:
+    - cleanup
+    - cleanup-pgbouncer
+    - database
+    - firewall
+
+- name: Remove PgBouncer configuration and data
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/pgbouncer
+    - /var/lib/pgbouncer
+  tags:
+    - cleanup
+    - cleanup-pgbouncer
+    - database

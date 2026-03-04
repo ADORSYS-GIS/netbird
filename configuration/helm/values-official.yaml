@@ -1,0 +1,350 @@
+# =============================================================================
+# NetBird Helm Values - Official Chart v1.9.0
+# Version: 1.9.0
+# Rollout Trigger: ${rollout_restart_trigger}
+# https://artifacthub.io/packages/helm/netbird/netbird
+# =============================================================================
+
+# =============================================================================
+# Management Component
+# =============================================================================
+management:
+  enabled: true
+  replicaCount: ${db_engine == "sqlite" ? 1 : replica_count}
+
+  strategy:
+    type: Recreate
+  
+  image:
+    pullPolicy: IfNotPresent
+
+  # ConfigMap for management.json - the chart mounts this at /etc/netbird/management.json
+  # Terraform template vars are resolved at plan time; Go env templates are resolved at runtime
+  configmap: |-
+    {
+      "Stuns": [
+        { "Proto": "udp", "URI": "stun:stun.l.google.com:19302", "Username": "", "Password": "" }
+      ],
+      "TURNConfig": {
+        "TimeBasedCredentials": false,
+        "CredentialsTTL": "12h",
+        "Secret": "{{ .NETBIRD_TURN_SECRET }}",
+        "Turns": [
+          { "Proto": "udp", "URI": "turn:${netbird_domain}:443", "Username": "", "Password": "" }
+        ]
+      },
+      "Relay": {
+        "Addresses": ["rels://${netbird_domain}:443"],
+        "CredentialsTTL": "24h",
+        "Secret": "{{ .NETBIRD_RELAY_SECRET }}"
+      },
+      "Signal": {
+        "Proto": "https",
+        "URI": "${netbird_domain}:443"
+      },
+      "Datadir": "{{ .NETBIRD_DATADIR }}",
+      "DataStoreEncryptionKey": "{{ .NETBIRD_DATASTORE_ENCRYPTION_KEY }}",
+      "StoreConfig": {
+        "Engine": "{{ .NETBIRD_DATASTORE_ENGINE }}"
+      },
+      "HttpConfig": {
+        "Address": "0.0.0.0:80",
+        "AuthIssuer": "${keycloak_url}/realms/${keycloak_realm}",
+        "AuthAudience": "{{ .NETBIRD_AUTH_AUDIENCE }}",
+        "AuthKeysLocation": "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/certs",
+        "AuthUserIDClaim": "{{ .NETBIRD_AUTH_USER_ID_CLAIM }}",
+        "OIDCConfigEndpoint": "{{ .NETBIRD_AUTH_OIDC_CONFIG_ENDPOINT }}",
+        "IdpSignKeyRefreshEnabled": true
+      },
+      "IdpManagerConfig": {
+        "ManagerType": "{{ .NETBIRD_IDP_MANAGER_TYPE }}",
+        "ClientConfig": {
+          "Issuer": "${keycloak_url}/realms/${keycloak_realm}",
+          "TokenEndpoint": "{{ .NETBIRD_IDP_MANAGER_CONFIG_TOKEN_ENDPOINT }}",
+          "ClientID": "{{ .NETBIRD_IDP_MANAGER_CONFIG_CLIENT_ID }}",
+          "ClientSecret": "{{ .NETBIRD_IDP_MANAGER_CONFIG_CLIENT_SECRET }}",
+          "GrantType": "{{ .NETBIRD_IDP_MANAGER_CONFIG_GRANT_TYPE }}"
+        },
+        "ExtraConfig": {
+          "AdminEndpoint": "{{ .NETBIRD_IDP_MANAGER_CONFIG_ADMIN_ENDPOINT }}"
+        }
+      },
+      "DeviceAuthorizationFlow": {
+        "Provider": "{{ .NETBIRD_AUTH_DEVICE_AUTH_PROVIDER }}",
+        "ProviderConfig": {
+          "Audience": "{{ .NETBIRD_AUTH_DEVICE_AUTH_AUDIENCE }}",
+          "ClientID": "{{ .NETBIRD_AUTH_DEVICE_AUTH_CLIENT_ID }}",
+          "Scope": "{{ .NETBIRD_AUTH_DEVICE_AUTH_SCOPE }}",
+          "UseIDToken": {{ .NETBIRD_AUTH_DEVICE_AUTH_USE_ID_TOKEN }},
+          "TokenEndpoint": "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/token",
+          "DeviceAuthEndpoint": "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/auth/device",
+          "Domain": "${netbird_domain}"
+        }
+      },
+      "PKCEAuthorizationFlow": {
+        "ProviderConfig": {
+          "Audience": "{{ .NETBIRD_AUTH_AUDIENCE }}",
+          "ClientID": "{{ .NETBIRD_AUTH_DEVICE_AUTH_CLIENT_ID }}",
+          "Scope": "{{ .NETBIRD_AUTH_DEVICE_AUTH_SCOPE }}",
+          "AuthorizationEndpoint": "{{ .NETBIRD_AUTH_PKCE_AUTHORIZATION_ENDPOINT }}",
+          "TokenEndpoint": "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/token",
+          "RedirectURLs": ["https://${netbird_domain}", "http://localhost:53000"]
+        }
+      }
+    }
+
+  # Security contexts left as chart defaults (empty)
+  podSecurityContext: {}
+  securityContext: {}
+
+  # Environment variables from secrets
+  envFromSecret:
+    NETBIRD_DATASTORE_ENCRYPTION_KEY: netbird-secrets/datastore_encryption_key
+    NETBIRD_IDP_MANAGER_CONFIG_CLIENT_SECRET: netbird-secrets/idp_client_secret
+    NETBIRD_TURN_SECRET: netbird-secrets/turn_secret
+    NETBIRD_RELAY_SECRET: netbird-secrets/relay_password
+    %{ if db_engine == "postgres" }
+    NETBIRD_STORE_ENGINE_POSTGRES_DSN: netbird-secrets/dsn
+    %{ endif }
+
+  # Plain environment variables (used by Go template substitution in management.json)
+  env:
+    # HTTP Configuration
+    NETBIRD_HTTP_BASE_URL: "https://${netbird_domain}"
+    
+    # Authentication/OIDC Configuration
+    NETBIRD_AUTH_OIDC_CONFIG_ENDPOINT: "${keycloak_url}/realms/${keycloak_realm}/.well-known/openid-configuration"
+    NETBIRD_AUTH_AUDIENCE: "${backend_client_id}"
+    NETBIRD_AUTH_DEVICE_AUTH_PROVIDER: "hosted"
+    NETBIRD_AUTH_DEVICE_AUTH_CLIENT_ID: "${dashboard_client_id}"
+    NETBIRD_AUTH_DEVICE_AUTH_AUDIENCE: "${backend_client_id}"
+    NETBIRD_AUTH_DEVICE_AUTH_SCOPE: "openid profile email offline_access api"
+    NETBIRD_AUTH_DEVICE_AUTH_USE_ID_TOKEN: "false"
+    NETBIRD_AUTH_PKCE_AUTHORIZATION_ENDPOINT: "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/auth"
+    NETBIRD_AUTH_USER_ID_CLAIM: "sub"
+    
+    # IDP Manager Configuration (Keycloak)
+    NETBIRD_IDP_MANAGER_TYPE: "keycloak"
+    NETBIRD_IDP_MANAGER_CONFIG_CLIENT_ID: "${backend_client_id}"
+    NETBIRD_IDP_MANAGER_CONFIG_TOKEN_ENDPOINT: "${keycloak_url}/realms/${keycloak_realm}/protocol/openid-connect/token"
+    NETBIRD_IDP_MANAGER_CONFIG_GRANT_TYPE: "client_credentials"
+    NETBIRD_IDP_MANAGER_CONFIG_ADMIN_ENDPOINT: "${keycloak_url}/admin/realms/${keycloak_realm}"
+    
+    # Datastore Configuration
+    NETBIRD_DATASTORE_ENGINE: "${db_engine}"
+    %{ if db_engine == "sqlite" }
+    NETBIRD_DATADIR: "/var/lib/netbird"
+    %{ endif }
+    
+    # Logging
+    NETBIRD_LOG_LEVEL: "${log_level}"
+    NETBIRD_LOG_FILE: "console"
+
+  # Persistence for SQLite (required if not using external DB)
+  persistentVolume:
+    enabled: ${db_engine == "sqlite" ? true : false}
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+
+  # Resources - Scaled for production stability
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 400m    # Increased from 200m
+      memory: 512Mi # Increased from 256Mi
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+
+  # HTTP Ingress
+  ingress:
+    enabled: true
+    className: "${ingress_class_name}"
+    annotations:
+      kubernetes.io/ingress.class: "${ingress_class_name}"
+      nginx.org/mergeable-ingress-type: "minion"
+    hosts:
+      - host: "${netbird_domain}"
+        paths:
+          - path: /api
+            pathType: Prefix
+          - path: /.well-known/netbird
+            pathType: Prefix
+
+  # gRPC Ingress
+  ingressGrpc:
+    enabled: true
+    className: "${ingress_class_name}"
+    annotations:
+      kubernetes.io/ingress.class: "${ingress_class_name}"
+      nginx.org/mergeable-ingress-type: "minion"
+      nginx.org/grpc-services: "netbird-management"
+    hosts:
+      - host: "${netbird_domain}"
+        paths:
+          - path: /management.ManagementService
+            pathType: Prefix
+
+
+# =============================================================================
+# Signal Component
+# =============================================================================
+signal:
+  enabled: true
+  replicaCount: ${replica_count}
+  
+  image:
+    pullPolicy: IfNotPresent
+
+  podSecurityContext: {}
+  securityContext: {}
+
+  env:
+    NB_LOG_LEVEL: "${log_level}"
+    NB_LOG_FILE: "console"
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  ingress:
+    enabled: true
+    className: "${ingress_class_name}"
+    annotations:
+      kubernetes.io/ingress.class: "${ingress_class_name}"
+      nginx.org/mergeable-ingress-type: "minion"
+      nginx.org/grpc-services: "netbird-signal"
+    hosts:
+      - host: "${netbird_domain}"
+        paths:
+          - path: /signalexchange.SignalExchange
+            pathType: Prefix
+
+
+# =============================================================================
+# Relay Component
+# =============================================================================
+relay:
+  enabled: ${enable_relay}
+  replicaCount: ${replica_count}
+  
+  image:
+    pullPolicy: IfNotPresent
+
+  podSecurityContext: {}
+  securityContext: {}
+
+  envFromSecret:
+    NB_AUTH_SECRET: netbird-secrets/relay_password
+
+  env:
+    NB_LOG_LEVEL: "${log_level}"
+    NB_LISTEN_ADDRESS: ":33080"
+    NB_EXPOSED_ADDRESS: "rels://${netbird_domain}:443"
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  service:
+    type: ClusterIP
+    port: 33080
+
+  ingress:
+    enabled: true
+    className: "${ingress_class_name}"
+    annotations:
+      kubernetes.io/ingress.class: "${ingress_class_name}"
+      nginx.org/mergeable-ingress-type: "minion"
+    hosts:
+      - host: "${netbird_domain}"
+        paths:
+          - path: /relay
+            pathType: Prefix
+
+# =============================================================================
+# Dashboard Component
+# =============================================================================
+dashboard:
+  enabled: true
+  replicaCount: ${replica_count}
+  
+  image:
+    pullPolicy: IfNotPresent
+
+  podSecurityContext: {}
+  securityContext: {}
+
+  env:
+    # Management API Endpoints
+    NETBIRD_MGMT_API_ENDPOINT: "https://${netbird_domain}"
+    NETBIRD_MGMT_GRPC_API_ENDPOINT: "https://${netbird_domain}"
+    
+    # OIDC Configuration
+    NETBIRD_AUTH_AUTHORITY: "${keycloak_url}/realms/${keycloak_realm}"
+    NETBIRD_AUTH_CLIENT_ID: "${dashboard_client_id}"
+    NETBIRD_AUTH_AUDIENCE: "${backend_client_id}"
+
+    # React App Envs (mapped for init_react_envs.sh)
+    AUTH_AUTHORITY: "${keycloak_url}/realms/${keycloak_realm}"
+    AUTH_CLIENT_ID: "${dashboard_client_id}"
+    AUTH_AUDIENCE: "${backend_client_id}"
+    AUTH_REDIRECT_URI: ""
+    AUTH_SILENT_REDIRECT_URI: "/silent-auth"
+    AUTH_SUPPORTED_SCOPES: "openid profile email offline_access api"
+    USE_AUTH0: "false"
+
+    # Feature Flags
+    NETBIRD_TOKEN_SOURCE: "accessToken"
+    NETBIRD_DRAG_QUERY_PARAMS: "true"
+    NETBIRD_DISABLE_IPV6: "false"
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  ingress:
+    enabled: false
+
+
+# =============================================================================
+# Metrics (Optional)
+# =============================================================================
+metrics:
+  enabled: ${enable_metrics}
+  serviceMonitor:
+    enabled: ${enable_metrics}
+    namespace: ""
+    labels: {}
+    interval: 30s
+    scrapeTimeout: 10s
+
+# =============================================================================
+# Extra Manifests (Optional)
+# =============================================================================
+extraManifests: []

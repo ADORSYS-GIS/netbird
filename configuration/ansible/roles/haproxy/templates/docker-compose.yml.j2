@@ -1,0 +1,199 @@
+services:
+  # HAProxy 3.2 - TLS Termination + Load Balancing
+  # Handles ACME challenges directly using stateless mode (no separate HTTP server needed)
+  # Can start with empty certificate directory using strict-sni
+  haproxy:
+    image: "{{ haproxy_image }}"
+    container_name: haproxy
+    restart: unless-stopped
+    networks:
+      - haproxy
+    ports:
+      - "80:80"      # HTTP (ACME challenges + redirect to HTTPS)
+      - "443:443"    # HTTPS (TLS termination)
+      - "8404:8404"  # Stats UI
+    volumes:
+      - /etc/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - /etc/haproxy/certs:/etc/haproxy/certs:rw
+      - /tmp/haproxy:/tmp/haproxy:rw
+    healthcheck:
+      test: ["CMD", "sh", "-c", "pidof haproxy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+    memswap_limit: 512m
+    cap_add:
+      - NET_BIND_SERVICE
+
+  # ACME.sh - Let's Encrypt Certificate Automation (Stateless Mode)
+  # Issues and renews certificates using HAProxy's stateless ACME challenge response
+  # Deploys certificates via HAProxy Runtime API (zero downtime)
+  # Runs daily cron to check for renewals (auto-renews 30 days before expiry)
+  acme-sh:
+    image: neilpang/acme.sh:latest
+    container_name: acme-sh
+    restart: unless-stopped
+    networks:
+      - haproxy
+    volumes:
+      - /root/.acme.sh:/acme.sh:rw
+      - /etc/haproxy/certs:/certs:rw
+      - /tmp/haproxy:/tmp/haproxy:rw
+      - /var/log/acme:/var/log/acme:rw
+    environment:
+      AUTO_UPGRADE: "1"
+      LE_EMAIL: "{{ acme_email }}"
+      DEPLOY_HAPROXY_HOT_UPDATE: "yes"
+      DEPLOY_HAPROXY_STATS_SOCKET: "/tmp/haproxy/admin.sock"
+      DEPLOY_HAPROXY_PEM_PATH: "/certs"
+    entrypoint: sh
+    command:
+      - -c
+      - |
+        set -e
+        mkdir -p /acme.sh /certs /var/log/acme
+        LOG_FILE="/var/log/acme/acme.log"
+        
+        echo "[$$(date)] ========================================" | tee -a $$LOG_FILE
+        echo "[$$(date)] ACME.sh Certificate Manager (Stateless Mode)" | tee -a $$LOG_FILE
+        echo "[$$(date)] Domain: {{ netbird_domain }}" | tee -a $$LOG_FILE
+        echo "[$$(date)] ========================================" | tee -a $$LOG_FILE
+        
+        # Log the actual account thumbprint being used (critical for debugging)
+        ACCOUNT_KEY="/acme.sh/ca/acme-v02.api.letsencrypt.org/directory/account.key"
+        if [ -f "$$ACCOUNT_KEY" ]; then
+          ACTUAL_THUMBPRINT=$$(acme.sh --register-account --server {{ acme_server }} 2>&1 | grep "ACCOUNT_THUMBPRINT" | awk -F"'" '{print $$2}' || echo "unknown")
+          echo "[$$(date)] Account key: $$ACCOUNT_KEY" | tee -a $$LOG_FILE
+          echo "[$$(date)] NOTE: Ensure HAProxy ACCOUNT_THUMBPRINT matches this account" | tee -a $$LOG_FILE
+        else
+          echo "[$$(date)] No account key found - new account will be registered" | tee -a $$LOG_FILE
+        fi
+        
+        # Wait for HAProxy to be ready
+        echo "[$$(date)] Waiting for HAProxy to be ready..." | tee -a $$LOG_FILE
+        for i in $$(seq 1 30); do
+          if [ -S /tmp/haproxy/admin.sock ]; then
+            echo "[$$(date)] HAProxy Runtime API socket found" | tee -a $$LOG_FILE
+            break
+          fi
+          sleep 2
+        done
+        
+        # Check if a VALID certificate already exists (not just any file)
+        CERT_FILE="/certs/{{ netbird_domain }}.pem"
+        CERT_VALID=false
+        if [ -f "$$CERT_FILE" ] && openssl x509 -in "$$CERT_FILE" -noout 2>/dev/null; then
+          EXPIRY=$$(openssl x509 -in "$$CERT_FILE" -noout -enddate 2>/dev/null | cut -d= -f2)
+          echo "[$$(date)] Valid certificate found at $$CERT_FILE (expires: $$EXPIRY)" | tee -a $$LOG_FILE
+          CERT_VALID=true
+        elif [ -f "$$CERT_FILE" ]; then
+          echo "[$$(date)] File exists at $$CERT_FILE but is NOT a valid certificate - will re-issue" | tee -a $$LOG_FILE
+          rm -f "$$CERT_FILE"
+        fi
+        
+        if $$CERT_VALID; then
+          echo "[$$(date)] Certificate valid, skipping issuance" | tee -a $$LOG_FILE
+        else
+          echo "[$$(date)] Certificate not found, issuing new certificate" | tee -a $$LOG_FILE
+          echo "[$$(date)] Using stateless mode (HAProxy responds to challenges)" | tee -a $$LOG_FILE
+          
+          # Issue certificate using stateless mode
+          if acme.sh \
+            --issue \
+            -d {{ netbird_domain }} \
+            --stateless \
+            --server {{ acme_server }} \
+            --log 2>&1 | tee -a $$LOG_FILE; then
+            
+            echo "[$$(date)] ✓ Certificate issued successfully!" | tee -a $$LOG_FILE
+            
+            # Deploy certificate manually - combine cert + key + CA into PEM
+            echo "[$$(date)] Deploying certificate to HAProxy..." | tee -a $$LOG_FILE
+            
+            CERT_DIR="/acme.sh/{{ netbird_domain }}_ecc"
+            if [ -f "$$CERT_DIR/{{ netbird_domain }}.cer" ] && [ -f "$$CERT_DIR/{{ netbird_domain }}.key" ]; then
+              # Combine certificate, private key, and CA chain into single PEM file
+              cat "$$CERT_DIR/{{ netbird_domain }}.cer" \
+                  "$$CERT_DIR/{{ netbird_domain }}.key" \
+                  "$$CERT_DIR/ca.cer" > "$$CERT_FILE"
+              
+              chmod 644 "$$CERT_FILE"
+              echo "[$$(date)] ✓ Certificate deployed successfully!" | tee -a $$LOG_FILE
+              ls -lh "$$CERT_FILE" | tee -a $$LOG_FILE
+            else
+              echo "[$$(date)] ✗ ERROR: Certificate files not found in $$CERT_DIR" | tee -a $$LOG_FILE
+              ls -la "$$CERT_DIR" | tee -a $$LOG_FILE
+              exit 1
+            fi
+          else
+            echo "[$$(date)] ✗ ERROR: Certificate issuance failed" | tee -a $$LOG_FILE
+            echo "[$$(date)] Possible causes:" | tee -a $$LOG_FILE
+            echo "[$$(date)]   - Let's Encrypt rate limits (5 per week per domain)" | tee -a $$LOG_FILE
+            echo "[$$(date)]   - DNS not pointing to this server" | tee -a $$LOG_FILE
+            echo "[$$(date)]   - Port 80 not accessible from internet" | tee -a $$LOG_FILE
+            echo "[$$(date)]   - ACCOUNT_THUMBPRINT not set in HAProxy config" | tee -a $$LOG_FILE
+            exit 1
+          fi
+        fi
+        
+        echo "[$$(date)] ✓ Certificate ready" | tee -a $$LOG_FILE
+        echo "[$$(date)] Starting renewal daemon (checks daily, auto-renews 30 days before expiry)" | tee -a $$LOG_FILE
+        
+        # Start renewal daemon - acme.sh cron checks daily and renews if needed
+        while true; do
+          sleep 86400  # 24 hours
+          
+          RENEWAL_LOG="/var/log/acme/renewal-$$(date +%Y%m%d).log"
+          echo "[$$(date)] ========================================" >> $$RENEWAL_LOG
+          echo "[$$(date)] Running renewal check" >> $$RENEWAL_LOG
+          
+          # Run renewal check (only renews if certificate expires in < 30 days)
+          if acme.sh --cron --home /acme.sh 2>&1 | tee -a $$RENEWAL_LOG; then
+            echo "[$$(date)] ✓ Renewal check complete" >> $$RENEWAL_LOG
+            
+            # Check if certificate was actually renewed by comparing timestamps
+            if [ -f /acme.sh/{{ netbird_domain }}_ecc/{{ netbird_domain }}.cer ]; then
+              if [ /acme.sh/{{ netbird_domain }}_ecc/{{ netbird_domain }}.cer -nt "$$CERT_FILE" ]; then
+                echo "[$$(date)] ✓ Certificate was renewed, deploying to HAProxy" >> $$RENEWAL_LOG
+                
+                # Deploy renewed certificate manually
+                CERT_DIR="/acme.sh/{{ netbird_domain }}_ecc"
+                cat "$$CERT_DIR/{{ netbird_domain }}.cer" \
+                    "$$CERT_DIR/{{ netbird_domain }}.key" \
+                    "$$CERT_DIR/ca.cer" > "$$CERT_FILE"
+                chmod 644 "$$CERT_FILE"
+              else
+                echo "[$$(date)] Certificate still valid, no renewal needed" >> $$RENEWAL_LOG
+              fi
+            fi
+          else
+            echo "[$$(date)] ✗ Renewal check failed" >> $$RENEWAL_LOG
+          fi
+        done
+    healthcheck:
+      test: ["CMD", "sh", "-c", "test -f /usr/local/bin/acme.sh && echo 'OK' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 256m
+    memswap_limit: 256m
+    depends_on:
+      haproxy:
+        condition: service_healthy
+
+networks:
+  haproxy:
+    external: true

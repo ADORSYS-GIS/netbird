@@ -1,0 +1,340 @@
+---
+# HAProxy deployment with ACME.sh for automatic SSL certificates
+# Deploys HAProxy 3.2 for TLS termination and load balancing across NetBird management nodes
+
+- name: Install HAProxy prerequisites
+  ansible.builtin.package:
+    name:
+      - socat      # Required for HAProxy stats socket
+      - curl       # Used for health checks
+      - openssl    # Required for certificate operations
+    state: present
+  tags:
+    - haproxy
+    - proxy
+    - ha
+
+- name: Create HAProxy directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - /etc/haproxy
+    - /etc/haproxy/certs
+    - /opt/haproxy
+    - /var/log/acme
+  tags:
+    - haproxy
+    - proxy
+    - ha
+
+# ACME account thumbprint: if provided via Terraform (terraform.tfvars), use it directly.
+# Otherwise, auto-register an ACME account on the first play host and propagate the
+# thumbprint to ALL nodes so every HAProxy instance uses the same value — required for
+# consistent stateless HTTP-01 challenge responses in multi-node deployments.
+
+- name: Auto-register ACME account and extract thumbprint (run once, only when not provided)
+  community.docker.docker_container:
+    name: acme-register-temp
+    image: neilpang/acme.sh:latest
+    command: --register-account -m {{ acme_email }} --server {{ acme_server }}
+    volumes:
+      - /root/.acme.sh:/acme.sh
+    detach: no
+    cleanup: yes
+    output_logs: yes
+  register: _acme_register_output
+  run_once: true
+  when: acme_account_thumbprint is not defined or acme_account_thumbprint | length == 0
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+
+- name: Extract thumbprint from registration output
+  ansible.builtin.set_fact:
+    _computed_thumbprint: "{{ _acme_register_output.container.Output | regex_search(\"ACCOUNT_THUMBPRINT='([^']+)'\", '\\1') | first }}"
+  run_once: true
+  when:
+    - _acme_register_output is defined
+    - _acme_register_output.container.Output is defined
+    - "'ACCOUNT_THUMBPRINT' in _acme_register_output.container.Output"
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+
+- name: Propagate computed thumbprint to all play hosts
+  ansible.builtin.set_fact:
+    acme_account_thumbprint: "{{ hostvars[play_hosts[0]]['_computed_thumbprint'] }}"
+  when:
+    - acme_account_thumbprint is not defined or acme_account_thumbprint | length == 0
+    - hostvars[play_hosts[0]]['_computed_thumbprint'] is defined
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+
+- name: Validate ACME account thumbprint is available
+  ansible.builtin.assert:
+    that:
+      - acme_account_thumbprint is defined
+      - acme_account_thumbprint | length > 0
+    fail_msg: >
+      ACME account thumbprint could not be determined. Either set acme_account_thumbprint
+      in terraform.tfvars, or ensure Docker is available on the target nodes for auto-registration.
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+    - config
+
+- name: Save computed thumbprint to local file for Terraform persistence
+  ansible.builtin.copy:
+    content: "{{ acme_account_thumbprint }}"
+    dest: "{{ playbook_dir }}/../../infrastructure/ansible-stack/.acme_thumbprint"
+    mode: '0600'
+  delegate_to: localhost
+  run_once: true
+  when:
+    - acme_account_thumbprint is defined
+    - acme_account_thumbprint | length > 0
+    - _computed_thumbprint is defined
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+    - config
+
+# HAProxy uses a Unix socket for runtime API (certificate deployment, stats)
+# The socket must be accessible by both HAProxy and ACME.sh containers
+
+- name: Ensure HAProxy socket directory exists with correct permissions
+  ansible.builtin.file:
+    path: /tmp/haproxy
+    state: directory
+    owner: root
+    group: root
+    mode: '0777'  # Permissive mode required for container access
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - config
+
+- name: Create Docker network for NetBird
+  community.docker.docker_network:
+    name: haproxy
+    state: present
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - network
+
+# Note: ACME account sync happens AFTER initial deployment
+# This ensures the primary node has created an account first
+
+- name: Deploy HAProxy configuration
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    mode: '0644'
+  register: haproxy_config
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - config
+
+- name: Render docker-compose.yml for HAProxy + ACME.sh
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/haproxy/docker-compose.yml
+    mode: '0644'
+  register: docker_compose_config
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+    - config
+
+- name: Remove any stub or invalid certificate files before deployment
+  ansible.builtin.find:
+    paths: /etc/haproxy/certs/
+    patterns: "{{ netbird_domain }}.pem"
+    size: "-1024"
+  register: stub_certs
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+
+- name: Delete stub certificates
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ stub_certs.files }}"
+  when: stub_certs.matched > 0
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+
+- name: Cleanup old HAProxy socket if exists
+  ansible.builtin.file:
+    path: /tmp/haproxy/admin.sock
+    state: absent
+  when: haproxy_config.changed or docker_compose_config.changed
+  # Only cleanup when configs change - stale sockets prevent HAProxy from binding
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - config
+
+- name: Deploy HAProxy + ACME.sh using docker-compose
+  community.docker.docker_compose_v2:
+    project_src: /opt/haproxy
+    state: present
+    pull: always
+    recreate: "{{ 'always' if (docker_compose_config.changed or haproxy_config.changed) else 'auto' }}"
+  register: docker_compose_result
+  # Force recreation when configs change to ensure new config is loaded
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+    - deploy
+
+- name: Wait for HAProxy to be healthy
+  community.docker.docker_container_info:
+    name: haproxy
+  register: haproxy_container_info
+  until: haproxy_container_info.container.State.Health.Status | default('') == 'healthy'
+  retries: 30
+  delay: 2
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - verify
+
+- name: Fail if HAProxy is not healthy
+  ansible.builtin.fail:
+    msg: "HAProxy container failed to become healthy. Check logs: docker logs haproxy"
+  when: haproxy_container_info.container.State.Health.Status | default('') != 'healthy'
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - verify
+
+- name: Wait for ACME.sh to be healthy
+  community.docker.docker_container_info:
+    name: acme-sh
+  register: acme_container_info
+  until: acme_container_info.container.State.Health.Status | default('') == 'healthy'
+  retries: 30
+  delay: 3
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+    - verify
+
+- name: Warn if ACME.sh is not healthy (non-fatal)
+  ansible.builtin.debug:
+    msg: "WARNING: ACME.sh container is not healthy. Certificates may not auto-renew. Check logs: docker logs acme-sh"
+  when: acme_container_info.container.State.Health.Status | default('') != 'healthy'
+  # ACME.sh is for certificate renewal, not critical for immediate operation
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - acme
+    - verify
+
+- name: Configure firewall rules for HAProxy
+  community.general.ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    comment: "NetBird HAProxy"
+  loop:
+    - "80"    # HTTP (ACME challenges + redirect to HTTPS)
+    - "443"   # HTTPS (TLS termination)
+    - "8404"  # HAProxy stats UI
+  when: manage_firewall | default(true)
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - firewall
+
+- name: Verify HAProxy + ACME deployment
+  community.docker.docker_host_info:
+    containers: yes
+    containers_filters:
+      name: 
+        - haproxy
+        - acme-sh
+  register: haproxy_containers
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - verify
+
+- name: Check certificate files
+  ansible.builtin.find:
+    paths: /etc/haproxy/certs/
+    patterns: "*.pem"
+  register: cert_files
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - verify
+
+- name: Count HAProxy backend servers
+  ansible.builtin.lineinfile:
+    path: /etc/haproxy/haproxy.cfg
+    regexp: '^\s+server\s+'
+    state: present
+  check_mode: yes
+  register: haproxy_servers
+  failed_when: false
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - verify
+
+- name: Display deployment status
+  ansible.builtin.debug:
+    msg:
+      - "=== Docker Containers ==="
+      - "{{ haproxy_containers.containers | map(attribute='Names') | flatten | join(', ') }}"
+      - ""
+      - "=== Certificate Status ==="
+      - "Certificates found: {{ cert_files.matched }}"
+      - "{{ cert_files.files | map(attribute='path') | list }}"
+  tags:
+    - haproxy
+    - proxy
+    - ha
+    - verify
