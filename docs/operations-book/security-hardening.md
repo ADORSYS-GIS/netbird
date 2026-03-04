@@ -2,12 +2,10 @@
 
 Security measures and best practices for the NetBird production infrastructure.
 
-[[_TOC_]]
-
 ## Overview
 
 <details open>
-<summary>Expand/Collapse</summary>
+<summary>Security Hardening Workflow</summary>
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -15,19 +13,19 @@ Security measures and best practices for the NetBird production infrastructure.
 └──────────────────────────────────────────────────────────────┘
 
     ┌─────────────────┐
-    │ S01 - NETWORK   │
+    │ Network Security│
     │ VPC & Firewall  │
     └────────┬────────┘
              │
              ▼
     ┌─────────────────┐
-    │ S02 - ACCESS    │
+    │ Access Control  │
     │ RBAC & SSH      │
     └────────┬────────┘
              │
              ▼
     ┌─────────────────┐
-    │ S03 - SECRETS   │
+    │ Secrets Mgmt    │
     │ Vault & Encr    │
     └─────────────────┘
 ```
@@ -42,14 +40,12 @@ Security measures and best practices for the NetBird production infrastructure.
 
 </details>
 
----
-
 ## Procedures
 
 <details open>
-<summary>Expand/Collapse</summary>
+<summary>Security Implementation Steps</summary>
 
-### S01 - Network Segmentation
+### Network Segmentation
 
 <details>
 <summary>Execution Details</summary>
@@ -64,7 +60,7 @@ ansible all -i inventory/terraform_inventory.yaml -m shell -a "ufw status verbos
 
 </details>
 
-### S02 - SSH & Access Hardening
+### SSH & Access Hardening
 
 <details>
 <summary>Execution Details</summary>
@@ -77,7 +73,7 @@ Only use Ed25519 or RSA 4096-bit keys for SSH access.
 
 </details>
 
-### S03 - Secrets & Encryption
+### Secrets & Encryption
 
 <details>
 <summary>Verification Details</summary>
@@ -92,12 +88,10 @@ Only use Ed25519 or RSA 4096-bit keys for SSH access.
 
 </details>
 
----
-
 ## Related Documentation
 
 <details>
-<summary>Expand/Collapse</summary>
+<summary>Additional Resources</summary>
 
 | Document | Description |
 |----------|-------------|

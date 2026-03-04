@@ -1,8 +1,6 @@
-# 📕 KC01 | Kubernetes Cluster as a NetBird Peer
+# Kubernetes Cluster as a NetBird Peer
 
 **Action Type**: Configuration | **Risk**: Medium | **Ops Book**: [../operations-book/README.md](../operations-book/README.md)
-
-[[_TOC_]]
 
 ---
 
@@ -167,7 +165,7 @@ Look for successful reconciliation messages and absence of `token invalid` or `c
 
 <details><summary>Rollback Instructions</summary>
 
-### R01 — Remove Operator Config (Routing Peer)
+### Remove Operator Config (Routing Peer)
 
 ```bash
 helm uninstall netbird-config -n netbird

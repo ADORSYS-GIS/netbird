@@ -1,12 +1,8 @@
-# 📕 D01 | NetBird Infrastructure Deployment
+# NetBird Infrastructure Deployment Runbook
 
-**Action Type**: Deployment | **Risk**: Medium | **Ops Book**: [./operations-book.md](../operations-book.md)
+**Action Type**: Deployment | **Risk**: Medium | **Ops Book**: [Operations Book](../../operations-book/helm-stack/README.md)
 
-[[_TOC_]]
-
----
-
-## 01. Pre-Flight Safety Gates
+## Pre-Flight Safety Gates
 
 <details open><summary>Execution Checklist & Quorum</summary>
 
@@ -19,9 +15,7 @@
 
 </details>
 
----
-
-## 02. Step-by-Step Execution
+## Step-by-Step Execution
 
 <details open><summary>The "Golden Path" Procedure</summary>
 
@@ -58,9 +52,7 @@ kubectl get svc -n ingress-nginx ingress-nginx-controller \
 
 </details>
 
----
-
-## 03. Verification & Acceptance
+## Verification & Acceptance
 
 <details open><summary>Post-Action Hardening</summary>
 
@@ -90,13 +82,11 @@ kubectl get certificate -n netbird
 
 </details>
 
----
-
-## 04. Emergency Rollback (The Panic Button)
+## Emergency Rollback (The Panic Button)
 
 <details><summary>Rollback Instructions</summary>
 
-### R01 - Infrastructure Destruction
+### Infrastructure Destruction
 If the deployment is corrupted beyond repair:
 ```bash
 terraform destroy -auto-approve
@@ -110,8 +100,3 @@ helm uninstall ingress-nginx -n ingress-nginx
 
 </details>
 
----
-**Metadata & Revision History**
-- **Created**: 2026-02-27
-- **Version**: 1.0.0
-- **Author**: NetBird DevOps Team

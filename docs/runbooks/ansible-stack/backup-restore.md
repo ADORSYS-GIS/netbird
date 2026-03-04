@@ -372,7 +372,7 @@ scp /backups/netbird/YYYYMMDD/* ubuntu@<management-node>:/var/backups/netbird/YY
 
 **Step 5: Restore database**
 ```bash
-# Follow R01 - Restore Database procedure on management node
+# Follow Restore Database procedure on management node
 ```
 
 **Step 6: Restore configuration**

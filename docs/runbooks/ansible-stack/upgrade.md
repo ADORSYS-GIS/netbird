@@ -1,11 +1,7 @@
-# 📕 UPGRADE-01 | NetBird Ansible Stack Rolling Update
+# NetBird Ansible Stack Rolling Update
 **Action Type**: Upgrade | **Risk**: Medium | **Ops Book**: [Ansible Stack Ops](../../operations-book/ansible-stack/README.md)
 
-[[_TOC_]]
-
----
-
-## 01. Pre-Flight Safety Gates
+## Pre-Flight Safety Gates
 <details open>
 <summary>Execution Checklist & Quorum</summary>
 
@@ -17,27 +13,25 @@
 
 </details>
 
----
-
-## 02. Step-by-Step Execution
+## Step-by-Step Execution
 <details open>
 <summary>The "Golden Path" Procedure (Rolling Update)</summary>
 
-### STEP 01 - Review Changes
+### Review Changes
 Compare current vs new versions:
 ```bash
 grep netbird_version infrastructure/ansible-stack/terraform.tfvars
 # Update version string to desired release
 ```
 
-### STEP 02 - Perform Rolling Update
+### Perform Rolling Update
 The `upgrade.yml` playbook uses `serial: 1` to ensure zero-downtime:
 ```bash
 cd configuration/ansible
 ansible-playbook -i inventory/terraform_inventory.yaml playbooks/upgrade.yml --tags upgrade
 ```
 
-### STEP 03 - Verify Node Health
+### Verify Node Health
 Monitor each node as it restarts:
 ```bash
 # Watch health check endpoint
@@ -46,9 +40,7 @@ watch -n 1 'curl -f http://localhost:9000'
 
 </details>
 
----
-
-## 03. Verification & Acceptance
+## Verification & Acceptance
 <details>
 <summary>Post-Upgrade Hardening</summary>
 
@@ -60,9 +52,7 @@ watch -n 1 'curl -f http://localhost:9000'
 
 </details>
 
----
-
-## 04. Emergency Rollback (The Panic Button)
+## Emergency Rollback
 <details>
 <summary>Rollback Instructions</summary>
 
@@ -77,8 +67,6 @@ ansible-playbook -i inventory/terraform_inventory.yaml playbooks/upgrade.yml --t
 ```
 
 </details>
-
----
 
 ## Appendix
 <details>

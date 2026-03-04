@@ -2,12 +2,10 @@
 
 Comprehensive guide for monitoring NetBird infrastructure health and performance using Prometheus and Grafana.
 
-[[_TOC_]]
-
 ## Overview
 
 <details open>
-<summary>Expand/Collapse</summary>
+<summary>Monitoring & Alerting Workflow</summary>
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -15,19 +13,19 @@ Comprehensive guide for monitoring NetBird infrastructure health and performance
 └──────────────────────────────────────────────────────────────┘
 
     ┌─────────────────┐
-    │ M01 - SCRAPE    │
+    │ Metrics Scrape  │
     │ Prometheus Conf │
     └────────┬────────┘
              │
              ▼
     ┌─────────────────┐
-    │ M02 - VISUALIZE │
+    │ Visualization   │
     │ Grafana Dash    │
     └────────┬────────┘
              │
              ▼
     ┌─────────────────┐
-    │ M03 - ALERT     │
+    │ Alerting        │
     │ Alertmanager    │
     └─────────────────┘
 ```
@@ -45,14 +43,12 @@ Comprehensive guide for monitoring NetBird infrastructure health and performance
 
 </details>
 
----
-
 ## Procedures
 
 <details open>
-<summary>Expand/Collapse</summary>
+<summary>Monitoring Implementation Steps</summary>
 
-### M01 - Prometheus Scrape Configuration
+### Prometheus Scrape Configuration
 
 <details>
 <summary>Execution Details</summary>
@@ -68,7 +64,7 @@ scrape_configs:
 
 </details>
 
-### M02 - Grafana Dashboard Import
+### Grafana Dashboard Import
 
 <details>
 <summary>Execution Details</summary>
@@ -81,7 +77,7 @@ Enable the HAProxy Prometheus exporter and import Dashboard ID `12693`.
 
 </details>
 
-### M03 - Critical Alerts (Alertmanager)
+### Critical Alerts (Alertmanager)
 
 <details>
 <summary>Verification Details</summary>
@@ -90,23 +86,21 @@ Enable the HAProxy Prometheus exporter and import Dashboard ID `12693`.
 |------------|-----------|----------|
 | `NetBirdServiceDown` | `up == 0` | Critical |
 | `ClusterSyncFailed` | `netbird_management_cluster_sync_status == 0` | Critical |
-| `KeepalivedNoMaster` | `sum(node_keepalived_state) == 0` | Critical |
+| `HAProxyBackendDown` | `haproxy_backend_up == 0` | Critical |
 | `PgBouncerPoolFull` | `pgbouncer_pools_client_waiting > 0` | Warning |
 
 </details>
 
 </details>
 
----
-
 ## Related Documentation
 
 <details>
-<summary>Expand/Collapse</summary>
+<summary>Additional Resources</summary>
 
 | Document | Description |
 |----------|-------------|
-| [Troubleshooting Guide](./troubleshooting.md) | Debugging with metrics |
+| [Troubleshooting Guide](../runbooks/troubleshooting.md) | Debugging with metrics |
 | [Disaster Recovery](./disaster-recovery.md) | Backup procedures |
 
 </details>

@@ -1,8 +1,6 @@
-# 📕 PM01 | NetBird Peer & Access Management
+# NetBird Peer & Access Management
 
-**Action Type**: Administration | **Risk**: Low | **Ops Book**: [./operations-book.md](../operations-book.md)
-
-[[_TOC_]]
+**Action Type**: Administration | **Risk**: Low | **Ops Book**: [Operations Book](../../operations-book/helm-stack/README.md)
 
 ---
 
@@ -75,7 +73,7 @@ Test connectivity between peers in the allowed groups (e.g., `ping` or `ssh` to 
 
 <details><summary>Rollback Instructions</summary>
 
-### R01 - Peer Disconnection
+### Peer Disconnection
 ```bash
 # Disconnect and remove the local configuration
 netbird down

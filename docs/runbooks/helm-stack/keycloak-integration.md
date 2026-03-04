@@ -1,8 +1,6 @@
-# 📕 KI01 | NetBird Keycloak OIDC Integration
+# NetBird Keycloak OIDC Integration
 
-**Action Type**: Configuration | **Risk**: Medium | **Ops Book**: [./operations-book.md](../operations-book.md)
-
-[[_TOC_]]
+**Action Type**: Configuration | **Risk**: Medium | **Ops Book**: [Operations Book](../../operations-book/helm-stack/README.md)
 
 ---
 
@@ -77,7 +75,7 @@ Verify that users can log in to the NetBird dashboard and their groups are corre
 
 <details><summary>Rollback Instructions</summary>
 
-### R01 - Revert Client Configuration
+### Revert Client Configuration
 If a client configuration change breaks authentication:
 1. Revert the changes in `keycloak.tf`.
 2. Run `terraform apply -auto-approve`.

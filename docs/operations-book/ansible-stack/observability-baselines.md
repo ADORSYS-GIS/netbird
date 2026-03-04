@@ -1,22 +1,35 @@
-# 📘 02 | Observability & Performance Baselines (Ansible Stack)
+# Observability & Performance Baselines (Ansible Stack)
 
 **SLOs, SLIs, and Dashboards**
 
-[[_TOC_]]
+## Service Level Objectives & Indicators
 
----
+<details open>
+<summary>Performance Targets and Metrics</summary>
 
-## SLOs & SLIs
+### Service Level Objectives (SLOs)
+- **Availability SLO**: 99.99% uptime for the Management API
+- **Latency SLI**: 99th percentile of response time < 300ms
+- **Load Balancing**: Multiple HAProxy nodes with DNS round-robin or external load balancer
 
-- **Availability SLO**: 99.99% uptime for the Management API.
-- **Latency SLI**: 99th percentile of response time < 300ms.
-- **Failover SLI**: Virtual IP switch via Keepalived in < 5 seconds.
+</details>
 
-## Critical Dashboards
+## Monitoring and Logging Resources
 
-- [📈 **HAProxy Stats**](https://netbird.example.com:8404/stats)
-- [🪵 **Management Logs**](journalctl -u netbird-management)
-- [📊 **PgBouncer Metrics**](docker logs pgbouncer)
+<details open>
+<summary>Critical Dashboards and Logs</summary>
 
----
-*Last Updated: 2026-02-27*
+| Resource | Access | Purpose |
+|----------|--------|---------|
+| **HAProxy Stats** | [https://netbird.example.com:8404/stats](https://netbird.example.com:8404/stats) | Load balancer health and traffic |
+| **Management Logs** | `journalctl -u netbird-management` | Service logs and errors |
+| **PgBouncer Metrics** | `docker logs pgbouncer` | Connection pool statistics |
+
+</details>
+
+## Related Documentation
+
+- [Architecture Strategy](./architecture-strategy.md)
+- [Maintenance Lifecycle](./maintenance-lifecycle.md)
+- [Monitoring & Alerting](../monitoring-alerting.md)
+

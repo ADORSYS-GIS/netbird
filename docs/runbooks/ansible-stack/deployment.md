@@ -1,11 +1,7 @@
-# 📕 DEPLOY-01 | NetBird Ansible Stack Deployment
+# NetBird Ansible Stack Deployment Runbook
 **Action Type**: Deployment | **Risk**: Medium | **Ops Book**: [Ansible Stack Ops](../../operations-book/ansible-stack/README.md)
 
-[[_TOC_]]
-
----
-
-## 01. Pre-Flight Safety Gates
+## Pre-Flight Safety Gates
 <details open>
 <summary>Execution Checklist & Quorum</summary>
 
@@ -18,9 +14,7 @@
 
 </details>
 
----
-
-## 02. Step-by-Step Execution
+## Step-by-Step Execution
 <details open>
 <summary>The "Golden Path" Procedure</summary>
 
@@ -49,9 +43,7 @@ ansible-playbook -i inventory/terraform_inventory.yaml playbooks/validate-securi
 
 </details>
 
----
-
-## 03. Verification & Acceptance
+## Verification & Acceptance
 <details>
 <summary>Post-Action Hardening</summary>
 
@@ -60,13 +52,11 @@ ansible-playbook -i inventory/terraform_inventory.yaml playbooks/validate-securi
 | **API** | `curl -f https://[domain]/health` | HTTP 200 OK |
 | **Cluster** | `cluster_control -l` | 3 Connected Nodes |
 | **Firewall** | `ufw status` | Port 443 Open |
-| **VIP** | `Keepalived Status` | Master active on Primary |
+| **HAProxy** | `HAProxy Stats` | All backends healthy |
 
 </details>
 
----
-
-## 04. Emergency Rollback (The Panic Button)
+## Emergency Rollback (The Panic Button)
 <details>
 <summary>Rollback Instructions</summary>
 
@@ -81,17 +71,5 @@ terraform destroy -auto-approve
 git checkout [PREVIOUS_STABLE_COMMIT]
 terraform apply -auto-approve
 ```
-
-</details>
-
----
-
-## Appendix
-<details>
-<summary>Metadata & Revision History</summary>
-
-| Date | Version | Author | Reviewer | Changes |
-| :--- | :--- | :--- | :--- | :--- |
-| 2026-02 | 1.0 | Zencoder Agent | Platform Team | Initial Deployment Runbook |
 
 </details>

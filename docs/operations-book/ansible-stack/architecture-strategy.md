@@ -1,27 +1,23 @@
-# 📘 NetBird Ansible Stack | Operations Book
+# NetBird Ansible Stack Operations Guide
 **Service Owner**: Platform Team | **SLA**: 99.99% | **Env**: Production
 
-[[_TOC_]]
+## Architecture & High Availability Strategy
 
----
-
-## 01. Architecture & High Availability Strategy
 <details open>
-<summary>System Design & Traffic Flow</summary>
+<summary>Click to expand System Design & Traffic Flow</summary>
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
-│                  NETBIRD HA TRAFFIC FLOW                      │
+│                  NETBIRD HA TRAFFIC FLOW                     │
 └──────────────────────────────────────────────────────────────┘
       [Internet Users]
              │
              ▼
-    [Virtual IP (Keepalived)]
+    [DNS Round Robin / Load Balancer]
              │
     ┌────────┴────────┐
     ▼                 ▼
-[HAProxy Node 1] <─── Heartbeat ───> [HAProxy Node 2]
-(Active)                             (Passive)
+[HAProxy Node 1]           [HAProxy Node 2]
     │                 │
     └────────┬────────┘
              │
@@ -39,8 +35,7 @@
 ### Component Registry & Redundancy
 | Component | HA Strategy | Failure Impact | Blast Radius |
 | :--- | :--- | :--- | :--- |
-| **Keepalived** | VRRP Virtual IP Failover | Critical (IP Loss) | Global |
-| **HAProxy** | Active/Passive Failover | Critical (Entry Loss) | Global |
+| **HAProxy** | Multiple Nodes (DNS/LB) | Degraded (Reduced Capacity) | Per-Node |
 | **Management**| 3-node Unified Cluster | Degraded (Quorum) | Service-wide |
 | **PgBouncer** | Local Pooler per Mgmt Node | Performance | Local Node |
 | **Database**  | Multi-AZ / External | Critical (Data Loss)| Global |
@@ -58,12 +53,12 @@
 | :--- | :--- | :--- | :--- |
 | **Management Latency** | `curl /health` | P99 < 300ms | > 1s (2m) |
 | **Agent Quorum** | `cluster_control -l` | 3 Nodes Online | < 2 Nodes (1m) |
-| **VIP Failover** | `Keepalived Logs` | < 5s switch | > 10s downtime |
+| **HAProxy Health** | `HAProxy Stats` | All backends UP | Any backend DOWN (1m) |
 
 ### Critical Links
-- [📈 **HAProxy Stats Dashboard**](https://netbird.example.com:8404/stats)
-- [🪵 **Management Logs**](journalctl -u netbird-management)
-- [📊 **PgBouncer Metrics**](docker logs pgbouncer)
+- [HAProxy Stats Dashboard](https://netbird.example.com:8404/stats)
+- [Management Logs](journalctl -u netbird-management)
+- [PgBouncer Metrics](docker logs pgbouncer)
 
 </details>
 
@@ -75,8 +70,8 @@
 
 | Task | Frequency | Automated? | Runbook Link |
 | :--- | :--- | :--- | :--- |
-| **Deployment** | As needed | ✅ Yes (TF/Ansible) | [Deployment](../runbooks/netbird-ansible-deployment.md) |
-| **Rolling Upgrade**| Version release | ✅ Yes (Ansible) | [Upgrade](../runbooks/netbird-ansible-upgrade.md) |
+| **Deployment** | As needed | ✅ Yes (TF/Ansible) | [Deployment](../../runbooks/ansible-stack/deployment.md) |
+| **Rolling Upgrade**| Version release | ✅ Yes (Ansible) | [Upgrade](../../runbooks/ansible-stack/upgrade.md) |
 | **Cert Renewal** | Every 60 days | ✅ Yes (ACME.sh) | N/A (Automated) |
 | **Security Validation** | Weekly | ✅ Yes (Ansible) | N/A (Automated) |
 

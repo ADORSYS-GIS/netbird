@@ -1,14 +1,10 @@
-# 📔 Troubleshooting & Restoration (Ansible Stack)
+# Troubleshooting & Restoration (Ansible Stack)
 
 **Recovery and Incident Response Procedures**
 
-[[_TOC_]]
-
----
-
 ## Disaster Recovery Procedures
 
-### DR01 - Database Backups (PostgreSQL)
+### Database Backups (PostgreSQL)
 
 **1. Verify Automated Backups (AWS RDS):**
 ```bash
@@ -23,7 +19,7 @@ aws rds describe-db-instances \
 pg_dump -h db.example.com -U netbird -d netbird | gzip > netbird-backup-$(date +%Y%m%d).sql.gz
 ```
 
-### DR02 - Point-in-Time Recovery (PITR)
+### Point-in-Time Recovery (PITR)
 
 **1. Restore Instance from Snapshot:**
 ```bash
@@ -39,7 +35,7 @@ Update `terraform.tfvars` with the new endpoint and run:
 terraform apply
 ```
 
-### DR03 - 3-Node Cluster Recovery
+### 3-Node Cluster Recovery
 
 **1. Re-provision Corrupted Node:**
 ```bash
@@ -52,13 +48,10 @@ The node will automatically sync state via port `9090`. Check status:
 ansible management -i inventory/terraform_inventory.yaml -m shell -a "docker logs netbird-management | grep cluster"
 ```
 
-### DR04 - Quarterly DR Drill
+### Quarterly DR Drill
 
 | Step | Verification Command | Expected Output |
 |------|----------------------|-----------------|
 | Backup | `ls -lh /tmp/dr-test.sql` | Size > 0 |
 | Restore | `psql -d dr_test -c "SELECT 1"` | `1` |
 | Sync | `netbird status` | `Connected` |
-
----
-*Last Updated: 2026-02-27*

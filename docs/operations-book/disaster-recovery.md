@@ -2,12 +2,10 @@
 
 Comprehensive guide for backup and restoration procedures for the NetBird HA stack.
 
-[[_TOC_]]
-
 ## Overview
 
 <details open>
-<summary>Expand/Collapse</summary>
+<summary>Disaster Recovery Workflow</summary>
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -15,25 +13,25 @@ Comprehensive guide for backup and restoration procedures for the NetBird HA sta
 └──────────────────────────────────────────────────────────────┘
 
     ┌─────────────────┐
-    │ DR01 - BACKUP   │
+    │ Backup Process  │
     │ Automated DB    │
     └────────┬────────┘
              │
              ▼
     ┌─────────────────┐
-    │ DR02 - PITR     │
+    │ Point-in-Time   │
     │ Cloud Restore   │
     └────────┬────────┘
              │
              ▼
     ┌─────────────────┐
-    │ DR03 - RECOVERY │
+    │ Recovery Proc   │
     │ 3-Node Resync   │
     └────────┬────────┘
              │
              ▼
     ┌─────────────────┐
-    │ DR04 - TEST     │
+    │ Testing         │
     │ Quarterly Drill │
     └─────────────────┘
 ```
@@ -48,14 +46,12 @@ Comprehensive guide for backup and restoration procedures for the NetBird HA sta
 
 </details>
 
----
-
 ## Procedures
 
 <details open>
-<summary>Expand/Collapse</summary>
+<summary>Disaster Recovery Implementation</summary>
 
-### DR01 - Database Backups (PostgreSQL)
+### Database Backups (PostgreSQL)
 
 <details>
 <summary>Execution Details</summary>
@@ -75,7 +71,7 @@ pg_dump -h db.example.com -U netbird -d netbird | gzip > netbird-backup-$(date +
 
 </details>
 
-### DR02 - Point-in-Time Recovery (PITR)
+### Point-in-Time Recovery (PITR)
 
 <details>
 <summary>Execution Details</summary>
@@ -96,7 +92,7 @@ terraform apply
 
 </details>
 
-### DR03 - 3-Node Cluster Recovery
+### 3-Node Cluster Recovery
 
 <details>
 <summary>Execution Details</summary>
@@ -114,7 +110,7 @@ ansible management -i inventory/terraform_inventory.yaml -m shell -a "docker log
 
 </details>
 
-### DR04 - Quarterly DR Drill
+### Quarterly DR Drill
 
 <details>
 <summary>Verification Details</summary>
@@ -129,12 +125,10 @@ ansible management -i inventory/terraform_inventory.yaml -m shell -a "docker log
 
 </details>
 
----
-
 ## Related Documentation
 
 <details>
-<summary>Expand/Collapse</summary>
+<summary>Additional Resources</summary>
 
 | Document | Description |
 |----------|-------------|

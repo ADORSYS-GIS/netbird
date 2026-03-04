@@ -2,7 +2,7 @@
 
 Production-grade automation framework for deploying NetBird on any infrastructure.
 
-## 🚀 Deployment Guide
+## Deployment Guide
 
 Choose the deployment method that matches your infrastructure:
 
@@ -17,7 +17,7 @@ Deploy on a Kubernetes cluster using **Terraform** and **Helm**.
 
 *   [**Kubernetes Guide**](./docs/runbooks/helm-stack/deployment.md)
 
-## 📚 Documentation
+## Documentation
 
 *   [**Architecture Overview**](./docs/architecture.md)
 *   [**Security Hardening**](./docs/operations-book/security-hardening.md)

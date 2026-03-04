@@ -1,10 +1,6 @@
-# 📘 01 | Architecture & High Availability Strategy
+# Architecture & High Availability Strategy
 
 **System Design & Traffic Flow**
-
-[[_TOC_]]
-
----
 
 ## Multi-AZ Production Flow
 
@@ -32,6 +28,3 @@
 | **Keycloak (Auth)** | OIDC Integration (External/GKE) | User Authentication & API Access Failure | Global/Regional |
 | **PostgreSQL (DB)** | Google Cloud SQL (REGIONAL) | Service Interruption & Potential Data Lock | Regional |
 | **Ingress Controller** | Ingress-Nginx LoadBalancer | All External Traffic Blocked | Regional |
-
----
-*Last Updated: 2026-02-27*

@@ -2,8 +2,6 @@
 
 Procedures for managing PostgreSQL connection pooling via PgBouncer and maintaining database availability in a high-load environment.
 
-[[_TOC_]]
-
 ## Overview
 
 <details open>
@@ -15,19 +13,19 @@ Procedures for managing PostgreSQL connection pooling via PgBouncer and maintain
 └──────────────────────────────────────────────────────────────┘
 
     ┌─────────────────┐
-    │ DB01 - MONITOR  │
+    │ MONITOR         │
     │ Check Stats     │
     └────────┬────────┘
              │
              ▼
     ┌─────────────────┐
-    │ DB02 - MAINTAIN │
+    │ MAINTAIN        │
     │ Drain & Pause   │
     └────────┬────────┘
              │
              ▼
     ┌─────────────────┐
-    │ DB03 - OPTIMIZE │
+    │ OPTIMIZE        │
     │ Tune Pool Size  │
     └─────────────────┘
 ```
@@ -48,7 +46,7 @@ Procedures for managing PostgreSQL connection pooling via PgBouncer and maintain
 <details open>
 <summary>Expand/Collapse</summary>
 
-### DB01 - Connection Verification
+### Connection Verification
 
 <details>
 <summary>Execution Details</summary>
@@ -70,7 +68,7 @@ ansible management -i inventory/terraform_inventory.yaml -m shell -a "docker exe
 
 </details>
 
-### DB02 - Maintenance (Draining Traffic)
+### Maintenance (Draining Traffic)
 
 <details>
 <summary>Execution Details</summary>
@@ -92,7 +90,7 @@ ansible management -i inventory/terraform_inventory.yaml -m shell -a "docker exe
 
 </details>
 
-### DB03 - Pool Tuning
+### Pool Tuning
 
 <details>
 <summary>Execution Details</summary>

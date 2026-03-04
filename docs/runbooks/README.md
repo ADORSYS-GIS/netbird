@@ -1,26 +1,29 @@
-# 📕 NetBird Infrastructure | Runbook Index
+# NetBird Infrastructure | Runbook Index
 
 **Tactical Procedures for Deployment, Maintenance, and Incidents**
 
-[[_TOC_]]
+## Lifecycle & Deployment
+Standard procedures for deploying and maintaining production environments.
 
----
+### Helm Stack (Kubernetes/GKE)
+- [**Helm Stack Deployment**](./helm-stack/deployment.md)
+- [**Helm Stack Upgrade**](./helm-stack/upgrade.md)
 
-## Runbooks by Infrastructure Stack
+### Ansible Stack (VMs/Docker)
+- [**Ansible Stack Deployment**](./ansible-stack/deployment.md)
+- [**Ansible Stack Upgrade**](./ansible-stack/upgrade.md)
 
-### ☸️ Helm Stack (Kubernetes)
-- [**Tactical Runbook Index**](helm-stack/README.md)
-  - [D01 | Infrastructure Deployment](helm-stack/deployment.md)
-  - [U01 | Version Upgrade](helm-stack/upgrade.md)
-  - [TS01| Troubleshooting & Incident Response](helm-stack/troubleshooting.md)
-  - [KI01| Keycloak OIDC Integration](helm-stack/keycloak-integration.md)
+## Stack-Specific Operations
 
-### 🐳 Ansible Stack (VMs)
-- [**Tactical Runbook Index**](ansible-stack/README.md)
-  - [Deployment Runbook](ansible-stack/deployment.md)
-  - [Upgrade Runbook](ansible-stack/upgrade.md)
-  - [Failover Testing](ansible-stack/failover-testing.md)
-  - [Database Management](ansible-stack/database-management.md)
+### Helm Stack (Kubernetes)
+- [**Backup & Restore**](./helm-stack/backup-restore.md)
+- [**Troubleshooting**](./helm-stack/troubleshooting.md)
+- [**Scaling Operations**](./helm-stack/scaling.md)
+- [**AWS VPC Integration**](./helm-stack/aws-vpc-integration.md)
+- [**Keycloak OIDC Integration**](./helm-stack/keycloak-integration.md)
 
----
-*Last Updated: 2026-02-27*
+### Ansible Stack (Docker)
+- [**Backup & Restore**](./ansible-stack/backup-restore.md)
+- [**Troubleshooting**](./ansible-stack/troubleshooting-restoration.md)
+- [**Database HA & Pooling**](./ansible-stack/database-management.md)
+- [**Failover Testing**](./ansible-stack/failover-testing.md)

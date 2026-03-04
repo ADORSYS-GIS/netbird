@@ -1,12 +1,8 @@
-# 📕 TS01 | NetBird Troubleshooting & Incident Response
+# NetBird Troubleshooting & Incident Response
 
-**Action Type**: Incident Response | **Risk**: Medium | **Ops Book**: [./operations-book.md](../operations-book.md)
+**Action Type**: Incident Response | **Risk**: Medium | **Ops Book**: [Operations Book](../../operations-book/helm-stack/README.md)
 
-[[_TOC_]]
-
----
-
-## 01. Pre-Flight Safety Gates
+## Pre-Flight Safety Gates
 
 <details open><summary>Execution Checklist & Quorum</summary>
 
@@ -18,13 +14,11 @@
 
 </details>
 
----
-
-## 02. Step-by-Step Execution
+## Step-by-Step Execution
 
 <details open><summary>The "Golden Path" Procedure</summary>
 
-### STEP 01 - Diagnose OIDC & Keycloak (TS01)
+### STEP 01 - Diagnose OIDC & Keycloak
 
 **Issue: Invalid redirect URI**
 - **Symptom**: `invalid_redirect_uri` error during login.
@@ -41,7 +35,7 @@ grep "netbird_domain" terraform.tfvars
 terraform output -raw keycloak_backend_client_secret
 ```
 
-### STEP 02 - Diagnose Certificates & Ingress (TS02/TS03)
+### STEP 02 - Diagnose Certificates & Ingress
 
 **Issue: ACME Challenge Failure**
 - **Commands**:
@@ -59,7 +53,7 @@ kubectl get challenges -n netbird
 kubectl logs -n netbird -l app.kubernetes.io/name=netbird -c management
 ```
 
-### STEP 03 - Diagnose Connectivity (TS04)
+### STEP 03 - Diagnose Connectivity
 
 **Issue: Peers failing to connect**
 - **Action**: Run `netbird status` on the client device.
@@ -67,9 +61,7 @@ kubectl logs -n netbird -l app.kubernetes.io/name=netbird -c management
 
 </details>
 
----
-
-## 03. Verification & Acceptance
+## Verification & Acceptance
 
 <details open><summary>Post-Action Hardening</summary>
 
@@ -85,13 +77,11 @@ Verify that at least one peer can successfully authenticate and establish a conn
 
 </details>
 
----
-
-## 04. Emergency Rollback (The Panic Button)
+## Emergency Rollback (The Panic Button)
 
 <details><summary>Rollback Instructions</summary>
 
-### R01 - Revert Last Configuration Change
+### Revert Last Configuration Change
 If a recent `terraform apply` caused the issue:
 1. Revert the changes in the `.tf` or `.tfvars` files.
 2. Run `terraform apply -auto-approve`.
@@ -104,7 +94,6 @@ kubectl rollout restart deployment -n netbird
 
 </details>
 
----
 **Metadata & Revision History**
 - **Created**: 2026-02-27
 - **Version**: 1.0.0

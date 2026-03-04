@@ -1,8 +1,6 @@
-# 📕 UM01 | NetBird User & Identity Management
+# NetBird User & Identity Management
 
-**Action Type**: Administration | **Risk**: Low | **Ops Book**: [./operations-book.md](../operations-book.md)
-
-[[_TOC_]]
+**Action Type**: Administration | **Risk**: Low | **Ops Book**: [Operations Book](../../operations-book/helm-stack/README.md)
 
 ---
 
@@ -72,7 +70,7 @@ echo $ACCESS_TOKEN | cut -d. -f2 | base64 -d | jq '.groups'
 
 <details><summary>Rollback Instructions</summary>
 
-### R01 - Account Disabling
+### Account Disabling
 If a user was created in error or represents a security risk:
 1. In Keycloak Admin, go to the User's details.
 2. Set **Enabled** to **OFF**.

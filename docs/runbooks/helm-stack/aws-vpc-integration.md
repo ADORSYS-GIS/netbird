@@ -1,8 +1,6 @@
-# 📕 AI01 | AWS VPC Integration via NetBird Gateway
+# AWS VPC Integration via NetBird Gateway
 
-**Action Type**: Configuration | **Risk**: Medium | **Ops Book**: [../operations-book/README.md](../operations-book/README.md)
-
-[[_TOC_]]
+**Action Type**: Configuration | **Risk**: Medium | **Ops Book**: [Operations Book](../../operations-book/helm-stack/README.md)
 
 ---
 
@@ -76,7 +74,7 @@ Verify that the new route appears in the **Network Routes** section of the NetBi
 
 <details><summary>Rollback Instructions</summary>
 
-### R01 - Route Deletion
+### Route Deletion
 In the NetBird Dashboard, navigate to **Network Routes** and delete the VPC CIDR route.
 
 ### R02 - Gateway Deactivation

@@ -1,12 +1,8 @@
-# 📕 U01 | NetBird Infrastructure Upgrade
+# NetBird Infrastructure Upgrade Runbook
 
-**Action Type**: Upgrade | **Risk**: Medium | **Ops Book**: [./operations-book.md](../operations-book.md)
+**Action Type**: Upgrade | **Risk**: Medium | **Ops Book**: [Operations Book](../../operations-book/helm-stack/README.md)
 
-[[_TOC_]]
-
----
-
-## 01. Pre-Flight Safety Gates
+## Pre-Flight Safety Gates
 
 <details open><summary>Execution Checklist & Quorum</summary>
 
@@ -19,9 +15,7 @@
 
 </details>
 
----
-
-## 02. Step-by-Step Execution
+## Step-by-Step Execution
 
 <details open><summary>The "Golden Path" Procedure</summary>
 
@@ -51,9 +45,7 @@ terraform apply "upgrade.tfplan"
 
 </details>
 
----
-
-## 03. Verification & Acceptance
+## Verification & Acceptance
 
 <details open><summary>Post-Action Hardening</summary>
 
@@ -80,13 +72,11 @@ Connect a test peer to the network and verify it can reach the Management API an
 
 </details>
 
----
-
-## 04. Emergency Rollback (The Panic Button)
+## Emergency Rollback (The Panic Button)
 
 <details><summary>Rollback Instructions</summary>
 
-### R01 - Terraform Reversion
+### Terraform Reversion
 1. Revert the `netbird_chart_version` in `terraform.tfvars` to the previous known-good version.
 2. Run `terraform apply -auto-approve`.
 
@@ -102,7 +92,6 @@ terraform refresh
 
 </details>
 
----
 **Metadata & Revision History**
 - **Created**: 2026-02-27
 - **Version**: 1.0.0

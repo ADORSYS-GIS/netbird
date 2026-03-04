@@ -212,7 +212,7 @@ kubectl apply -f netbird-backup-cronjob.yaml
 
 ## Restore Procedures
 
-### R01 - Restore Database
+### Restore Database
 
 #### PostgreSQL Restore
 
@@ -302,7 +302,7 @@ kubectl rollout restart deployment/netbird-dashboard -n netbird
 
 ## Disaster Recovery
 
-### DR01 - Full Disaster Recovery
+### Full Disaster Recovery
 
 **Prerequisites:**
 - [ ] Backup files available
@@ -340,7 +340,7 @@ kubectl wait --for=condition=ready pod \
 
 **Step 4: Restore database**
 ```bash
-# Follow R01 - Restore Database procedure
+# Follow Restore Database procedure
 ```
 
 **Step 5: Restore Keycloak realm**

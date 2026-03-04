@@ -99,7 +99,6 @@ all:
           ansible_host: 203.0.113.20
           private_ip: 10.0.2.10
           ansible_user: ubuntu
-          keepalived_state: "MASTER"
           keepalived_priority: 100
           
     relay:
